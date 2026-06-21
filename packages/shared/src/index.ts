@@ -1,3 +1,5 @@
+export * from "./enum.js";
+
 export const APP_NAME = "ICPC Trainer";
 export const APP_SERVICE_ID = "icpc-trainer";
 

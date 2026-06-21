@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@icpc-trainer/shared": "workspace:*",
     "better-sqlite3": "12.11.1",
     "drizzle-orm": "0.45.2",
     "effect": "3.21.4"
