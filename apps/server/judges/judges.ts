@@ -17,7 +17,16 @@ export class JudgeAPIError extends Data.TaggedError("JudgeAPIError")<{
   readonly cause?: unknown;
 }> {}
 
-export type JudgeError = JudgeNotFoundError | JudgeUnavailableError | JudgeAPIError;
+export class JudgeCredentialError extends Data.TaggedError("JudgeCredentialError")<{
+  readonly judgeId: string;
+  readonly cause?: unknown;
+}> {}
+
+export type JudgeError =
+  | JudgeNotFoundError
+  | JudgeUnavailableError
+  | JudgeAPIError
+  | JudgeCredentialError;
 
 export interface JudgePreviewContest {
   readonly judgeId: string;

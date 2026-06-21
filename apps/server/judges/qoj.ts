@@ -1,30 +1,63 @@
 
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer, Option } from "effect";
+import { Impit } from "impit";
 
 import {
   type GetSubmissionsOptions,
   type Judge,
   type JudgeContest,
+  type JudgeError,
   type JudgePreviewContest,
   type JudgeSubmission,
+  JudgeAPIError,
+  JudgeCredentialError,
+  JudgeNotFoundError,
   JudgeTag,
   type JudgeUser,
   type Problem
 } from "./judges.js";
 
 const QOJ_BASE_URL = "https://qoj.ac";
+const USER_AGENT = "icpc-trainer-v2-qoj-sync/1.0";
 const REQUEST_TIMEOUT_MS = 60_000;
 const OUTBOUND_INTERVAL_MS = 1_000;
 const MAX_RETRY_ATTEMPTS = 3;
 
 type QojRequestParam = string | number | boolean | undefined;
 
+type QojHttpResponse = {
+  readonly status: number;
+  readonly ok: boolean;
+  readonly html: string;
+};
+
+export interface QojAuth {
+  readonly cookieJar?: string;
+}
+
 type QojContestProblem = {
   readonly id: string;
+  readonly letter: string;
   readonly name: string;
   readonly solves: number;
 };
+
+type QojResultStats = {
+  readonly participants: number;
+  readonly solvesByLetter: ReadonlyMap<string, number>;
+};
+
+class QojRequestError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "api" | "credential",
+    readonly retryable = false
+  ) {
+    super(message);
+    this.name = "QojRequestError";
+  }
+}
 
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
@@ -45,11 +78,11 @@ const buildUrl = (
   return url.toString();
 };
 
-const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
+const createQojRequester = (baseUrl = QOJ_BASE_URL, auth?: QojAuth) => {
   let requestChain: Promise<void> = Promise.resolve();
   let nextAvailableAt = 0;
 
-  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string> =>
+  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError> =>
     Effect.tryPromise({
       try: () => {
         const run = async (): Promise<string> => {
@@ -62,9 +95,9 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
             nextAvailableAt = Date.now() + OUTBOUND_INTERVAL_MS;
 
             try {
-              return await fetchQojText(buildUrl(path, params, baseUrl));
+              return await fetchQojText(buildUrl(path, params, baseUrl), auth);
             } catch (error) {
-              const normalizedError = toError(error);
+              const normalizedError = toQojRequestError(error);
 
               if (attempt + 1 < MAX_RETRY_ATTEMPTS && shouldRetryQojError(normalizedError)) {
                 nextAvailableAt = Math.max(
@@ -78,7 +111,7 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
             }
           }
 
-          throw new Error("QOJ request failed after retries");
+          throw new QojRequestError("QOJ request failed after retries.", "api", true);
         };
 
         const scheduled = requestChain.then(run, run);
@@ -89,11 +122,53 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
 
         return scheduled;
       },
-      catch: toError
-    }).pipe(Effect.catchAll((error) => Effect.die(error)));
+      catch: (error) => toJudgeRequestError(toQojRequestError(error))
+    });
 };
 
-const fetchQojText = async (url: string): Promise<string> => {
+const fetchQojText = async (
+  url: string,
+  auth?: QojAuth
+): Promise<string> => {
+  const cookieJar = auth?.cookieJar?.trim();
+  const normalizedCookieJar = cookieJar === undefined || cookieJar === "" ? undefined : cookieJar;
+
+  const response = isLiveQojUrl(url)
+    ? await fetchQojWithImpit(url, normalizedCookieJar)
+    : await fetchQojWithNode(url, normalizedCookieJar);
+  const html = response.html;
+
+  if (!response.ok) {
+    throw parseQojHttpError(response.status, html);
+  }
+
+  if (isLoginRequiredPage(html)) {
+    throw new QojRequestError(
+      "QOJ login required. Paste a fresh QOJ cookie set from your browser.",
+      "credential"
+    );
+  }
+
+  return html;
+};
+
+let qojImpit: Impit | undefined;
+
+const getQojImpit = (): Impit => {
+  qojImpit ??= new Impit({
+    browser: "chrome",
+    timeout: REQUEST_TIMEOUT_MS
+  });
+
+  return qojImpit;
+};
+
+const isLiveQojUrl = (url: string): boolean => new URL(url).origin === QOJ_BASE_URL;
+
+const fetchQojWithNode = async (
+  url: string,
+  cookieJar: string | undefined
+): Promise<QojHttpResponse> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -101,19 +176,19 @@ const fetchQojText = async (url: string): Promise<string> => {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "User-Agent": "icpc-trainer/1.0"
+        "user-agent": USER_AGENT,
+        ...(cookieJar === undefined ? {} : { cookie: cookieJar })
       }
     });
 
-    if (!response.ok) {
-      throw new Error(`QOJ request failed with HTTP ${response.status}`);
-    }
-
-    return await response.text();
+    return {
+      status: response.status,
+      ok: response.ok,
+      html: await response.text()
+    };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("QOJ request timed out");
+      throw new QojRequestError("QOJ request timed out.", "api", true);
     }
 
     throw error;
@@ -121,6 +196,55 @@ const fetchQojText = async (url: string): Promise<string> => {
     clearTimeout(timeout);
   }
 };
+
+const fetchQojWithImpit = async (
+  url: string,
+  cookieJar: string | undefined
+): Promise<QojHttpResponse> => {
+  const response = await getQojImpit().fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+      ...(cookieJar === undefined ? {} : { cookie: cookieJar })
+    }
+  });
+
+  return {
+    status: response.status,
+    ok: response.ok,
+    html: await response.text()
+  };
+};
+
+const parseQojHttpError = (status: number, html: string): QojRequestError => {
+  const text = cleanHtml(html).slice(0, 500);
+
+  if (isLoginRequiredPage(html)) {
+    return new QojRequestError(
+      `QOJ returned HTTP ${status}: login required. Paste a fresh QOJ cookie set from your browser.`,
+      "credential"
+    );
+  }
+
+  return new QojRequestError(
+    text === "" ? `QOJ returned HTTP ${status} with an empty response body.` : `QOJ returned HTTP ${status}: ${text}`,
+    status >= 500 ? "api" : "credential",
+    status >= 500
+  );
+};
+
+const toQojRequestError = (error: unknown): QojRequestError => {
+  if (error instanceof QojRequestError) {
+    return error;
+  }
+
+  const normalized = toError(error);
+  return new QojRequestError(normalized.message, "api", shouldRetryQojError(normalized));
+};
+
+const toJudgeRequestError = (error: QojRequestError): JudgeError =>
+  error.kind === "credential"
+    ? new JudgeCredentialError({ judgeId: "qoj", cause: error.message })
+    : new JudgeAPIError({ judgeId: "qoj", cause: error.message });
 
 const normalizeContestId = (contestId: string): string =>
   contestId.trim().replace(/^https?:\/\/qoj\.ac\/contest\//i, "").replace(/\/.*$/, "");
@@ -164,7 +288,7 @@ const parseContestProblemRows = (html: string): ReadonlyArray<QojContestProblem>
   const problems = new Map<string, QojContestProblem>();
   const rows = html.match(/<tr\b[\s\S]*?<\/tr>/gi) ?? [];
 
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const problemHref = matchFirst(row, /href=["'][^"']*\/problem\/(\d+)["']/i);
     const contestProblemHref = matchFirst(
       row,
@@ -183,38 +307,119 @@ const parseContestProblemRows = (html: string): ReadonlyArray<QojContestProblem>
     const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) =>
       cleanHtml(cell[1] ?? "")
     );
+    const letter = normalizeProblemLetter(cells[0] ?? "", index);
     const name = cleanHtml(
       linkText || cells.find((cell) => /\S/.test(cell) && !/^\d+$/.test(cell)) || id
     );
     const solves = parseInteger(cells.find((cell) => /^\d+\s*$/.test(cell)) ?? "0");
 
-    problems.set(id, { id, name, solves });
+    problems.set(id, { id, letter, name, solves });
   }
 
   return [...problems.values()];
 };
 
-const toProblem = (contestId: string, problem: QojContestProblem): Problem => ({
+const toProblem = (
+  contestId: string,
+  problem: QojContestProblem,
+  resultStats?: QojResultStats
+): Problem => ({
   judgeId: problem.id,
   name: problem.name,
-  solves: problem.solves,
+  solves: resultStats?.solvesByLetter.get(problem.letter) ?? problem.solves,
   link: `${QOJ_BASE_URL}/contest/${encodeURIComponent(contestId)}/problem/${encodeURIComponent(
     problem.id
   )}`
 });
 
-const toContest = (contestId: string, contestHtml: string, problemsHtml: string): JudgeContest => ({
-  judgeId: contestId,
-  name: parseContestName(contestHtml),
-  participants: parseParticipants(contestHtml),
-  problems: parseContestProblemRows(problemsHtml || contestHtml).map((problem) =>
-    toProblem(contestId, problem)
-  ),
-  stars: 0
-});
+const toContest = (
+  contestId: string,
+  contestHtml: string,
+  resultHtml?: string
+): JudgeContest => {
+  const resultStats = resultHtml === undefined ? undefined : parseResultStats(resultHtml);
+
+  return {
+    judgeId: contestId,
+    name: parseContestName(contestHtml),
+    participants: resultStats?.participants ?? parseParticipants(contestHtml),
+    problems: parseContestProblemRows(contestHtml).map((problem) =>
+      toProblem(contestId, problem, resultStats)
+    ),
+    stars: 0
+  };
+};
 
 const parseParticipants = (html: string): number =>
   parseInteger(matchFirst(html, /(\d+)\s+participants?/i));
+
+const normalizeProblemLetter = (value: string, position: number): string => {
+  const match = value.match(/[A-Z]{1,3}/i);
+
+  if (match?.[0] !== undefined) {
+    return match[0].toUpperCase();
+  }
+
+  return String.fromCodePoint("A".codePointAt(0)! + position);
+};
+
+const findResultId = (html: string, contestId: string): string => {
+  const linkedResultId = matchFirst(html, /href=["'][^"']*\/results\/(QOJ\d+)(?:\/|["'#?])/i);
+  return linkedResultId === "" ? `QOJ${contestId}` : linkedResultId.toUpperCase();
+};
+
+const parseResultStats = (html: string): QojResultStats => {
+  const participantRows = (html.match(/<tr\b[^>]*>\s*<td\b[^>]*>\s*(?:<[^>]+>\s*)*\d+\s*(?:<\/[^>]+>\s*)*<\/td>/gi) ?? [])
+    .length;
+  const explicitParticipants = parseParticipants(html);
+  const solvesByLetter = new Map<string, number>();
+  const rows = html.match(/<tr\b[\s\S]*?<\/tr>/gi) ?? [];
+
+  for (const [index, row] of rows.entries()) {
+    if (/data-qoj-result-problem-row/i.test(row)) {
+      const letter = normalizeProblemLetter(
+        matchFirst(row, /data-letter=["']([^"']+)["']/i) || cleanHtml(row),
+        index
+      );
+      const accepted = parseInteger(
+        matchFirst(row, /data-accepted=["']([^"']+)["']/i) ||
+          matchFirst(row, /class=["'][^"']*\baccepted\b[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i)
+      );
+
+      if (accepted > 0) {
+        solvesByLetter.set(letter, accepted);
+      }
+    }
+
+    for (const header of row.match(/<th\b[\s\S]*?<\/th>/gi) ?? []) {
+      const parsedHeader = parseStandingsHeader(cleanHtml(header));
+
+      if (parsedHeader !== undefined) {
+        solvesByLetter.set(parsedHeader.letter, parsedHeader.accepted);
+      }
+    }
+  }
+
+  return {
+    participants: explicitParticipants || participantRows,
+    solvesByLetter
+  };
+};
+
+const parseStandingsHeader = (
+  value: string
+): { readonly letter: string; readonly accepted: number } | undefined => {
+  const match = value.replace(/\s+/g, "").match(/^([A-Z]{1,3})(\d+)\/\d+$/i);
+
+  if (match?.[1] === undefined || match[2] === undefined) {
+    return undefined;
+  }
+
+  return {
+    letter: match[1].toUpperCase(),
+    accepted: Number.parseInt(match[2], 10)
+  };
+};
 
 const toSubmissionStatus = (value: string): SUBMISSION_STATUSES => {
   const verdict = cleanHtml(value).toUpperCase();
@@ -341,8 +546,8 @@ const decodeHtmlEntities = (value: string): string => {
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
-  const requestQoj = createQojRequester(baseUrl);
+export const makeQojJudge = (baseUrl = QOJ_BASE_URL, auth?: QojAuth): Judge => {
+  const requestQoj = createQojRequester(baseUrl, auth);
 
   return {
     getContests: requestQoj("/contests").pipe(Effect.map(parseContestList)),
@@ -350,17 +555,19 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
     getContest: (contestId) => {
       const normalizedContestId = normalizeContestId(contestId);
 
-      return Effect.all({
-        contestHtml: requestQoj(`/contest/${encodeURIComponent(normalizedContestId)}`),
-        problemsHtml: requestQoj(
-          `/contest/${encodeURIComponent(normalizedContestId)}/problems`
-        ).pipe(Effect.catchAll(() => Effect.succeed("")))
-      }).pipe(
-        Effect.map(({ contestHtml, problemsHtml }) =>
-          toContest(normalizedContestId, contestHtml, problemsHtml)
-        ),
+      return requestQoj(`/contest/${encodeURIComponent(normalizedContestId)}`).pipe(
+        Effect.flatMap((contestHtml) => {
+          const resultId = findResultId(contestHtml, normalizedContestId);
+
+          return requestQoj(`/results/${encodeURIComponent(resultId)}`).pipe(
+            Effect.catchAll(() => Effect.succeed(undefined)),
+            Effect.map((resultHtml) => toContest(normalizedContestId, contestHtml, resultHtml))
+          );
+        }),
         Effect.flatMap((contest) =>
-          contest.name === "" ? Effect.fail(new Error("QOJ contest not found")) : Effect.succeed(contest)
+          contest.name === ""
+            ? Effect.fail(new JudgeNotFoundError({ resource: "contest", judgeId: normalizedContestId }))
+            : Effect.succeed(contest)
         )
       );
     },
@@ -369,16 +576,31 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
       const normalizedHandle = handle.trim();
 
       if (normalizedHandle === "") {
-        return Effect.die(new Error("QOJ user handle is empty"));
+        return Effect.fail(
+          new JudgeAPIError({ judgeId: "qoj", cause: "QOJ user handle is empty" })
+        ) as Effect.Effect<JudgeUser, JudgeAPIError>;
       }
 
       return requestQoj(`/user/profile/${encodeURIComponent(normalizedHandle)}`).pipe(
-        Effect.flatMap((html) =>
-          isMissingPage(html)
-            ? Effect.fail(new Error("QOJ user not found"))
-            : isLoginRequiredPage(html)
-              ? Effect.fail(new Error("QOJ login required"))
-              : Effect.succeed({ handle: normalizedHandle } satisfies JudgeUser)
+        Effect.flatMap(
+          (html): Effect.Effect<JudgeUser, JudgeNotFoundError | JudgeCredentialError> => {
+            if (isMissingPage(html)) {
+              return Effect.fail(
+                new JudgeNotFoundError({ resource: "user", judgeId: normalizedHandle })
+              );
+            }
+
+            if (isLoginRequiredPage(html)) {
+              return Effect.fail(
+                new JudgeCredentialError({
+                  judgeId: normalizedHandle,
+                  cause: "QOJ login required"
+                })
+              );
+            }
+
+            return Effect.succeed({ handle: normalizedHandle });
+          }
         )
       );
     },

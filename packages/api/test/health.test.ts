@@ -9,7 +9,12 @@ describe("appRouter", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const caller = appRouter.createCaller({ database });
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async () => ({ ok: true, result: { ok: true } })
+        }
+      });
       return yield* Effect.promise(() => caller.health.ping());
     });
 

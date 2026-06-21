@@ -29,8 +29,9 @@ export const contests = sqliteTable("contests", {
   judgeId: text("judge_id").notNull(),
   judge: text("judge", { enum: enumValues(JUDGES) }).notNull(),
   name: text("name").notNull(),
-  participants: integer("participants").notNull(),
-  stars: integer("stars").notNull(),
+  link: text("link").notNull(),
+  participants: integer("participants"),
+  stars: integer("stars"),
   synced: integer("synced", { mode: "boolean" }).notNull(),
   ...timestamps
 }, (table) => [

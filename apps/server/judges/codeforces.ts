@@ -1,23 +1,25 @@
 
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
+import { createHash, randomBytes } from "node:crypto";
 
 import {
   type GetSubmissionsOptions,
   type Judge,
   type JudgeContest,
+  type JudgeError,
   JudgeNotFoundError,
   type JudgePreviewContest,
   type JudgeSubmission,
   JudgeTag,
   JudgeUnavailableError,
   type Problem,
-  JudgeAPIError
+  JudgeAPIError,
+  JudgeCredentialError
 } from "./judges.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
-const CODEFORCES_PARTICIPANT_TYPES = "CONTESTANT;VIRTUAL";
 const CODEFORCES_PAGE_SIZE = 100_000;
 
 interface CodeforcesApiSuccess<T> {
@@ -33,6 +35,16 @@ interface CodeforcesApiFailure {
 type CodeforcesApiResponse<T> = CodeforcesApiSuccess<T> | CodeforcesApiFailure;
 
 type CodeforcesRequestParam = string | number | boolean | undefined;
+
+export interface CodeforcesAuth {
+  readonly apiKey?: string;
+  readonly apiSecret?: string;
+}
+
+type RequestCodeforces = <T>(
+  method: string,
+  params?: Record<string, CodeforcesRequestParam>
+) => Effect.Effect<T, CodeforcesApiError>;
 
 interface CodeforcesContest {
   readonly id: number;
@@ -89,61 +101,124 @@ interface CodeforcesSubmission {
 interface CodeforcesApiError {
   readonly comment?: string;
   readonly cause?: unknown;
+  readonly credential?: boolean;
 }
 
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
-const buildUrl = (method: string, params: Record<string, CodeforcesRequestParam> = {}): string => {
-  const url = new URL(`${CODEFORCES_API_URL}/${method}`);
+let codeforcesAuth: CodeforcesAuth | undefined;
 
+const hasCodeforcesAuth = (auth: CodeforcesAuth | undefined): auth is Required<CodeforcesAuth> =>
+  auth?.apiKey !== undefined &&
+  auth.apiKey.trim() !== "" &&
+  auth.apiSecret !== undefined &&
+  auth.apiSecret.trim() !== "";
+
+export const setCodeforcesAuth = (auth: CodeforcesAuth | undefined): void => {
+  codeforcesAuth = hasCodeforcesAuth(auth)
+    ? {
+        apiKey: auth.apiKey.trim(),
+        apiSecret: auth.apiSecret.trim()
+      }
+    : undefined;
+};
+
+const buildSignedUrl = (
+  method: string,
+  params: Record<string, CodeforcesRequestParam> = {},
+  auth: Required<CodeforcesAuth>
+): string => {
+  const entries: Array<[string, string]> = [];
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) {
-      url.searchParams.set(key, String(value));
+      entries.push([key, String(value)]);
     }
   }
 
-  return url.toString();
+  const time = Math.floor(Date.now() / 1_000).toString();
+  entries.push(["apiKey", auth.apiKey.trim()], ["time", time]);
+  const sortedEntries = entries.sort(([leftKey, leftValue], [rightKey, rightValue]) =>
+    leftKey === rightKey ? leftValue.localeCompare(rightValue) : leftKey.localeCompare(rightKey)
+  );
+  const query = new URLSearchParams(sortedEntries);
+  const rand = randomBytes(3).toString("hex");
+  const signaturePayload = `${rand}/${method}?${query.toString()}#${auth.apiSecret.trim()}`;
+  const digest = createHash("sha512").update(signaturePayload).digest("hex");
+  query.set("apiSig", `${rand}${digest}`);
+
+  return `${CODEFORCES_API_URL}/${method}?${query.toString()}`;
 };
 
-const requestCodeforces = <T>(
-  method: string,
-  params?: Record<string, CodeforcesRequestParam>
-): Effect.Effect<T, CodeforcesApiError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const response = await fetch(buildUrl(method, params));
+const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiError => {
+  try {
+    const payload = JSON.parse(body) as Partial<CodeforcesApiFailure>;
 
-      if (!response.ok) {
-        throw new Error(`Codeforces API request failed with HTTP ${response.status}`);
-      }
+    if (typeof payload.comment === "string" && payload.comment.trim() !== "") {
+      return {
+        comment: `Codeforces API returned HTTP ${status}: ${payload.comment.trim()}`
+      };
+    }
+  } catch {
+    // Fall through to the plain-body message below.
+  }
 
-      const payload = (await response.json()) as CodeforcesApiResponse<T>;
+  const trimmedBody = body.trim();
 
-      if (payload.status === "FAILED") {
-        return Promise.reject({ comment: payload.comment });
-      }
+  return {
+    comment:
+      trimmedBody === ""
+        ? `Codeforces API returned HTTP ${status} with an empty response body.`
+        : `Codeforces API returned HTTP ${status}: ${trimmedBody.slice(0, 500)}`
+  };
+};
 
-      return payload.result;
-    },
-    catch: (cause): CodeforcesApiError =>
-      typeof cause === "object" && cause !== null && "comment" in cause
-        ? (cause as CodeforcesApiError)
-        : { cause: toError(cause) }
-  });
+const makeCodeforcesRequester = (): RequestCodeforces =>
+  <T>(method: string, params?: Record<string, CodeforcesRequestParam>) =>
+    Effect.tryPromise({
+      try: async () => {
+        const auth = codeforcesAuth;
+
+        if (!hasCodeforcesAuth(auth)) {
+          return Promise.reject({
+            comment: "Codeforces authentication is required. Provide an API key and API secret.",
+            credential: true
+          });
+        }
+
+        const response = await fetch(buildSignedUrl(method, params, auth));
+
+        if (!response.ok) {
+          return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
+        }
+
+        const payload = (await response.json()) as CodeforcesApiResponse<T>;
+
+        if (payload.status === "FAILED") {
+          return Promise.reject({ comment: payload.comment });
+        }
+
+        return payload.result;
+      },
+      catch: (cause): CodeforcesApiError =>
+        typeof cause === "object" && cause !== null && "comment" in cause
+          ? (cause as CodeforcesApiError)
+          : { cause: toError(cause) }
+    });
 
 const getAllCodeforcesPages = <T>(
   getPage: (from: number, count: number) => Effect.Effect<ReadonlyArray<T>, CodeforcesApiError>,
+  pageSize = CODEFORCES_PAGE_SIZE,
   from = 1,
   items: ReadonlyArray<T> = []
 ): Effect.Effect<ReadonlyArray<T>, CodeforcesApiError> =>
-  getPage(from, CODEFORCES_PAGE_SIZE).pipe(
+  getPage(from, pageSize).pipe(
     Effect.flatMap((page) => {
       const nextItems = [...items, ...page];
 
-      return page.length < CODEFORCES_PAGE_SIZE
+      return page.length < pageSize
         ? Effect.succeed(nextItems)
-        : getAllCodeforcesPages(getPage, from + CODEFORCES_PAGE_SIZE, nextItems);
+        : getAllCodeforcesPages(getPage, pageSize, from + pageSize, nextItems);
     })
   );
 
@@ -153,13 +228,23 @@ const isNotFoundError = (error: CodeforcesApiError): boolean =>
 const isJudgeApiError = (error: CodeforcesApiError): boolean =>
   error.comment !== undefined;
 
+const isCredentialError = (error: CodeforcesApiError): boolean =>
+  error.credential === true ||
+  /api(?:key|sig)|credential|access|denied|permission|private|not authorized|unauthorized|forbidden|invalid/i.test(
+    error.comment ?? ""
+  );
+
 const toJudgeError = (
   judgeId: string,
   resource: "contest" | "user",
   error: CodeforcesApiError
-): JudgeNotFoundError | JudgeUnavailableError | JudgeAPIError => {
+): JudgeNotFoundError | JudgeUnavailableError | JudgeAPIError | JudgeCredentialError => {
   if (isNotFoundError(error)) {
     return new JudgeNotFoundError({ resource, judgeId });
+  }
+
+  if (isCredentialError(error)) {
+    return new JudgeCredentialError({ judgeId, cause: error.comment });
   }
 
   if (isJudgeApiError(error)) {
@@ -243,18 +328,16 @@ const toSubmission = (submission: CodeforcesSubmission): JudgeSubmission => ({
   submittedAt: new Date(submission.creationTimeSeconds * 1000)
 });
 
-const getAllContests = (): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError> =>
-  getAllCodeforcesPages(
-    (from, count) =>
-      requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list", {
-        gym: true,
-        from,
-        count
-      }),
-  );
+const getAllContests = (
+  requestCodeforces: RequestCodeforces
+): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError> =>
+  requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list", {
+    gym: true
+  });
 
 const getAllStandingPages = (
-  contestId: string
+  contestId: string,
+  requestCodeforces: RequestCodeforces
 ): Effect.Effect<ReadonlyArray<CodeforcesStandings>, CodeforcesApiError> =>
   getAllCodeforcesPages(
     (from, count) =>
@@ -262,13 +345,13 @@ const getAllStandingPages = (
         contestId,
         from,
         count,
-        showUnofficial: true,
-        participantTypes: CODEFORCES_PARTICIPANT_TYPES
+        showUnofficial: true
       }).pipe(Effect.map((standings) => [standings])),
   );
 
 const getAllSubmissions = (
-  handle: string
+  handle: string,
+  requestCodeforces: RequestCodeforces
 ): Effect.Effect<ReadonlyArray<CodeforcesSubmission>, CodeforcesApiError> =>
   getAllCodeforcesPages(
     (from, count) =>
@@ -279,50 +362,57 @@ const getAllSubmissions = (
       }),
   );
 
-export const makeCodeforcesJudge = (): Judge => ({
-  getContests: getAllContests().pipe(
-    Effect.map((contests) => contests.map(toPreviewContest)),
-    Effect.mapError((error) => new JudgeUnavailableError({ judgeId: "codeforces", cause: error }))
-  ),
+export const makeCodeforcesJudge = (): Judge => {
+  const requestCodeforces = makeCodeforcesRequester();
 
-  getContest: (contestId) =>
-    getAllStandingPages(contestId).pipe(
-      Effect.mapError((error) => toJudgeError(contestId, "contest", error)),
-      Effect.flatMap((pages) => {
-        const standings = mergeStandingsPages(pages);
-
-        return standings === undefined
-          ? Effect.fail(new JudgeNotFoundError({ resource: "contest", judgeId: contestId }))
-          : Effect.succeed(standings);
-      }),
-      Effect.map(toContest)
+  return {
+    getContests: getAllContests(requestCodeforces).pipe(
+      Effect.map((contests) => contests.map(toPreviewContest)),
+      Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
     ),
 
-  getUser: (handle) =>
-    requestCodeforces<ReadonlyArray<CodeforcesUser>>("user.info", { handles: handle, historic: false }).pipe(
-      Effect.mapError((error) => toJudgeError(handle, "user", error)),
-      Effect.flatMap((users) => {
-        const user = users[0];
+    getContest: (contestId) =>
+      getAllStandingPages(contestId, requestCodeforces).pipe(
+        Effect.mapError((error) => toJudgeError(contestId, "contest", error)),
+        Effect.flatMap((pages) => {
+          const standings = mergeStandingsPages(pages);
 
-        return user === undefined
-          ? Effect.fail(new JudgeNotFoundError({ resource: "user", judgeId: handle }))
-          : Effect.succeed({ handle: user.handle });
-      })
-    ),
+          return standings === undefined
+            ? Effect.fail(new JudgeNotFoundError({ resource: "contest", judgeId: contestId }))
+            : Effect.succeed(standings);
+        }),
+        Effect.map(toContest)
+      ),
 
-  getSubmissions: (options?: GetSubmissionsOptions) => {
-    if (options?.userHandle === undefined || options.userHandle.trim() === "") {
-      return Effect.succeed([]);
+    getUser: (handle) =>
+      requestCodeforces<ReadonlyArray<CodeforcesUser>>("user.info", {
+        handles: handle,
+        historic: false
+      }).pipe(
+        Effect.mapError((error) => toJudgeError(handle, "user", error)),
+        Effect.flatMap((users) => {
+          const user = users[0];
+
+          return user === undefined
+            ? Effect.fail(new JudgeNotFoundError({ resource: "user", judgeId: handle }))
+            : Effect.succeed({ handle: user.handle });
+        })
+      ),
+
+    getSubmissions: (options?: GetSubmissionsOptions) => {
+      if (options?.userHandle === undefined || options.userHandle.trim() === "") {
+        return Effect.succeed([]);
+      }
+
+      const handle = options.userHandle.trim();
+
+      return getAllSubmissions(handle, requestCodeforces).pipe(
+        Effect.map((submissions) => submissions.map(toSubmission)),
+        Effect.mapError((error) => toJudgeError(handle, "user", error))
+      );
     }
-
-    const handle = options.userHandle.trim();
-
-    return getAllSubmissions(handle).pipe(
-      Effect.map((submissions) => submissions.map(toSubmission)),
-      Effect.mapError((error) => toJudgeError(handle, "user", error))
-    );
-  }
-});
+  };
+};
 
 export const CodeforcesJudgeLive: Layer.Layer<JudgeTag> = Layer.succeed(
   JudgeTag,

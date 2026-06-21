@@ -5,6 +5,8 @@ import { Effect, Scope } from "effect";
 import { createServer, type Server, type ServerResponse } from "node:http";
 
 import type { ServerConfig } from "./config.js";
+import { createJudgePlayground } from "./playground.js";
+import { setCodeforcesAuth } from "../judges/codeforces.js";
 
 export interface StartedServer {
   readonly server: Server;
@@ -25,11 +27,14 @@ export const startServer = (
   Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
+    yield* Effect.sync(() => {
+      setCodeforcesAuth(config.codeforces);
+    });
 
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: () => ({ database })
+      createContext: () => ({ database, judges: createJudgePlayground(config) })
     });
 
     const server = createServer((request, response) => {

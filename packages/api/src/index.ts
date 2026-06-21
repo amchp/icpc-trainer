@@ -3,8 +3,11 @@ import type { DatabaseService } from "@icpc-trainer/db";
 import { initTRPC } from "@trpc/server";
 import { Effect } from "effect";
 
+import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
+
 export interface ApiContext {
   readonly database: DatabaseService;
+  readonly judges: JudgePlaygroundService;
 }
 
 const t = initTRPC.context<ApiContext>().create();
@@ -21,7 +24,17 @@ export const appRouter = t.router({
         timestamp: new Date().toISOString()
       };
     })
-  })
+  }),
+  playground: createPlaygroundRouter(t)
 });
 
 export type AppRouter = typeof appRouter;
+
+export type {
+  JudgePlaygroundService,
+  PlaygroundError,
+  PlaygroundInput,
+  PlaygroundOperation,
+  PlaygroundProvider,
+  PlaygroundResult
+} from "./playground.js";

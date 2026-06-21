@@ -1,13 +1,13 @@
 import { APP_NAME } from "@icpc-trainer/shared";
-import { Database, Monitor, Route } from "lucide-react";
+import { Database, KeyRound, Monitor } from "lucide-react";
 
 import { HealthPanel } from "./HealthPanel.js";
-import { StarterTable } from "./StarterTable.js";
+import { PlaygroundPanel } from "./PlaygroundPanel.js";
 
 const capabilities = [
-  { icon: Route, label: "TanStack Router" },
+  { icon: KeyRound, label: "Authenticated judges" },
   { icon: Database, label: "Drizzle SQLite" },
-  { icon: Monitor, label: "Electron wrapper" }
+  { icon: Monitor, label: "Local web app" }
 ];
 
 export function HomeRoute(): React.JSX.Element {
@@ -17,7 +17,7 @@ export function HomeRoute(): React.JSX.Element {
         <header className="flex flex-col gap-4 border-b border-zinc-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-normal">{APP_NAME}</h1>
-            <p className="mt-1 text-sm text-zinc-500">Local-first starter base.</p>
+            <p className="mt-1 text-sm text-zinc-500">Judge API checks and local training data.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {capabilities.map((capability) => {
@@ -35,9 +35,9 @@ export function HomeRoute(): React.JSX.Element {
           </div>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+        <section className="grid gap-6">
           <HealthPanel />
-          <StarterTable />
+          <PlaygroundPanel />
         </section>
       </div>
     </main>
