@@ -1,0 +1,27 @@
+{
+  "name": "@icpc-trainer/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@icpc-trainer/api": "workspace:*",
+    "@icpc-trainer/db": "workspace:*",
+    "@trpc/server": "11.18.0",
+    "effect": "3.21.4"
+  },
+  "devDependencies": {
+    "@icpc-trainer/tsconfig": "workspace:*",
+    "@types/node": "26.0.0",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  }
+}

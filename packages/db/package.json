@@ -1,0 +1,29 @@
+{
+  "name": "@icpc-trainer/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.11.1",
+    "drizzle-orm": "0.45.2",
+    "effect": "3.21.4"
+  },
+  "devDependencies": {
+    "@icpc-trainer/tsconfig": "workspace:*",
+    "@types/better-sqlite3": "7.6.13",
+    "drizzle-kit": "0.31.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  }
+}

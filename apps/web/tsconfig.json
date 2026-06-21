@@ -1,0 +1,13 @@
+{
+  "extends": "@icpc-trainer/tsconfig/react.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true
+  },
+  "references": [
+    { "path": "../../packages/api" },
+    { "path": "../../packages/shared" }
+  ],
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  "exclude": ["dist", "node_modules"]
+}

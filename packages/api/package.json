@@ -1,0 +1,31 @@
+{
+  "name": "@icpc-trainer/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@icpc-trainer/db": "workspace:*",
+    "@icpc-trainer/shared": "workspace:*",
+    "@tanstack/react-query": "5.101.0",
+    "@trpc/client": "11.18.0",
+    "@trpc/react-query": "11.18.0",
+    "@trpc/server": "11.18.0",
+    "effect": "3.21.4"
+  },
+  "devDependencies": {
+    "@icpc-trainer/tsconfig": "workspace:*",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  }
+}

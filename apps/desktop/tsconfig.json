@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node", "electron"],
+    "noEmit": true
+  },
+  "include": ["src", "electron.vite.config.ts"]
+}

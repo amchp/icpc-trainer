@@ -1,0 +1,27 @@
+{
+  "name": "icpc-trainer",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.4",
+  "engines": {
+    "node": ">=24 <26",
+    "pnpm": ">=10.33.4"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c cyan,green \"pnpm dev:server\" \"pnpm --filter @icpc-trainer/web dev:open\"",
+    "dev:web": "pnpm --filter @icpc-trainer/web dev",
+    "dev:server": "pnpm --filter @icpc-trainer/server dev",
+    "dev:desktop": "pnpm --filter @icpc-trainer/desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "tsc -b",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @icpc-trainer/web test:e2e",
+    "smoke:desktop": "pnpm --filter @icpc-trainer/desktop smoke"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.0",
+    "concurrently": "^10.0.3",
+    "shadcn": "4.11.0",
+    "typescript": "6.0.3"
+  }
+}

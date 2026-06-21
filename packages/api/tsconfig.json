@@ -1,0 +1,14 @@
+{
+  "extends": "@icpc-trainer/tsconfig/base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../shared" },
+    { "path": "../db" }
+  ],
+  "include": ["src"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.test.tsx"]
+}
