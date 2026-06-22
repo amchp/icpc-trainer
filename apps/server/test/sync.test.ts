@@ -1,4 +1,4 @@
-import { appRouter } from "@icpc-trainer/api";
+import { appRouter, type JudgeSyncEvent } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseLive, DatabaseServiceTag, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
@@ -30,6 +30,10 @@ const collect = async <T>(iterable: AsyncIterable<T>): Promise<readonly T[]> => 
   return values;
 };
 
+const nextTick = async (): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+};
+
 const withDatabase = async <A>(
   run: (database: DatabaseService) => Promise<A>,
   options: { readonly saveCredentials?: boolean } = {}
@@ -43,7 +47,8 @@ const withDatabase = async <A>(
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true as const, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
       yield* Effect.promise(() =>
@@ -130,6 +135,74 @@ describe("createJudgeSyncService", () => {
         errors: 0
       }
     });
+  });
+
+  it("keeps one active sync per provider and replays active events to late observers", async () => {
+    let runCount = 0;
+    let finish: (() => void) | undefined;
+    const started: JudgeSyncEvent = {
+      type: "started",
+      provider: "codeforces",
+      stepsTotal: 1,
+      stepsLeft: 1
+    };
+    const completed: JudgeSyncEvent = {
+      type: "completed",
+      provider: "codeforces",
+      stepsTotal: 1,
+      stepsLeft: 0,
+      summary: {
+        usersProcessed: 0,
+        submissionsFetched: 0,
+        submissionsInserted: 0,
+        submissionsUpdated: 0,
+        submissionsSkipped: 0,
+        contestsSynced: 0,
+        errors: 0
+      }
+    };
+    const judge: Judge = {
+      sync: async function* () {
+        runCount += 1;
+        yield started;
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+        yield completed;
+      },
+      validateAuthentication: () => Effect.void,
+      getContests: () => Effect.succeed([]),
+      getContest: (contestId) => Effect.succeed({
+        judgeId: contestId,
+        name: `Contest ${contestId}`,
+        participants: 0,
+        problems: [],
+        stars: 0
+      }),
+      getUser: (handle) => Effect.succeed({ handle }),
+      getSubmissions: () => Effect.succeed([])
+    };
+
+    const service = createJudgeSyncService({ codeforces: judge });
+    await service.start({ provider: "codeforces" });
+    await service.start({ provider: "codeforces" });
+    await nextTick();
+
+    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const snapshot = await observer.next();
+
+    expect(runCount).toBe(1);
+    expect(snapshot.value).toMatchObject({
+      type: "snapshot",
+      provider: "codeforces",
+      running: true,
+      events: [started]
+    });
+
+    finish?.();
+    const finalEvent = await observer.next();
+    expect(finalEvent.value).toEqual(completed);
+    await observer.return?.();
   });
 
   it("imports matching submissions idempotently when the problem already exists", async () => {

@@ -4,7 +4,11 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { Effect } from "effect";
 import { z } from "zod";
 
-import { createCredentialsRouter } from "./credentials.js";
+import {
+  createCredentialsRouter,
+  type CredentialStatus,
+  type SaveCredentialsInput
+} from "./credentials.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 
 export const judgeSyncInputSchema = z.object({
@@ -93,28 +97,70 @@ export type JudgeSyncEvent =
       readonly summary: JudgeSyncSummary;
     };
 
+export type JudgeSyncObserveEvent =
+  | {
+      readonly type: "snapshot";
+      readonly provider: JudgeSyncInput["provider"];
+      readonly running: boolean;
+      readonly events: readonly JudgeSyncEvent[];
+    }
+  | JudgeSyncEvent;
+
 export interface JudgeSyncService {
-  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+  readonly start: (input: JudgeSyncInput) => Promise<void>;
+  readonly observe: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncObserveEvent>;
+}
+
+export interface JudgeCredentialValidationService {
+  readonly validateCredentials: (input: SaveCredentialsInput) => Promise<void>;
+}
+
+export type CredentialStatusEvent =
+  | {
+      readonly type: "snapshot";
+      readonly status: CredentialStatus;
+      readonly occurredAt: string;
+    }
+  | {
+      readonly type: "changed";
+      readonly status: CredentialStatus;
+      readonly occurredAt: string;
+    };
+
+export interface CredentialStatusEventService {
+  readonly publish: (event: CredentialStatusEvent) => void;
+  readonly subscribe: () => AsyncIterable<CredentialStatusEvent>;
 }
 
 export interface ApiContext {
   readonly database: DatabaseService;
-  readonly judges: JudgePlaygroundService & Partial<JudgeSyncService>;
+  readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService>;
+  readonly credentialEvents?: CredentialStatusEventService;
 }
 
 const t = initTRPC.context<ApiContext>().create();
 
 const createJudgesRouter = () =>
   t.router({
-    sync: t.procedure.input(judgeSyncInputSchema).subscription(async function* ({ ctx, input }) {
-      if (ctx.judges.sync === undefined) {
+    startSync: t.procedure.input(judgeSyncInputSchema).mutation(async ({ ctx, input }) => {
+      if (ctx.judges.start === undefined) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Judge sync service is not configured."
         });
       }
 
-      yield* ctx.judges.sync(input);
+      await ctx.judges.start(input);
+    }),
+    observeSync: t.procedure.input(judgeSyncInputSchema).subscription(async function* ({ ctx, input }) {
+      if (ctx.judges.observe === undefined) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Judge sync service is not configured."
+        });
+      }
+
+      yield* ctx.judges.observe(input);
     })
   });
 

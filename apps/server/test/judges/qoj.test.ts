@@ -100,7 +100,8 @@ describe("QOJ judge HTML fixtures", () => {
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true as const, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
       yield* Effect.promise(() =>
@@ -257,6 +258,36 @@ describe("QOJ judge HTML fixtures", () => {
 
     await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
     expect(lastCookieHeader).toBe(qojCookieJar);
+  });
+
+  it("validates QOJ credentials by loading the submitted profile page", async () => {
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(judge.validateAuthentication({
+      provider: "qoj",
+      providerUserKey: "juancs",
+      qoj: {
+        cookieJar: qojCookieJar
+      }
+    }))).resolves.toBeUndefined();
+
+    expect(requestedPaths.at(-1)).toBe("/user/profile/juancs");
+    expect(lastCookieHeader).toBe(qojCookieJar);
+  });
+
+  it("rejects QOJ validation when the profile page requires login", async () => {
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(Effect.flip(judge.validateAuthentication({
+      provider: "qoj",
+      providerUserKey: "private",
+      qoj: {
+        cookieJar: qojCookieJar
+      }
+    })))).resolves.toMatchObject({
+      _tag: "JudgeCredentialError",
+      cause: "QOJ login required. Paste a fresh QOJ cookie set from your browser."
+    });
   });
 
   it("does not classify successful Cloudflare-looking HTML before parsing", async () => {

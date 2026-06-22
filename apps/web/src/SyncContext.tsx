@@ -1,5 +1,5 @@
 import type { JudgeSyncEvent, JudgeSyncInput, JudgeSyncSummary } from "@icpc-trainer/api";
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
@@ -33,6 +33,8 @@ interface SyncContextValue {
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
+
+const observableProviders: readonly JudgeSyncInput["provider"][] = ["codeforces", "qoj"];
 
 const emptyStep = (): SyncStepProgress => ({
   status: "pending",
@@ -214,64 +216,98 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
   const [steps, setSteps] = useState<SyncSteps>(emptySteps);
   const subscriptionsRef = useRef<Array<{ unsubscribe: () => void }>>([]);
   const providerStepsRef = useRef(new Map<JudgeSyncInput["provider"], SyncSteps>());
-  const completedProvidersRef = useRef(new Set<JudgeSyncInput["provider"]>());
+  const providerEventsRef = useRef(new Map<JudgeSyncInput["provider"], JudgeSyncEvent[]>());
+  const runningProvidersRef = useRef(new Set<JudgeSyncInput["provider"]>());
   const summaryRef = useRef<JudgeSyncSummary>(emptySummary());
 
-  const startSync = useCallback((providers: readonly JudgeSyncInput["provider"][]) => {
-    if (subscriptionsRef.current.length > 0 || providers.length === 0) {
+  const publishAggregateState = useCallback(() => {
+    const nextSteps = aggregateSteps(providerStepsRef.current);
+    setSteps(nextSteps);
+
+    const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total;
+    const nextStepsLeft = nextStepsTotal - nextSteps.submissions.processed - nextSteps.contests.processed;
+    setStepsTotal(nextStepsTotal);
+    setStepsLeft(Math.max(nextStepsLeft, 0));
+
+    const nextEvents = [...providerEventsRef.current.values()].flat();
+    setEvents(nextEvents);
+
+    if (runningProvidersRef.current.size > 0) {
+      setStatus("running");
+      setSummary(null);
       return;
     }
 
-    const uniqueProviders = [...new Set(providers)];
-    setStatus("running");
-    setEvents([]);
-    setLatestEvent(null);
-    setSummary(null);
-    setStepsTotal(0);
-    setStepsLeft(0);
-    setSteps(emptySteps());
-    providerStepsRef.current = new Map(uniqueProviders.map((provider) => [provider, emptySteps()]));
-    completedProvidersRef.current = new Set();
-    summaryRef.current = emptySummary();
+    if (nextEvents.length === 0) {
+      setStatus("idle");
+      setLatestEvent(null);
+      setSummary(null);
+      return;
+    }
 
-    subscriptionsRef.current = uniqueProviders.map((provider) =>
-      trpc.judges.sync.subscribe(
+    setSummary(summaryRef.current);
+    setStatus(summaryRef.current.errors > 0 ? "error" : "completed");
+  }, []);
+
+  const replayProviderEvents = useCallback((provider: JudgeSyncInput["provider"], replayedEvents: readonly JudgeSyncEvent[]) => {
+    let nextSteps = emptySteps();
+    for (const event of replayedEvents) {
+      nextSteps = applyEventToSteps(nextSteps, event);
+    }
+    providerStepsRef.current.set(provider, nextSteps);
+    providerEventsRef.current.set(provider, [...replayedEvents]);
+  }, []);
+
+  const handleProviderEvent = useCallback((provider: JudgeSyncInput["provider"], event: JudgeSyncEvent) => {
+    providerEventsRef.current.set(provider, [
+      ...(providerEventsRef.current.get(provider) ?? []),
+      event
+    ]);
+    setLatestEvent(event);
+
+    if (event.type === "started") {
+      runningProvidersRef.current.add(provider);
+    }
+
+    if (event.type === "error") {
+      toaster.error({
+        title: `Could not sync ${event.provider}`,
+        description: event.message
+      });
+    }
+
+    const currentSteps = providerStepsRef.current.get(provider) ?? emptySteps();
+    providerStepsRef.current.set(provider, applyEventToSteps(currentSteps, event));
+
+    if (event.type === "completed") {
+      summaryRef.current = addSummary(summaryRef.current, event.summary);
+      runningProvidersRef.current.delete(provider);
+    }
+
+    publishAggregateState();
+  }, [publishAggregateState, toaster]);
+
+  useEffect(() => {
+    subscriptionsRef.current = observableProviders.map((provider) =>
+      trpc.judges.observeSync.subscribe(
         { provider },
         {
           onData: (event) => {
-            setEvents((current) => [...current, event]);
-            setLatestEvent(event);
-
-            if (event.type === "error") {
-              toaster.error({
-                title: `Could not sync ${event.provider}`,
-                description: event.message
-              });
-            }
-
-            const currentSteps = providerStepsRef.current.get(provider) ?? emptySteps();
-            providerStepsRef.current.set(provider, applyEventToSteps(currentSteps, event));
-            const nextSteps = aggregateSteps(providerStepsRef.current);
-            setSteps(nextSteps);
-
-            const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total;
-            const nextStepsLeft = nextStepsTotal - nextSteps.submissions.processed - nextSteps.contests.processed;
-            setStepsTotal(nextStepsTotal);
-            setStepsLeft(Math.max(nextStepsLeft, 0));
-
-            if (event.type === "completed") {
-              summaryRef.current = addSummary(summaryRef.current, event.summary);
-              completedProvidersRef.current.add(provider);
-
-              if (completedProvidersRef.current.size === uniqueProviders.length) {
-                setSummary(summaryRef.current);
-                setStatus(summaryRef.current.errors > 0 ? "error" : "completed");
-                for (const subscription of subscriptionsRef.current) {
-                  subscription.unsubscribe();
-                }
-                subscriptionsRef.current = [];
+            if (event.type === "snapshot") {
+              if (event.running) {
+                runningProvidersRef.current.add(provider);
+                replayProviderEvents(provider, event.events);
+                setLatestEvent(event.events.at(-1) ?? null);
+              } else {
+                runningProvidersRef.current.delete(provider);
+                providerStepsRef.current.delete(provider);
+                providerEventsRef.current.delete(provider);
               }
+              publishAggregateState();
+              return;
             }
+
+            handleProviderEvent(provider, event);
           },
           onError: (error) => {
             const errorEvent: JudgeSyncEvent = {
@@ -279,35 +315,53 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
               provider,
               phase: "database",
               message: error.message,
-              stepsTotal,
-              stepsLeft
+              stepsTotal: 0,
+              stepsLeft: 0
             };
-            setLatestEvent(errorEvent);
-            setEvents((current) => [...current, errorEvent]);
-            toaster.error({
-              title: `Could not sync ${provider}`,
-              description: error.message
-            });
-            setStatus("error");
-            const currentSteps = providerStepsRef.current.get(provider) ?? emptySteps();
-            providerStepsRef.current.set(provider, {
-              submissions: currentSteps.submissions.status === "running"
-                ? { ...currentSteps.submissions, status: "error" }
-                : currentSteps.submissions,
-              contests: currentSteps.contests.status === "running"
-                ? { ...currentSteps.contests, status: "error" }
-                : currentSteps.contests
-            });
-            setSteps(aggregateSteps(providerStepsRef.current));
-            for (const subscription of subscriptionsRef.current) {
-              subscription.unsubscribe();
-            }
-            subscriptionsRef.current = [];
+            handleProviderEvent(provider, errorEvent);
           }
         }
       )
     );
-  }, [stepsLeft, stepsTotal, toaster]);
+
+    return () => {
+      for (const subscription of subscriptionsRef.current) {
+        subscription.unsubscribe();
+      }
+      subscriptionsRef.current = [];
+    };
+  }, [handleProviderEvent, publishAggregateState, replayProviderEvents]);
+
+  const startSync = useCallback((providers: readonly JudgeSyncInput["provider"][]) => {
+    const uniqueProviders = [...new Set(providers)];
+    if (uniqueProviders.length === 0 || runningProvidersRef.current.size > 0 || status === "running") {
+      return;
+    }
+
+    setEvents([]);
+    setLatestEvent(null);
+    setSummary(null);
+    setStepsTotal(0);
+    setStepsLeft(0);
+    setSteps(emptySteps());
+    providerStepsRef.current = new Map(uniqueProviders.map((provider) => [provider, emptySteps()]));
+    providerEventsRef.current = new Map(uniqueProviders.map((provider) => [provider, []]));
+    runningProvidersRef.current = new Set(uniqueProviders);
+    summaryRef.current = emptySummary();
+    setStatus("running");
+
+    for (const provider of uniqueProviders) {
+      void trpc.judges.startSync.mutate({ provider }).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        runningProvidersRef.current.delete(provider);
+        setStatus("error");
+        toaster.error({
+          title: `Could not sync ${provider}`,
+          description: message
+        });
+      });
+    }
+  }, [status, toaster]);
 
   const progress = stepsTotal === 0 ? 0 : Math.round(((stepsTotal - stepsLeft) / stepsTotal) * 100);
 

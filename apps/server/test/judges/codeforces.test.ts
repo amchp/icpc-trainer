@@ -52,7 +52,8 @@ const runWithDatabase = async <A>(
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true as const, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
       yield* Effect.promise(() =>
@@ -341,6 +342,61 @@ describe("makeCodeforcesJudge", () => {
     expect(url.searchParams.get("apiKey")).toBe("key");
     expect(url.searchParams.get("time")).toMatch(/^\d+$/);
     expect(url.searchParams.get("apiSig")).toMatch(/^[a-f0-9]{134}$/);
+  });
+
+  it("validates Codeforces credentials with user.info and user.friends", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "OK",
+          result: [{ handle: "MikeMirzayanov" }]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "OK",
+          result: ["tourist"]
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runWithDatabase(makeCodeforcesJudge().validateAuthentication({
+      provider: "codeforces",
+      providerUserKey: "MikeMirzayanov",
+      codeforces: codeforcesAuth
+    }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const userInfoUrl = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
+    expect(userInfoUrl.searchParams.get("handles")).toBe("MikeMirzayanov");
+    expect(userInfoUrl.searchParams.get("apiKey")).toBe("key");
+    const friendsUrl = expectRequestedUrl(fetchMock.mock.calls[1]?.[0], "/api/user.friends");
+    expect(friendsUrl.searchParams.get("apiKey")).toBe("key");
+  });
+
+  it("rejects missing Codeforces handles after checking user.info", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "FAILED",
+        comment: "handles: User with handle bad handle! not found"
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runWithDatabase(Effect.flip(makeCodeforcesJudge().validateAuthentication({
+        provider: "codeforces",
+        providerUserKey: "bad handle!",
+        codeforces: codeforcesAuth
+      })))
+    ).resolves.toMatchObject({
+      _tag: "JudgeCredentialError",
+      judgeId: "bad handle!",
+      cause: "Codeforces handle does not exist: bad handle!."
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
+    expect(url.searchParams.get("handles")).toBe("bad handle!");
   });
 
   it("maps signed Codeforces auth failures to credential errors", async () => {

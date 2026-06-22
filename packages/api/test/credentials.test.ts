@@ -4,7 +4,13 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { appRouter, getStoredCodeforcesCredentials, getStoredQojCredentials, seedStoredCredentials } from "../src/index.js";
+import {
+  appRouter,
+  getStoredCodeforcesCredentials,
+  getStoredQojCredentials,
+  seedStoredCredentials,
+  type CredentialStatusEvent
+} from "../src/index.js";
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -26,7 +32,8 @@ describe("credentials router", () => {
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
 
@@ -60,7 +67,8 @@ describe("credentials router", () => {
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
 
@@ -87,6 +95,43 @@ describe("credentials router", () => {
     });
   });
 
+  it("does not store credentials when judge validation fails", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => {
+            throw new Error("Codeforces credentials failed validation.");
+          }
+        }
+      });
+
+      yield* Effect.promise(() =>
+        expect(caller.credentials.save({
+          provider: "codeforces",
+          providerUserKey: "tourist",
+          codeforces: {
+            apiKey: "cf-key",
+            apiSecret: "cf-secret"
+          }
+        })).rejects.toThrow("Codeforces credentials failed validation.")
+      );
+
+      return database.db.select().from(providerCredentials).all();
+    });
+
+    const stored = await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+    );
+
+    expect(stored).toHaveLength(0);
+  });
+
   it("removes primary users when clearing judge credentials", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
@@ -96,7 +141,8 @@ describe("credentials router", () => {
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async (input) => ({ ok: true, result: input })
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
         }
       });
 
@@ -164,5 +210,53 @@ describe("credentials router", () => {
     expect(result.stored).toHaveLength(2);
     expect(result.stored.map((credential) => credential.encryptedPayload).join("\n")).not.toContain("env-cf-secret");
     expect(result.stored.map((credential) => credential.encryptedPayload).join("\n")).not.toContain("uojsessid");
+  });
+
+  it("publishes status-only credential events after saving credentials", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+    const published: CredentialStatusEvent[] = [];
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        credentialEvents: {
+          publish: (event) => published.push(event),
+          subscribe: async function* () {}
+        },
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
+        }
+      });
+
+      yield* Effect.promise(() => caller.credentials.save({
+        provider: "codeforces",
+        providerUserKey: "tourist",
+        codeforces: {
+          apiKey: "cf-key",
+          apiSecret: "cf-secret"
+        }
+      }));
+    });
+
+    await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+    );
+
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatchObject({
+      type: "changed",
+      status: {
+        codeforces: {
+          saved: true
+        }
+      }
+    });
+    const payload = JSON.stringify(published);
+    expect(payload).not.toContain("cf-key");
+    expect(payload).not.toContain("cf-secret");
+    expect(payload).not.toContain("encryptedPayload");
   });
 });

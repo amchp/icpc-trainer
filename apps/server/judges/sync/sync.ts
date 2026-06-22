@@ -1,6 +1,7 @@
 import {
   type JudgeSyncEvent,
   type JudgeSyncInput,
+  type JudgeSyncObserveEvent,
   type JudgeSyncService,
   type JudgeSyncSummary
 } from "@icpc-trainer/api";
@@ -10,6 +11,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Data, Effect } from "effect";
 
 import type { Judge, JudgeContest, JudgeError, JudgeSubmission } from "../judges.js";
+import { createAsyncEventHub, type AsyncEventHub } from "../../src/asyncEventHub.js";
 
 const CODEFORCES_CONTEST_URL = "https://codeforces.com/gym";
 const QOJ_CONTEST_URL = "https://qoj.ac/contest";
@@ -51,8 +53,6 @@ export type MutableJudgeSyncSummary = {
 };
 
 type JudgeSyncRegistry = Partial<Record<JudgeSyncInput["provider"], Judge>>;
-
-const activeSyncProviders = new Set<JudgeSyncInput["provider"]>();
 
 export async function* notImplementedJudgeSync(input: JudgeSyncInput): AsyncIterable<JudgeSyncEvent> {
   const summary = emptySummary();
@@ -594,34 +594,13 @@ export const finalEvent = (
 export type EmitSyncEvent = (event: JudgeSyncEvent) => Effect.Effect<void>;
 
 export async function* createJudgeSyncRunner(
-  database: DatabaseService,
-  input: JudgeSyncInput,
   runProgram: (emit: EmitSyncEvent) => Effect.Effect<void>
 ): AsyncIterable<JudgeSyncEvent> {
-  const provider = input.provider;
-
-  if (activeSyncProviders.has(provider)) {
-    const summary = emptySummary();
-    summary.errors = 1;
-    yield {
-      type: "error",
-      provider,
-      phase: "concurrency",
-      message: `A ${provider} sync is already running.`,
-      stepsTotal: 0,
-      stepsLeft: 0
-    };
-    yield finalEvent(provider, 0, summary);
-    return;
-  }
-
-  activeSyncProviders.add(provider);
   const queue = createAsyncEventQueue<JudgeSyncEvent>();
   const emit: EmitSyncEvent = (event) => Effect.sync(() => queue.push(event));
   Effect.runPromise(
     runProgram(emit).pipe(
       Effect.ensuring(Effect.sync(() => {
-        activeSyncProviders.delete(provider);
         queue.close();
       }))
     )
@@ -630,11 +609,91 @@ export async function* createJudgeSyncRunner(
   yield* queue.iterable;
 }
 
+interface ActiveJudgeSyncState {
+  running: boolean;
+  events: JudgeSyncEvent[];
+  hub: AsyncEventHub<JudgeSyncObserveEvent>;
+}
+
+const createProviderState = (): ActiveJudgeSyncState => ({
+  running: false,
+  events: [],
+  hub: createAsyncEventHub<JudgeSyncObserveEvent>()
+});
+
+const syncFailureEvent = (
+  provider: JudgeSyncInput["provider"],
+  error: unknown
+): JudgeSyncEvent => ({
+  type: "error",
+  provider,
+  phase: "database",
+  message: error instanceof Error ? error.message : String(error),
+  stepsTotal: 0,
+  stepsLeft: 0
+});
+
+const failedSyncCompletedEvent = (provider: JudgeSyncInput["provider"]): JudgeSyncEvent => {
+  const summary = emptySummary();
+  summary.errors = 1;
+  return finalEvent(provider, 0, summary);
+};
+
 export const createJudgeSyncService = (
   registry: JudgeSyncRegistry
-): JudgeSyncService => ({
-  sync: (input) => {
-    const judge = judgeFor(input.provider, registry);
-    return judge?.sync(input) ?? notImplementedJudgeSync(input);
-  }
-});
+): JudgeSyncService & {
+  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+} => {
+  const states: Record<JudgeSyncInput["provider"], ActiveJudgeSyncState> = {
+    codeforces: createProviderState(),
+    qoj: createProviderState()
+  };
+
+  return {
+    start: async (input) => {
+      const state = states[input.provider];
+      if (state.running) {
+        return;
+      }
+
+      const judge = judgeFor(input.provider, registry);
+      const iterable = judge?.sync(input) ?? notImplementedJudgeSync(input);
+      state.running = true;
+      state.events = [];
+
+      void (async () => {
+        try {
+          for await (const event of iterable) {
+            state.events.push(event);
+            state.hub.publish(event);
+          }
+        } catch (error) {
+          const event = syncFailureEvent(input.provider, error);
+          const completed = failedSyncCompletedEvent(input.provider);
+          state.events.push(event, completed);
+          state.hub.publish(event);
+          state.hub.publish(completed);
+        } finally {
+          state.running = false;
+          state.events = [];
+        }
+      })();
+    },
+    observe: async function* (input) {
+      const state = states[input.provider];
+      const eventsSubscription = state.hub.subscribe();
+      const events = state.running ? [...state.events] : [];
+      yield {
+        type: "snapshot",
+        provider: input.provider,
+        running: state.running,
+        events
+      };
+      yield* eventsSubscription;
+    },
+    sync: (input) => {
+      const judge = judgeFor(input.provider, registry);
+      return judge?.sync(input) ?? notImplementedJudgeSync(input);
+    }
+  };
+};

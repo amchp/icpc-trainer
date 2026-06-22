@@ -56,18 +56,22 @@ export function ConnectedJudgesProvider({ children }: { readonly children: React
 
   useEffect(() => {
     let active = true;
-    void trpc.credentials.status.query().then((nextStatus) => {
-      if (active) {
-        setCredentialStatus(nextStatus);
-      }
-    }).catch(() => {
-      if (active) {
-        setStatus("error");
+    const subscription = trpc.credentials.events.subscribe(undefined, {
+      onData: (event) => {
+        if (active) {
+          setCredentialStatus(event.status);
+        }
+      },
+      onError: () => {
+        if (active) {
+          setStatus("error");
+        }
       }
     });
 
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, [setCredentialStatus]);
 

@@ -1,15 +1,17 @@
 import {
   clearStoredCredentials,
+  type JudgeCredentialValidationService,
   type JudgePlaygroundService,
   type PlaygroundError,
   type PlaygroundInput,
-  type PlaygroundResult
+  type PlaygroundResult,
+  type SaveCredentialsInput
 } from "@icpc-trainer/api";
 import { DatabaseServiceTag, type DatabaseService } from "@icpc-trainer/db";
 import { Effect } from "effect";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
-import type { JudgeError } from "../judges/judges.js";
+import type { JudgeAuthenticationInput, JudgeError } from "../judges/judges.js";
 import { makeQojJudge } from "../judges/qoj.js";
 
 const requiredInput = (value: string | undefined, label: string): string => {
@@ -157,3 +159,47 @@ export const createJudgePlayground = (database: DatabaseService): JudgePlaygroun
     }
   };
 };
+
+const toJudgeAuthenticationInput = (input: SaveCredentialsInput): JudgeAuthenticationInput => {
+  if (input.provider === "codeforces") {
+    if (input.codeforces?.apiKey === undefined || input.codeforces.apiSecret === undefined) {
+      throw new Error("Codeforces API key and API secret are required.");
+    }
+
+    return {
+      provider: "codeforces",
+      providerUserKey: input.providerUserKey,
+      codeforces: {
+        apiKey: input.codeforces.apiKey,
+        apiSecret: input.codeforces.apiSecret
+      }
+    };
+  }
+
+  if (input.qoj?.cookieJar === undefined) {
+    throw new Error("QOJ cookie jar is required.");
+  }
+
+  return {
+    provider: "qoj",
+    providerUserKey: input.providerUserKey,
+    qoj: {
+      cookieJar: input.qoj.cookieJar
+    }
+  };
+};
+
+export const createJudgeCredentialValidation = (database: DatabaseService): JudgeCredentialValidationService => ({
+  validateCredentials: async (input) => {
+    const judge = input.provider === "codeforces"
+      ? makeCodeforcesJudge()
+      : makeQojJudge();
+    const effect = judge.validateAuthentication(toJudgeAuthenticationInput(input));
+
+    await Effect.runPromise(
+      Effect.provideService(effect, DatabaseServiceTag, database).pipe(
+        Effect.mapError((error) => new Error(formatJudgeError(error)))
+      )
+    );
+  }
+});

@@ -71,8 +71,28 @@ export interface GetSubmissionsOptions {
   readonly userHandle: string;
 }
 
+export type JudgeAuthenticationInput =
+  | {
+      readonly provider: "codeforces";
+      readonly providerUserKey?: string;
+      readonly codeforces: {
+        readonly apiKey: string;
+        readonly apiSecret: string;
+      };
+    }
+  | {
+      readonly provider: "qoj";
+      readonly providerUserKey?: string;
+      readonly qoj: {
+        readonly cookieJar: string;
+      };
+    };
+
 export interface Judge {
   readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+  readonly validateAuthentication: (
+    input: JudgeAuthenticationInput,
+  ) => Effect.Effect<void, JudgeError, DatabaseServiceTag>;
   readonly getContests: (
     options?: GetContestsOptions,
   ) => Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;

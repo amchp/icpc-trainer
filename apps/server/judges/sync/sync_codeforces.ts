@@ -226,7 +226,7 @@ export async function* createCodeforcesJudgeSync(
   input: JudgeSyncInput,
   judge: Judge
 ): AsyncIterable<JudgeSyncEvent> {
-  yield* createJudgeSyncRunner(database, input, (emit) =>
+  yield* createJudgeSyncRunner((emit) =>
     runCodeforcesSyncProgram(database, input, judge, emit)
   );
 }

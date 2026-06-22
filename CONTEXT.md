@@ -28,6 +28,10 @@ _Avoid_: Owner, account
 A non-primary user whose judge activity is also tracked for comparison or shared practice.
 _Avoid_: Contact, peer
 
+**Judge Credential**:
+A saved secret or authentication artifact that lets ICPC Trainer access judge data for a **Primary User** on a **Judge**.
+_Avoid_: Auth secret, account secret
+
 **Synced Contest**:
 A **Contest** whose judge metadata and problems have been imported into the app.
 _Avoid_: Imported contest
@@ -35,6 +39,10 @@ _Avoid_: Imported contest
 **Unsynced Contest**:
 A **Contest** known to the app but whose judge metadata and problems still need to be imported.
 _Avoid_: Pending contest
+
+**Judge Sync State**:
+The backend-owned state of an active judge synchronization run, including whether it is running and its latest progress events.
+_Avoid_: Frontend sync state, sync progress cache
 
 ## Example Dialogue
 

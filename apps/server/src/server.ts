@@ -1,4 +1,4 @@
-import { appRouter, seedStoredCredentials } from "@icpc-trainer/api";
+import { appRouter, seedStoredCredentials, type CredentialStatusEvent } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
@@ -10,7 +10,8 @@ import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
-import { createJudgePlayground } from "./playground.js";
+import { createAsyncEventHub } from "./asyncEventHub.js";
+import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
 
 export interface StartedServer {
   readonly server: Server;
@@ -35,18 +36,20 @@ export const startServer = (
       codeforces: config.codeforces,
       qoj: config.qoj
     });
-    const createJudges = () => ({
+    const judges = {
       ...createJudgePlayground(database),
+      ...createJudgeCredentialValidation(database),
       ...createJudgeSyncService({
         codeforces: makeCodeforcesJudge(database),
         qoj: makeQojJudge(undefined, database)
       })
-    });
+    };
+    const credentialEvents = createAsyncEventHub<CredentialStatusEvent>();
 
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: () => ({ database, judges: createJudges() })
+      createContext: () => ({ database, judges, credentialEvents })
     });
 
     const server = createServer((request, response) => {
@@ -84,7 +87,7 @@ export const startServer = (
     const wsHandler = applyWSSHandler({
       wss,
       router: appRouter,
-      createContext: () => ({ database, judges: createJudges() })
+      createContext: () => ({ database, judges, credentialEvents })
     });
 
     yield* Effect.async<void, Error>((resume) => {

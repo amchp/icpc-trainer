@@ -1,5 +1,6 @@
 import { JUDGES } from "@icpc-trainer/shared";
 import type { initTRPC } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { encryptCredential } from "./credentialCrypto.js";
@@ -46,16 +47,50 @@ export const saveCredentialsInputSchema = z.discriminatedUnion("provider", [
 export const createCredentialsRouter = (t: TrpcInstance) =>
   t.router({
     status: t.procedure.query(({ ctx }): CredentialStatus => getCredentialStatus(ctx)),
-    save: t.procedure.input(saveCredentialsInputSchema).mutation(({ ctx, input }): CredentialStatus => {
+    events: t.procedure.subscription(async function* ({ ctx }) {
+      const events = ctx.credentialEvents?.subscribe();
+      yield {
+        type: "snapshot" as const,
+        status: getCredentialStatus(ctx),
+        occurredAt: new Date().toISOString()
+      };
+
+      if (events !== undefined) {
+        yield* events;
+      }
+    }),
+    save: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
+      try {
+        await ctx.judges.validateCredentials(input);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : String(error),
+          cause: error
+        });
+      }
+
       const payload = input.provider === JUDGES.Codeforces
         ? JSON.stringify(input.codeforces)
         : JSON.stringify(input.qoj);
 
-      return saveEncryptedCredential(ctx, input, encryptCredential(payload));
+      const status = saveEncryptedCredential(ctx, input, encryptCredential(payload));
+      ctx.credentialEvents?.publish({
+        type: "changed",
+        status,
+        occurredAt: new Date().toISOString()
+      });
+      return status;
     }),
-    clear: t.procedure.input(providerSchema).mutation(({ ctx, input }): CredentialStatus =>
-      clearCredentials(ctx, input)
-    )
+    clear: t.procedure.input(providerSchema).mutation(({ ctx, input }): CredentialStatus => {
+      const status = clearCredentials(ctx, input);
+      ctx.credentialEvents?.publish({
+        type: "changed",
+        status,
+        occurredAt: new Date().toISOString()
+      });
+      return status;
+    })
   });
 
 export type {

@@ -122,7 +122,10 @@ describe("createJudgePlayground", () => {
       yield* database.migrate;
       const caller = appRouter.createCaller({
         database,
-        judges: createJudgePlayground(database)
+        judges: {
+          ...createJudgePlayground(database),
+          validateCredentials: async () => undefined
+        }
       });
 
       yield* Effect.promise(() =>
@@ -168,7 +171,10 @@ describe("createJudgePlayground", () => {
       yield* database.migrate;
       const caller = appRouter.createCaller({
         database,
-        judges: createJudgePlayground(database)
+        judges: {
+          ...createJudgePlayground(database),
+          validateCredentials: async () => undefined
+        }
       });
 
       yield* Effect.promise(() =>

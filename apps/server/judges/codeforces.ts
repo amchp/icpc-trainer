@@ -10,6 +10,7 @@ import {
   type Judge,
   type JudgeContest,
   type JudgeError,
+  type JudgeAuthenticationInput,
   JudgeNotFoundError,
   type JudgePreviewContest,
   type JudgeSubmission,
@@ -168,6 +169,32 @@ const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiEr
   };
 };
 
+const requestCodeforcesWithAuth = <T>(
+  method: string,
+  params: Record<string, CodeforcesRequestParam> | undefined,
+  auth: Required<CodeforcesAuth>
+): Effect.Effect<T, CodeforcesApiError> =>
+  Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(buildSignedUrl(method, params, auth));
+      if (!response.ok) {
+        return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
+      }
+
+      const payload = (await response.json()) as CodeforcesApiResponse<T>;
+
+      if (payload.status === "FAILED") {
+        return Promise.reject({ comment: payload.comment });
+      }
+
+      return payload.result;
+    },
+    catch: (cause): CodeforcesApiError =>
+      typeof cause === "object" && cause !== null && "comment" in cause
+        ? (cause as CodeforcesApiError)
+        : { cause: toError(cause) }
+  });
+
 const makeCodeforcesRequester = (): RequestCodeforces =>
   <T>(method: string, params?: Record<string, CodeforcesRequestParam>) =>
     Effect.gen(function* () {
@@ -182,26 +209,7 @@ const makeCodeforcesRequester = (): RequestCodeforces =>
         });
       }
 
-      return yield* Effect.tryPromise({
-        try: async () => {
-        const response = await fetch(buildSignedUrl(method, params, storedAuth.credentials));
-        if (!response.ok) {
-          return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
-        }
-
-        const payload = (await response.json()) as CodeforcesApiResponse<T>;
-
-        if (payload.status === "FAILED") {
-          return Promise.reject({ comment: payload.comment });
-        }
-
-        return payload.result;
-      },
-      catch: (cause): CodeforcesApiError =>
-        typeof cause === "object" && cause !== null && "comment" in cause
-          ? (cause as CodeforcesApiError)
-          : { cause: toError(cause) }
-      });
+      return yield* requestCodeforcesWithAuth<T>(method, params, storedAuth.credentials);
     });
 
 const getAllCodeforcesPages = <T>(
@@ -365,12 +373,81 @@ const getAllSubmissions = (
       }),
   );
 
+const validateCodeforcesUserInfo = (
+  handle: string,
+  auth: Required<CodeforcesAuth>
+): Effect.Effect<void, JudgeError> =>
+  requestCodeforcesWithAuth<ReadonlyArray<CodeforcesUser>>("user.info", {
+    handles: handle,
+    historic: false
+  }, auth).pipe(
+    Effect.mapError((error) =>
+      isNotFoundError(error)
+        ? new JudgeCredentialError({
+            judgeId: handle,
+            cause: `Codeforces handle does not exist: ${handle}.`
+          })
+        : toJudgeError(handle, "user", error)
+    ),
+    Effect.flatMap((users) =>
+      users[0] === undefined
+        ? Effect.fail(new JudgeCredentialError({
+            judgeId: handle,
+            cause: `Codeforces handle does not exist: ${handle}.`
+          }))
+        : Effect.void
+    )
+  );
+
+const validateCodeforcesAuthentication = (
+  input: JudgeAuthenticationInput
+): Effect.Effect<void, JudgeError> => {
+  if (input.provider !== "codeforces") {
+    return Effect.fail(new JudgeCredentialError({
+      judgeId: "codeforces",
+      cause: "Codeforces authentication input is required."
+    }));
+  }
+
+  const handle = input.providerUserKey?.trim();
+
+  if (handle === undefined || handle === "") {
+    return Effect.fail(new JudgeCredentialError({
+      judgeId: "codeforces",
+      cause: "Codeforces handle is required to validate credentials."
+    }));
+  }
+
+  const auth = {
+    apiKey: input.codeforces.apiKey,
+    apiSecret: input.codeforces.apiSecret
+  };
+
+  if (!hasCodeforcesAuth(auth)) {
+    return Effect.fail(new JudgeCredentialError({
+      judgeId: "codeforces",
+      cause: "Codeforces authentication is required. Provide an API key and API secret."
+    }));
+  }
+
+  return validateCodeforcesUserInfo(handle, auth).pipe(
+    Effect.flatMap(() =>
+      requestCodeforcesWithAuth<ReadonlyArray<string>>("user.friends", undefined, auth).pipe(
+        Effect.mapError((error) => toJudgeError("codeforces", "user", error))
+      )
+    ),
+    Effect.asVoid
+  );
+};
+
 export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
   const requestCodeforces = makeCodeforcesRequester();
 
   let judge: Judge;
 
   judge = {
+    validateAuthentication: validateCodeforcesAuthentication,
+
     getContests: () =>
       getAllContests(requestCodeforces).pipe(
         Effect.map((contests) => contests.map(toPreviewContest)),

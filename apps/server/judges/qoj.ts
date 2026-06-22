@@ -9,6 +9,7 @@ import {
   type GetContestsOptions,
   type GetSubmissionsOptions,
   type Judge,
+  type JudgeAuthenticationInput,
   type JudgeContest,
   type JudgeError,
   type JudgePreviewContest,
@@ -545,6 +546,44 @@ const decodeHtmlEntities = (value: string): string => {
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+const validateQojAuthentication = (
+  input: JudgeAuthenticationInput,
+  baseUrl = QOJ_BASE_URL
+): Effect.Effect<void, JudgeError> => {
+  if (input.provider !== "qoj") {
+    return Effect.fail(new JudgeCredentialError({
+      judgeId: "qoj",
+      cause: "QOJ authentication input is required."
+    }));
+  }
+
+  const cookieJar = input.qoj.cookieJar.trim();
+  const handle = input.providerUserKey?.trim() || userHandleFromCookieJar(cookieJar);
+
+  if (handle === undefined || handle === "") {
+    return Effect.fail(new JudgeCredentialError({
+      judgeId: "qoj",
+      cause: "QOJ profile handle is required."
+    }));
+  }
+
+  return Effect.tryPromise({
+    try: () => fetchQojText(
+      buildUrl(`/user/profile/${encodeURIComponent(handle)}`, {}, baseUrl),
+      cookieJar === "" ? undefined : cookieJar
+    ),
+    catch: (error) => toJudgeRequestError(toQojRequestError(error))
+  }).pipe(
+    Effect.flatMap((html) => {
+      if (isMissingPage(html)) {
+        return Effect.fail(new JudgeNotFoundError({ resource: "user", judgeId: handle }));
+      }
+
+      return Effect.void;
+    })
+  );
+};
+
 export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService): Judge => {
   const requestQoj = createQojRequester(baseUrl);
   let judge: Judge;
@@ -571,6 +610,8 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
     });
 
   judge = {
+    validateAuthentication: (input) => validateQojAuthentication(input, baseUrl),
+
     getContests: (options?: GetContestsOptions) =>
       requestProfile(options).pipe(Effect.map(parseProfileContestList)),
 

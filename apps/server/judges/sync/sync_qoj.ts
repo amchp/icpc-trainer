@@ -232,7 +232,7 @@ export async function* createQojJudgeSync(
   input: JudgeSyncInput,
   judge: Judge
 ): AsyncIterable<JudgeSyncEvent> {
-  yield* createJudgeSyncRunner(database, input, (emit) =>
+  yield* createJudgeSyncRunner((emit) =>
     runQojSyncProgram(database, input, judge, emit)
   );
 }

@@ -12,7 +12,8 @@ describe("appRouter", () => {
       const caller = appRouter.createCaller({
         database,
         judges: {
-          run: async () => ({ ok: true, result: { ok: true } })
+          run: async () => ({ ok: true as const, result: { ok: true } }),
+          validateCredentials: async () => undefined
         }
       });
       return yield* Effect.promise(() => caller.health.ping());

@@ -22,6 +22,92 @@ const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
     saved: false
   }
 })));
+const syncObservers = vi.hoisted(() =>
+  new Map<string, Array<{ readonly onData?: (event: any) => void; readonly onError?: (error: any) => void }>>()
+);
+
+const syncEvents = (provider: "codeforces" | "qoj") => [
+  {
+    type: "started" as const,
+    provider,
+    stepsTotal: 2,
+    stepsLeft: 2
+  },
+  {
+    type: "submissions.syncing" as const,
+    step: "submissions" as const,
+    provider,
+    usersTotal: 1,
+    stepsTotal: 2,
+    stepsLeft: 2
+  },
+  {
+    type: "submissions.userSyncing" as const,
+    step: "submissions" as const,
+    provider,
+    userHandle: "tourist",
+    userIndex: 1,
+    usersTotal: 1,
+    stepsTotal: 2,
+    stepsLeft: 2
+  },
+  {
+    type: "submissions.userSynced" as const,
+    step: "submissions" as const,
+    provider,
+    userHandle: "tourist",
+    fetched: 3,
+    inserted: 2,
+    updated: 1,
+    skipped: 0,
+    missingProblems: 0,
+    stepsTotal: 2,
+    stepsLeft: 1
+  },
+  {
+    type: "contests.syncing" as const,
+    step: "contests" as const,
+    provider,
+    contestsTotal: 1,
+    contestsLeft: 1,
+    stepsTotal: 2,
+    stepsLeft: 1
+  },
+  {
+    type: "contests.contestSyncing" as const,
+    step: "contests" as const,
+    provider,
+    contestJudgeId: "566",
+    contestsTotal: 1,
+    contestsLeft: 1,
+    stepsTotal: 2,
+    stepsLeft: 1
+  },
+  {
+    type: "contests.contestSynced" as const,
+    step: "contests" as const,
+    provider,
+    contestJudgeId: "566",
+    problemsSynced: 2,
+    stepsTotal: 2,
+    stepsLeft: 0
+  },
+  {
+    type: "completed" as const,
+    provider,
+    stepsTotal: 2,
+    stepsLeft: 0 as const,
+    summary: {
+      usersProcessed: 1,
+      submissionsFetched: 3,
+      submissionsInserted: 2,
+      submissionsUpdated: 1,
+      submissionsSkipped: 0,
+      contestsSynced: 1,
+      errors: 0
+    }
+  }
+];
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => (
@@ -37,6 +123,18 @@ vi.mock("./trpc", () => ({
     credentials: {
       status: {
         query: credentialStatusMock
+      },
+      events: {
+        subscribe: vi.fn((_input, options) => {
+          void credentialStatusMock().then((status) => {
+            options.onData?.({
+              type: "snapshot",
+              status,
+              occurredAt: new Date().toISOString()
+            });
+          });
+          return { unsubscribe: vi.fn() };
+        })
       },
       save: {
         mutate: vi.fn(async () => ({
@@ -60,92 +158,35 @@ vi.mock("./trpc", () => ({
       }
     },
     judges: {
-      sync: {
-        subscribe: vi.fn((_input, options) => {
+      startSync: {
+        mutate: vi.fn(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
           queueMicrotask(() => {
-            options.onData({
-              type: "started",
-              provider: "codeforces",
-              stepsTotal: 2,
-              stepsLeft: 2
-            });
-            options.onData({
-              type: "submissions.syncing",
-              step: "submissions",
-              provider: "codeforces",
-              usersTotal: 1,
-              stepsTotal: 2,
-              stepsLeft: 2
-            });
-            options.onData({
-              type: "submissions.userSyncing",
-              step: "submissions",
-              provider: "codeforces",
-              userHandle: "tourist",
-              userIndex: 1,
-              usersTotal: 1,
-              stepsTotal: 2,
-              stepsLeft: 2
-            });
-            options.onData({
-              type: "submissions.userSynced",
-              step: "submissions",
-              provider: "codeforces",
-              userHandle: "tourist",
-              fetched: 3,
-              inserted: 2,
-              updated: 1,
-              skipped: 0,
-              missingProblems: 0,
-              stepsTotal: 2,
-              stepsLeft: 1
-            });
-            options.onData({
-              type: "contests.syncing",
-              step: "contests",
-              provider: "codeforces",
-              contestsTotal: 1,
-              contestsLeft: 1,
-              stepsTotal: 2,
-              stepsLeft: 1
-            });
-            options.onData({
-              type: "contests.contestSyncing",
-              step: "contests",
-              provider: "codeforces",
-              contestJudgeId: "566",
-              contestsTotal: 1,
-              contestsLeft: 1,
-              stepsTotal: 2,
-              stepsLeft: 1
-            });
-            options.onData({
-              type: "contests.contestSynced",
-              step: "contests",
-              provider: "codeforces",
-              contestJudgeId: "566",
-              problemsSynced: 2,
-              stepsTotal: 2,
-              stepsLeft: 0
-            });
-            options.onData({
-              type: "completed",
-              provider: "codeforces",
-              stepsTotal: 2,
-              stepsLeft: 0,
-              summary: {
-                usersProcessed: 1,
-                submissionsFetched: 3,
-                submissionsInserted: 2,
-                submissionsUpdated: 1,
-                submissionsSkipped: 0,
-                contestsSynced: 1,
-                errors: 0
+            for (const observer of syncObservers.get(provider) ?? []) {
+              for (const event of syncEvents(provider)) {
+                observer.onData?.(event);
               }
-            });
-            options.onComplete?.();
+            }
           });
-          return { unsubscribe: vi.fn() };
+        })
+      },
+      observeSync: {
+        subscribe: vi.fn((input: { readonly provider: "codeforces" | "qoj" }, options) => {
+          const observers = syncObservers.get(input.provider) ?? [];
+          observers.push(options);
+          syncObservers.set(input.provider, observers);
+          queueMicrotask(() => {
+            options.onData?.({
+              type: "snapshot",
+              provider: input.provider,
+              running: false,
+              events: []
+            });
+          });
+          return {
+            unsubscribe: vi.fn(() => {
+              syncObservers.set(input.provider, (syncObservers.get(input.provider) ?? []).filter((observer) => observer !== options));
+            })
+          };
         })
       }
     },
@@ -184,6 +225,7 @@ describe("HomeRoute", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    syncObservers.clear();
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: true
@@ -214,12 +256,7 @@ describe("HomeRoute", () => {
     fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
 
     await waitFor(() =>
-      expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
-        { provider: "codeforces" },
-        expect.objectContaining({
-          onData: expect.any(Function)
-        })
-      )
+      expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
     );
     expect(await screen.findByText("Completed")).toBeInTheDocument();
     expect(screen.getAllByText("1 / 1")).toHaveLength(2);
@@ -239,23 +276,32 @@ describe("HomeRoute", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
 
-    await waitFor(() => expect(trpc.judges.sync.subscribe).toHaveBeenCalledTimes(2));
-    expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
-      { provider: "codeforces" },
-      expect.objectContaining({ onData: expect.any(Function) })
-    );
-    expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
-      { provider: "qoj" },
-      expect.objectContaining({ onData: expect.any(Function) })
-    );
+    await waitFor(() => expect(trpc.judges.startSync.mutate).toHaveBeenCalledTimes(2));
+    expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" });
+    expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "qoj" });
   });
 
   it("shows a toast when sync emits an error", async () => {
-    vi.mocked(trpc.judges.sync.subscribe).mockImplementationOnce((_input, options) => {
+    vi.mocked(trpc.judges.observeSync.subscribe).mockImplementationOnce((input, options) => {
+      const observers = syncObservers.get(input.provider) ?? [];
+      observers.push(options);
+      syncObservers.set(input.provider, observers);
       queueMicrotask(() => {
         options.onData?.({
+          type: "snapshot",
+          provider: input.provider,
+          running: false,
+          events: []
+        });
+      });
+      return { unsubscribe: vi.fn() };
+    });
+    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
+      queueMicrotask(() => {
+        for (const observer of syncObservers.get(provider) ?? []) {
+          observer.onData?.({
           type: "error",
-          provider: "codeforces",
+          provider,
           phase: "contests",
           step: "contests",
           message: "Contest 100566 failed",
@@ -263,9 +309,9 @@ describe("HomeRoute", () => {
           stepsTotal: 1,
           stepsLeft: 1
         });
-        options.onData?.({
+          observer.onData?.({
           type: "completed",
-          provider: "codeforces",
+          provider,
           stepsTotal: 1,
           stepsLeft: 0,
           summary: {
@@ -278,8 +324,8 @@ describe("HomeRoute", () => {
             errors: 1
           }
         });
+        }
       });
-      return { unsubscribe: vi.fn() };
     });
 
     renderWithQuery(<HomeRoute />);
@@ -291,12 +337,13 @@ describe("HomeRoute", () => {
   });
 
   it("stacks sync error toasts and removes the oldest when the stack is full", async () => {
-    vi.mocked(trpc.judges.sync.subscribe).mockImplementationOnce((_input, options) => {
+    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
       queueMicrotask(() => {
-        for (const index of Array.from({ length: 8 }, (_, value) => value + 1)) {
-          options.onData?.({
+        for (const observer of syncObservers.get(provider) ?? []) {
+          for (const index of Array.from({ length: 8 }, (_, value) => value + 1)) {
+            observer.onData?.({
             type: "error",
-            provider: "codeforces",
+            provider,
             phase: "contests",
             step: "contests",
             message: `Contest ${index} failed`,
@@ -304,10 +351,10 @@ describe("HomeRoute", () => {
             stepsTotal: 8,
             stepsLeft: 8 - index
           });
-        }
-        options.onData?.({
+          }
+          observer.onData?.({
           type: "completed",
-          provider: "codeforces",
+          provider,
           stepsTotal: 8,
           stepsLeft: 0,
           summary: {
@@ -320,8 +367,8 @@ describe("HomeRoute", () => {
             errors: 8
           }
         });
+        }
       });
-      return { unsubscribe: vi.fn() };
     });
 
     renderWithQuery(<HomeRoute />);
