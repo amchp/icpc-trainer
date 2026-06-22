@@ -8,7 +8,7 @@ import { WebSocketServer } from "ws";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import { makeQojJudge } from "../judges/qoj.js";
-import { createJudgeSyncService } from "../judges/sync/sync_codeforces.js";
+import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
 import { createJudgePlayground } from "./playground.js";
 
@@ -39,7 +39,7 @@ export const startServer = (
       ...createJudgePlayground(database),
       ...createJudgeSyncService({
         codeforces: makeCodeforcesJudge(database),
-        qoj: makeQojJudge()
+        qoj: makeQojJudge(undefined, database)
       })
     });
 

@@ -21,6 +21,8 @@ const routes = new Map<string, string>([
   ["/contest/cloudflare", fixture("blocked-cloudflare.html")],
   ["/contest/login", fixture("login-required.html")],
   ["/user/profile/empty", fixture("profile-empty.html")],
+  ["/user/profile/juancs", fixture("profile-page.html")],
+  ["/user/profile/qoj-user", fixture("profile-page.html")],
   ["/user/profile/cloudflare", fixture("blocked-cloudflare.html")],
   ["/user/profile/cloudflare-js", fixture("blocked-cloudflare-js.html")],
   ["/user/profile/private", fixture("login-required.html")]
@@ -160,58 +162,84 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("parses QOJ submissions with database-matchable problem ids", async () => {
-    routes.set(
-      "/submissions",
-      `<!doctype html>
-      <table>
-        <tr>
-          <td><a href="/submission/98765">98765</a></td>
-          <td><a href="/user/profile/qoj-user">qoj-user</a></td>
-          <td><a href="/contest/1113/problem/11785">Archery Tournament</a></td>
-          <td>Accepted</td>
-          <td>2024-04-05 12:30:00</td>
-        </tr>
-      </table>`
-    );
     const judge = makeQojJudge(baseUrl);
 
-    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: " qoj-user " }))).resolves.toEqual([
+    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: " juancs " }))).resolves.toContainEqual(
       {
-        judgeId: "98765",
-        judgeContestId: "1113",
+        judgeId: "profile-ac-11785",
         judgeProblemId: "11785",
-        problemName: "Archery Tournament",
+        problemName: "11785",
         verdict: SUBMISSION_STATUSES.AC,
-        submittedAt: new Date("2024/04/05 12:30:00")
+        submittedAt: new Date(0)
       }
-    ]);
+    );
   });
 
-  it("parses accepted QOJ submissions from plural submission links", async () => {
-    routes.set(
-      "/submissions",
-      `<!doctype html>
-      <table>
-        <tr>
-          <td><a href="/submissions/98766">98766</a></td>
-          <td><a href="/user/profile/qoj-user">qoj-user</a></td>
-          <td><a href="/contest/1113/problem/11785">Archery Tournament</a></td>
-          <td><span class="uoj-score-max">Accepted</span></td>
-          <td>2024-04-05 12:35:00</td>
-        </tr>
-      </table>`
-    );
+  it("parses tried QOJ profile problems as non-accepted submissions", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: "qoj-user" }))).resolves.toEqual([
+    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: "juancs" }))).resolves.toContainEqual(
       {
-        judgeId: "98766",
-        judgeContestId: "1113",
-        judgeProblemId: "11785",
-        problemName: "Archery Tournament",
-        verdict: SUBMISSION_STATUSES.AC,
-        submittedAt: new Date("2024/04/05 12:35:00")
+        judgeId: "profile-tried-3176",
+        judgeProblemId: "3176",
+        problemName: "3176",
+        verdict: SUBMISSION_STATUSES.WA,
+        submittedAt: new Date(0)
       }
+    );
+  });
+
+  it("parses virtual contests from the QOJ profile page", async () => {
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(judge.getContests({ userHandle: "juancs" }))).resolves.toEqual([
+      expect.objectContaining({
+        judgeId: "2814",
+        name: "The 4th Universal Cup. Stage 10: Grand Prix of Wrocław"
+      }),
+      expect.objectContaining({
+        judgeId: "3384"
+      }),
+      expect.objectContaining({
+        judgeId: "2641"
+      }),
+      expect.objectContaining({
+        judgeId: "1113",
+        name: "The 2017 ICPC Northern Eurasia Finals"
+      }),
+      expect.objectContaining({
+        judgeId: "3347"
+      }),
+      expect.objectContaining({
+        judgeId: "1511"
+      }),
+      expect.objectContaining({
+        judgeId: "1893"
+      }),
+      expect.objectContaining({
+        judgeId: "1913"
+      }),
+      expect.objectContaining({
+        judgeId: "1741"
+      }),
+      expect.objectContaining({
+        judgeId: "2828"
+      }),
+      expect.objectContaining({
+        judgeId: "1774"
+      }),
+      expect.objectContaining({
+        judgeId: "1522"
+      }),
+      expect.objectContaining({
+        judgeId: "1123"
+      }),
+      expect.objectContaining({
+        judgeId: "407"
+      }),
+      expect.objectContaining({
+        judgeId: "1450"
+      })
     ]);
   });
 

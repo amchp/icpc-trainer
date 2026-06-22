@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import { JudgeAPIError, type Judge } from "../judges/judges.js";
-import { createCodeforcesJudgeSync, createJudgeSyncService } from "../judges/sync/sync_codeforces.js";
+import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
+import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
+import { createJudgeSyncService } from "../judges/sync/sync.js";
 
 const { contests, problems, submissions, users } = schema;
 
@@ -67,7 +69,11 @@ const codeforcesResponse = (result: unknown): Response =>
 
 type TestJudge = Omit<Judge, "sync">;
 
-const withTestSync = (database: DatabaseService, judge: TestJudge | Judge): Judge => {
+const withTestSync = (
+  database: DatabaseService,
+  provider: "codeforces" | "qoj",
+  judge: TestJudge | Judge
+): Judge => {
   if ("sync" in judge) {
     return judge;
   }
@@ -75,7 +81,9 @@ const withTestSync = (database: DatabaseService, judge: TestJudge | Judge): Judg
   let syncedJudge: Judge;
   syncedJudge = {
     ...judge,
-    sync: (input) => createCodeforcesJudgeSync(database, input, syncedJudge)
+    sync: (input) => provider === "codeforces"
+      ? createCodeforcesJudgeSync(database, input, syncedJudge)
+      : createQojJudgeSync(database, input, syncedJudge)
   };
 
   return syncedJudge;
@@ -87,7 +95,10 @@ const createSyncService = (
 ) => createJudgeSyncService({
   codeforces: makeCodeforcesJudge(database),
   ...Object.fromEntries(
-    Object.entries(registry).map(([provider, judge]) => [provider, withTestSync(database, judge)])
+    Object.entries(registry).map(([provider, judge]) => [
+      provider,
+      withTestSync(database, provider as "codeforces" | "qoj", judge)
+    ])
   )
 });
 
@@ -194,7 +205,7 @@ describe("createJudgeSyncService", () => {
   it("uses the supplied judge when syncing QOJ submissions", async () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const qojJudge: TestJudge = {
-      getContests: Effect.succeed([]),
+      getContests: () => Effect.succeed([]),
       getContest: (contestId) => Effect.succeed({
         judgeId: contestId,
         name: `QOJ Contest ${contestId}`,
@@ -278,7 +289,7 @@ describe("createJudgeSyncService", () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const submittedAt = new Date("2025-02-01T00:00:00.000Z");
     const qojJudge: TestJudge = {
-      getContests: Effect.succeed([]),
+      getContests: () => Effect.succeed([]),
       getContest: (contestId) => Effect.succeed({
         judgeId: contestId,
         name: `QOJ Contest ${contestId}`,
@@ -385,7 +396,7 @@ describe("createJudgeSyncService", () => {
   it("emits a clear error when user submissions fail", async () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const qojJudge: TestJudge = {
-      getContests: Effect.succeed([]),
+      getContests: () => Effect.succeed([]),
       getContest: (contestId) => Effect.succeed({
         judgeId: contestId,
         name: `QOJ Contest ${contestId}`,
@@ -553,7 +564,7 @@ describe("createJudgeSyncService", () => {
       stars: 0
     }));
     const qojJudge: TestJudge = {
-      getContests: Effect.succeed([]),
+      getContests: () => Effect.succeed([]),
       getContest,
       getUser: (handle) => Effect.succeed({ handle }),
       getSubmissions: () => Effect.succeed([])
@@ -589,7 +600,7 @@ describe("createJudgeSyncService", () => {
     }, { saveCredentials: false });
   });
 
-  it("retries pending submissions for a contest before syncing the next contest", async () => {
+  it("syncs QOJ profile contests before importing profile submissions", async () => {
     await withDatabase(async (database) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
@@ -601,23 +612,11 @@ describe("createJudgeSyncService", () => {
       }).run();
 
       const qojJudge: TestJudge = {
-        getContests: Effect.succeed([]),
+        getContests: () => Effect.succeed([
+          { judgeId: "111", name: "QOJ Contest 111" },
+          { judgeId: "222", name: "QOJ Contest 222" }
+        ]),
         getContest: (contestId) => {
-          if (contestId === "222") {
-            const alreadyInserted = database.db
-              .select()
-              .from(submissions)
-              .where(and(eq(submissions.judge, JUDGES.Qoj), eq(submissions.judgeId, "first")))
-              .get();
-
-            if (alreadyInserted === undefined) {
-              return Effect.fail(new JudgeAPIError({
-                judgeId: contestId,
-                cause: "first contest submission was not retried before the next contest"
-              }));
-            }
-          }
-
           return Effect.succeed({
             judgeId: contestId,
             name: `QOJ Contest ${contestId}`,
@@ -637,7 +636,6 @@ describe("createJudgeSyncService", () => {
         getSubmissions: () => Effect.succeed([
           {
             judgeId: "first",
-            judgeContestId: "111",
             judgeProblemId: "111-A",
             problemName: "A. First",
             verdict: SUBMISSION_STATUSES.AC,
@@ -645,7 +643,6 @@ describe("createJudgeSyncService", () => {
           },
           {
             judgeId: "second",
-            judgeContestId: "222",
             judgeProblemId: "222-A",
             problemName: "A. Second",
             verdict: SUBMISSION_STATUSES.AC,
@@ -660,7 +657,63 @@ describe("createJudgeSyncService", () => {
         type: "error",
         contestJudgeId: "222"
       }));
+      expect(events.findIndex((event) => event.type === "contests.contestSynced" && event.contestJudgeId === "111"))
+        .toBeLessThan(events.findIndex((event) => event.type === "submissions.syncing"));
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
+    }, { saveCredentials: false });
+  });
+
+  it("does not resync QOJ profile contests that are already synced", async () => {
+    await withDatabase(async (database) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      database.db.insert(users).values({
+        username: "qoj-user",
+        type: USER_TYPES.Primary,
+        judge: JUDGES.Qoj,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+      database.db.insert(contests).values({
+        judgeId: "111",
+        judge: JUDGES.Qoj,
+        name: "QOJ Contest 111",
+        link: "https://qoj.ac/contest/111",
+        participants: 1,
+        stars: 0,
+        synced: true,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+
+      const getContest = vi.fn((contestId: string) => Effect.succeed({
+        judgeId: contestId,
+        name: `QOJ Contest ${contestId}`,
+        participants: 1,
+        problems: [],
+        stars: 0
+      }));
+      const qojJudge: TestJudge = {
+        getContests: () => Effect.succeed([
+          { judgeId: "111", name: "QOJ Contest 111" },
+          { judgeId: "222", name: "QOJ Contest 222" }
+        ]),
+        getContest,
+        getUser: (handle) => Effect.succeed({ handle }),
+        getSubmissions: () => Effect.succeed([])
+      };
+
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+
+      expect(getContest).toHaveBeenCalledTimes(1);
+      expect(getContest).toHaveBeenCalledWith("222");
+      expect(events).not.toContainEqual(expect.objectContaining({
+        type: "contests.contestSyncing",
+        contestJudgeId: "111"
+      }));
+      expect(events).toContainEqual(expect.objectContaining({
+        type: "contests.syncing",
+        contestsTotal: 1
+      }));
     }, { saveCredentials: false });
   });
 
@@ -717,7 +770,7 @@ describe("createJudgeSyncService", () => {
   it("does not retry pending submissions for contests that failed to sync", async () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const qojJudge: TestJudge = {
-      getContests: Effect.succeed([]),
+      getContests: () => Effect.succeed([{ judgeId: "333", name: "QOJ Contest 333" }]),
       getContest: (contestId) => Effect.fail(new JudgeAPIError({
         judgeId: contestId,
         cause: "contest request failed"
@@ -726,7 +779,6 @@ describe("createJudgeSyncService", () => {
       getSubmissions: () => Effect.succeed([
         {
           judgeId: "failed-contest-submission",
-          judgeContestId: "333",
           judgeProblemId: "333-A",
           problemName: "A. Missing",
           verdict: SUBMISSION_STATUSES.AC,

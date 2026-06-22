@@ -56,11 +56,15 @@ export interface JudgeUser {
 
 export interface JudgeSubmission {
   readonly judgeId: string;
-  readonly judgeContestId: string;
+  readonly judgeContestId?: string;
   readonly judgeProblemId: string;
   readonly problemName: string;
   readonly verdict: SUBMISSION_STATUSES;
   readonly submittedAt: Date;
+}
+
+export interface GetContestsOptions {
+  readonly userHandle?: string;
 }
 
 export interface GetSubmissionsOptions {
@@ -69,7 +73,9 @@ export interface GetSubmissionsOptions {
 
 export interface Judge {
   readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
-  readonly getContests: Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;
+  readonly getContests: (
+    options?: GetContestsOptions,
+  ) => Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;
   readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, JudgeError, DatabaseServiceTag>;
   readonly getUser: (handle: string) => Effect.Effect<JudgeUser, JudgeError, DatabaseServiceTag>;
   readonly getSubmissions: (

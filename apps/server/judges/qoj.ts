@@ -1,11 +1,12 @@
 
 import { getStoredQojCredentials } from "@icpc-trainer/api";
-import { DatabaseServiceTag } from "@icpc-trainer/db";
+import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
 import { Impit } from "impit";
 
 import {
+  type GetContestsOptions,
   type GetSubmissionsOptions,
   type Judge,
   type JudgeContest,
@@ -19,7 +20,8 @@ import {
   type JudgeUser,
   type Problem
 } from "./judges.js";
-import { notImplementedJudgeSync } from "./sync/sync_codeforces.js";
+import { notImplementedJudgeSync } from "./sync/sync.js";
+import { createQojJudgeSync } from "./sync/sync_qoj.js";
 
 const QOJ_BASE_URL = "https://qoj.ac";
 const USER_AGENT = "icpc-trainer-v2-qoj-sync/1.0";
@@ -34,10 +36,6 @@ type QojHttpResponse = {
   readonly ok: boolean;
   readonly html: string;
 };
-
-export interface QojAuth {
-  readonly cookieJar?: string;
-}
 
 type QojContestProblem = {
   readonly id: string;
@@ -260,17 +258,29 @@ const toJudgeRequestError = (error: QojRequestError): JudgeError =>
 const normalizeContestId = (contestId: string): string =>
   contestId.trim().replace(/^https?:\/\/qoj\.ac\/contest\//i, "").replace(/\/.*$/, "");
 
+const normalizeUserHandle = (handle: string): string => handle.trim();
+
+const userHandleFromCookieJar = (cookieJar: string | undefined): string | undefined => {
+  const match = cookieJar?.match(/(?:^|;\s*)uoj_username=([^;]+)/i);
+  return match?.[1] === undefined ? undefined : decodeURIComponent(match[1]).trim();
+};
+
 const toPreviewContest = (judgeId: string, name: string): JudgePreviewContest => ({
   judgeId,
   name
 });
 
-const parseContestList = (html: string): ReadonlyArray<JudgePreviewContest> => {
+const parseProfileContestList = (html: string): ReadonlyArray<JudgePreviewContest> => {
+  const virtualSection = matchFirst(
+    html,
+    /Virtual Participations[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/i
+  );
+  const source = virtualSection === "" ? html : virtualSection;
   const contests = new Map<string, JudgePreviewContest>();
-  const linkPattern = /<a\b[^>]*href=["']\/contest\/(\d+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const linkPattern = /<a\b[^>]*href=["'][^"']*\/contest\/(\d+)(?:[?#][^"']*)?["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = linkPattern.exec(html)) !== null) {
+  while ((match = linkPattern.exec(source)) !== null) {
     const [, judgeId, rawName] = match;
     const name = cleanHtml(rawName ?? "");
 
@@ -432,90 +442,63 @@ const parseStandingsHeader = (
   };
 };
 
-const toSubmissionStatus = (value: string): SUBMISSION_STATUSES => {
-  const verdict = cleanHtml(value).toUpperCase();
+const parseProblemLinksInSection = (html: string, headingPattern: RegExp): ReadonlyArray<{
+  readonly id: string;
+  readonly name: string;
+}> => {
+  const heading = headingPattern.source;
+  const source = matchFirst(
+    html,
+    new RegExp(`${heading}[\\s\\S]*?<p\\b[^>]*>([\\s\\S]*?)<\\/p>`, "i")
+  );
+  const problems = new Map<string, { readonly id: string; readonly name: string }>();
+  const linkPattern = /<a\b[^>]*href=["'][^"']*\/problem\/(\d+)(?:[?#][^"']*)?["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
 
-  if (/\b(?:AC|ACCEPTED|CORRECT|OK)\b/.test(verdict)) {
-    return SUBMISSION_STATUSES.AC;
+  while ((match = linkPattern.exec(source)) !== null) {
+    const [, id, rawName] = match;
+    const name = cleanHtml(rawName ?? "");
+
+    if (id !== undefined && !problems.has(id)) {
+      problems.set(id, { id, name: name || id });
+    }
   }
 
-  if (/\b(?:TLE|TIME\s+LIMIT|TIME_LIMIT_EXCEEDED)\b/.test(verdict)) {
-    return SUBMISSION_STATUSES.TLE;
-  }
-
-  if (/\b(?:RE|RTE|RUNTIME|RUNTIME_ERROR|SEGMENTATION)\b/.test(verdict)) {
-    return SUBMISSION_STATUSES.RTE;
-  }
-
-  return SUBMISSION_STATUSES.WA;
+  return [...problems.values()];
 };
 
-const isVerdictText = (value: string): boolean =>
-  /\b(?:AC|WA|TLE|RE|RTE|Accepted|Wrong Answer|Time Limit|Runtime Error|Compilation Error)\b/i.test(
-    value
-  );
-
-const parseSubmissions = (html: string): ReadonlyArray<JudgeSubmission> => {
+const parseProfileSubmissions = (html: string): ReadonlyArray<JudgeSubmission> => {
+  const acceptedProblems = parseProblemLinksInSection(html, /Accepted problems/i);
+  const triedProblems = parseProblemLinksInSection(html, /Tried problems/i);
+  const acceptedProblemIds = new Set(acceptedProblems.map((problem) => problem.id));
   const submissions: JudgeSubmission[] = [];
-  const rows = html.match(/<tr\b[\s\S]*?<\/tr>/gi) ?? [];
 
-  for (const row of rows) {
-    const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) =>
-      cleanHtml(cell[1] ?? "")
-    );
+  for (const problem of acceptedProblems) {
+    submissions.push({
+      judgeId: `profile-ac-${problem.id}`,
+      judgeProblemId: problem.id,
+      problemName: problem.name,
+      verdict: SUBMISSION_STATUSES.AC,
+      submittedAt: new Date(0)
+    });
+  }
 
-    if (cells.length === 0) {
-      continue;
-    }
-
-    const links = [...row.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map(
-      (link) => ({ href: link[1] ?? "", text: cleanHtml(link[2] ?? "") })
-    );
-    const judgeId = matchFirst(row, /href=["'][^"']*\/submissions?\/(\d+)["']/i) || cells[0] || "";
-    const problemLink = links.find((link) => /\/problem\//.test(link.href));
-    const judgeProblemId = problemLink === undefined
-      ? ""
-      : decodeURIComponent(matchFirst(problemLink.href, /\/problem\/([^"'#?]+)/i)).trim();
-    const problemName =
-      problemLink?.text ||
-      cells.find((cell) => /[A-Za-z]/.test(cell) && !isVerdictText(cell)) ||
-      "";
-
-    if (judgeId === "" || judgeProblemId === "" || problemName === "") {
+  for (const problem of triedProblems) {
+    if (acceptedProblemIds.has(problem.id)) {
       continue;
     }
 
     submissions.push({
-      judgeId,
-      judgeContestId: extractContestId(row),
-      judgeProblemId,
-      problemName,
-      verdict: toSubmissionStatus(cells.find(isVerdictText) ?? row),
-      submittedAt: parseSubmissionDate(cells) ?? new Date(0)
+      judgeId: `profile-tried-${problem.id}`,
+      judgeProblemId: problem.id,
+      problemName: problem.name,
+      verdict: SUBMISSION_STATUSES.WA,
+      submittedAt: new Date(0)
     });
   }
 
   return submissions;
 };
-
-const parseSubmissionDate = (cells: ReadonlyArray<string>): Date | undefined => {
-  for (const cell of cells) {
-    const normalized = cell.replace(/\s+/g, " ").trim();
-    if (!/\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(normalized)) {
-      continue;
-    }
-
-    const date = new Date(normalized.replace(/-/g, "/"));
-    if (!Number.isNaN(date.getTime())) {
-      return date;
-    }
-  }
-
-  return undefined;
-};
-
-const extractContestId = (html: string): string =>
-  matchFirst(html, /href=["'][^"']*\/contest\/(\d+)(?:\/|["'#?])/i);
 
 const shouldRetryQojError = (error: Error): boolean =>
   /HTTP 5\d\d|timed out|fetch failed|network/i.test(error.message);
@@ -562,11 +545,34 @@ const decodeHtmlEntities = (value: string): string => {
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
+export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService): Judge => {
   const requestQoj = createQojRequester(baseUrl);
+  let judge: Judge;
+  const requestProfile = (
+    options?: GetContestsOptions | GetSubmissionsOptions
+  ): Effect.Effect<string, JudgeError, DatabaseServiceTag> =>
+    Effect.gen(function* () {
+      if (options?.userHandle !== undefined && options.userHandle.trim() !== "") {
+        return yield* requestQoj(`/user/profile/${encodeURIComponent(normalizeUserHandle(options.userHandle))}`);
+      }
 
-  return {
-    getContests: requestQoj("/contests").pipe(Effect.map(parseContestList)),
+      const database = yield* DatabaseServiceTag;
+      const auth = getStoredQojCredentials({ database });
+      const handle = auth.ok ? userHandleFromCookieJar(auth.credentials.cookieJar) : undefined;
+
+      if (handle === undefined || handle === "") {
+        return yield* Effect.fail(new JudgeCredentialError({
+          judgeId: "qoj",
+          cause: "QOJ profile handle is required."
+        }));
+      }
+
+      return yield* requestQoj(`/user/profile/${encodeURIComponent(handle)}`);
+    });
+
+  judge = {
+    getContests: (options?: GetContestsOptions) =>
+      requestProfile(options).pipe(Effect.map(parseProfileContestList)),
 
     getContest: (contestId) => {
       const normalizedContestId = normalizeContestId(contestId);
@@ -589,7 +595,7 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
     },
 
     getUser: (handle) => {
-      const normalizedHandle = handle.trim();
+      const normalizedHandle = normalizeUserHandle(handle);
 
       if (normalizedHandle === "") {
         return Effect.fail(
@@ -626,16 +632,15 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
         return Effect.succeed([]);
       }
 
-      const userHandle = options.userHandle.trim();
-
-      return requestQoj("/submissions", {
-        submitter: userHandle,
-        username: userHandle
-      }).pipe(Effect.map(parseSubmissions));
+      return requestProfile(options).pipe(Effect.map(parseProfileSubmissions));
     },
 
-    sync: notImplementedJudgeSync
+    sync: database === undefined
+      ? notImplementedJudgeSync
+      : (input) => createQojJudgeSync(database, input, judge)
   };
+
+  return judge;
 };
 
 const isMissingPage = (html: string): boolean =>

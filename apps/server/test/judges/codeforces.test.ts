@@ -275,7 +275,7 @@ describe("makeCodeforcesJudge", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const contests = await runWithCodeforcesAuth(makeCodeforcesJudge().getContests);
+    const contests = await runWithCodeforcesAuth(makeCodeforcesJudge().getContests());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.list");

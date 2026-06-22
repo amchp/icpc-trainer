@@ -19,7 +19,8 @@ import {
   JudgeAPIError,
   JudgeCredentialError
 } from "./judges.js";
-import { createCodeforcesJudgeSync, notImplementedJudgeSync } from "./sync/sync_codeforces.js";
+import { createCodeforcesJudgeSync } from "./sync/sync_codeforces.js";
+import { notImplementedJudgeSync } from "./sync/sync.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
@@ -370,10 +371,11 @@ export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
   let judge: Judge;
 
   judge = {
-    getContests: getAllContests(requestCodeforces).pipe(
-      Effect.map((contests) => contests.map(toPreviewContest)),
-      Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
-    ),
+    getContests: () =>
+      getAllContests(requestCodeforces).pipe(
+        Effect.map((contests) => contests.map(toPreviewContest)),
+        Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
+      ),
 
     getContest: (contestId) =>
       getAllStandingPages(contestId, requestCodeforces).pipe(

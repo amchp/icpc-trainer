@@ -130,7 +130,7 @@ export const createJudgePlayground = (database: DatabaseService): JudgePlaygroun
         : makeQojJudge();
 
       if (input.operation === "contests") {
-        return await runPlaygroundEffect(database, input, judge.getContests);
+        return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
       }
 
       if (input.operation === "contest") {
