@@ -19,10 +19,9 @@ export function AppHeader(): React.JSX.Element {
     : "Profile";
 
   const logout = async (): Promise<void> => {
-    await Promise.allSettled([
-      trpc.credentials.clear.mutate("codeforces"),
-      trpc.credentials.clear.mutate("qoj")
-    ]);
+    await Promise.allSettled(
+      connectedJudges.map((judge) => trpc.credentials.clear.mutate(judge.id))
+    );
     await refresh();
     setOpen(false);
     void navigate({ to: "/connect-judges" });

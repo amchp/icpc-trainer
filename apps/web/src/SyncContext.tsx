@@ -1,6 +1,7 @@
 import type { JudgeSyncEvent, JudgeSyncInput, JudgeSyncSummary } from "@icpc-trainer/api";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { syncObservableProviders } from "./judgeConfig.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -20,6 +21,17 @@ interface SyncSteps {
   readonly contests: SyncStepProgress;
 }
 
+interface ProviderSyncProgress {
+  readonly provider: JudgeSyncInput["provider"];
+  readonly status: SyncStatus;
+  readonly latestEvent: JudgeSyncEvent | null;
+  readonly summary: JudgeSyncSummary | null;
+  readonly stepsTotal: number;
+  readonly stepsLeft: number;
+  readonly progress: number;
+  readonly steps: SyncSteps;
+}
+
 interface SyncContextValue {
   readonly status: SyncStatus;
   readonly latestEvent: JudgeSyncEvent | null;
@@ -29,12 +41,11 @@ interface SyncContextValue {
   readonly stepsLeft: number;
   readonly progress: number;
   readonly steps: SyncSteps;
+  readonly providers: readonly ProviderSyncProgress[];
   readonly startSync: (providers: readonly JudgeSyncInput["provider"][]) => void;
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
-
-const observableProviders: readonly JudgeSyncInput["provider"][] = ["codeforces", "qoj"];
 
 const emptyStep = (): SyncStepProgress => ({
   status: "pending",
@@ -89,6 +100,12 @@ const addSummary = (left: JudgeSyncSummary, right: JudgeSyncSummary): JudgeSyncS
   errors: left.errors + right.errors
 });
 
+const eventSummary = (event: JudgeSyncEvent | undefined): JudgeSyncSummary | null =>
+  event?.type === "completed" ? event.summary : null;
+
+const syncProgress = (stepsTotal: number, stepsLeft: number): number =>
+  stepsTotal === 0 ? 0 : Math.round(((stepsTotal - stepsLeft) / stepsTotal) * 100);
+
 const aggregateStatus = (steps: readonly SyncStepProgress[]): SyncStepStatus => {
   if (steps.some((step) => step.status === "error")) {
     return "error";
@@ -117,6 +134,62 @@ const aggregateSteps = (providerSteps: ReadonlyMap<JudgeSyncInput["provider"], S
     submissions: aggregateStep(steps.map((step) => step.submissions)),
     contests: aggregateStep(steps.map((step) => step.contests))
   };
+};
+
+const providerStatus = (
+  provider: JudgeSyncInput["provider"],
+  events: readonly JudgeSyncEvent[],
+  runningProviders: ReadonlySet<JudgeSyncInput["provider"]>
+): SyncStatus => {
+  if (runningProviders.has(provider)) {
+    return "running";
+  }
+
+  const latest = events.at(-1);
+  if (latest?.type === "completed") {
+    return latest.summary.errors > 0 ? "error" : "completed";
+  }
+  if (latest?.type === "error") {
+    return "error";
+  }
+
+  return "idle";
+};
+
+const providerProgresses = (
+  providerSteps: ReadonlyMap<JudgeSyncInput["provider"], SyncSteps>,
+  providerEvents: ReadonlyMap<JudgeSyncInput["provider"], readonly JudgeSyncEvent[]>,
+  runningProviders: ReadonlySet<JudgeSyncInput["provider"]>
+): readonly ProviderSyncProgress[] => {
+  const providers = new Set<JudgeSyncInput["provider"]>([
+    ...providerSteps.keys(),
+    ...providerEvents.keys(),
+    ...runningProviders
+  ]);
+
+  return [...providers].map((provider) => {
+    const steps = providerSteps.get(provider) ?? emptySteps();
+    const events = providerEvents.get(provider) ?? [];
+    const latestEvent = events.at(-1) ?? null;
+    const detailedStepsTotal = steps.submissions.total + steps.contests.total;
+    const detailedStepsLeft = Math.max(
+      detailedStepsTotal - steps.submissions.processed - steps.contests.processed,
+      0
+    );
+    const stepsTotal = latestEvent?.stepsTotal ?? detailedStepsTotal;
+    const stepsLeft = Math.max(Math.min(latestEvent?.stepsLeft ?? detailedStepsLeft, stepsTotal), 0);
+
+    return {
+      provider,
+      status: providerStatus(provider, events, runningProviders),
+      latestEvent,
+      summary: eventSummary(latestEvent ?? undefined),
+      stepsTotal,
+      stepsLeft,
+      progress: syncProgress(stepsTotal, stepsLeft),
+      steps
+    };
+  });
 };
 
 const applyEventToSteps = (current: SyncSteps, event: JudgeSyncEvent): SyncSteps => {
@@ -214,6 +287,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
   const [stepsTotal, setStepsTotal] = useState(0);
   const [stepsLeft, setStepsLeft] = useState(0);
   const [steps, setSteps] = useState<SyncSteps>(emptySteps);
+  const [providers, setProviders] = useState<readonly ProviderSyncProgress[]>([]);
   const subscriptionsRef = useRef<Array<{ unsubscribe: () => void }>>([]);
   const providerStepsRef = useRef(new Map<JudgeSyncInput["provider"], SyncSteps>());
   const providerEventsRef = useRef(new Map<JudgeSyncInput["provider"], JudgeSyncEvent[]>());
@@ -223,6 +297,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
   const publishAggregateState = useCallback(() => {
     const nextSteps = aggregateSteps(providerStepsRef.current);
     setSteps(nextSteps);
+    setProviders(providerProgresses(providerStepsRef.current, providerEventsRef.current, runningProvidersRef.current));
 
     const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total;
     const nextStepsLeft = nextStepsTotal - nextSteps.submissions.processed - nextSteps.contests.processed;
@@ -288,7 +363,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
   }, [publishAggregateState, toaster]);
 
   useEffect(() => {
-    subscriptionsRef.current = observableProviders.map((provider) =>
+    subscriptionsRef.current = syncObservableProviders.map((provider) =>
       trpc.judges.observeSync.subscribe(
         { provider },
         {
@@ -344,6 +419,16 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     setStepsTotal(0);
     setStepsLeft(0);
     setSteps(emptySteps());
+    setProviders(uniqueProviders.map((provider) => ({
+      provider,
+      status: "running",
+      latestEvent: null,
+      summary: null,
+      stepsTotal: 0,
+      stepsLeft: 0,
+      progress: 0,
+      steps: emptySteps()
+    })));
     providerStepsRef.current = new Map(uniqueProviders.map((provider) => [provider, emptySteps()]));
     providerEventsRef.current = new Map(uniqueProviders.map((provider) => [provider, []]));
     runningProvidersRef.current = new Set(uniqueProviders);
@@ -363,7 +448,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     }
   }, [status, toaster]);
 
-  const progress = stepsTotal === 0 ? 0 : Math.round(((stepsTotal - stepsLeft) / stepsTotal) * 100);
+  const progress = syncProgress(stepsTotal, stepsLeft);
 
   const value = useMemo<SyncContextValue>(() => ({
     status,
@@ -374,8 +459,9 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     stepsLeft,
     progress,
     steps,
+    providers,
     startSync
-  }), [events, latestEvent, progress, startSync, status, steps, stepsLeft, stepsTotal, summary]);
+  }), [events, latestEvent, progress, providers, startSync, status, steps, stepsLeft, stepsTotal, summary]);
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }

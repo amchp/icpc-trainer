@@ -1,10 +1,11 @@
-import type { CredentialStatus, PlaygroundProvider } from "@icpc-trainer/api";
+import type { CredentialStatus } from "@icpc-trainer/api";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { connectedJudgesFromCredentialStatus, emptyCredentialStatus, type JudgeProvider } from "./judgeConfig.js";
 import { trpc } from "./trpc.js";
 
 export interface ConnectedJudge {
-  readonly id: PlaygroundProvider;
+  readonly id: JudgeProvider;
   readonly label: string;
 }
 
@@ -17,27 +18,7 @@ interface ConnectedJudgesContextValue {
   readonly setCredentialStatus: (status: CredentialStatus) => void;
 }
 
-const emptyCredentialStatus = (): CredentialStatus => ({
-  codeforces: {
-    saved: false
-  },
-  qoj: {
-    saved: false
-  }
-});
-
 const ConnectedJudgesContext = createContext<ConnectedJudgesContextValue | null>(null);
-
-const connectedJudgesFromStatus = (status: CredentialStatus): readonly ConnectedJudge[] => {
-  const judges: ConnectedJudge[] = [];
-  if (status.codeforces.saved) {
-    judges.push({ id: "codeforces", label: "Codeforces" });
-  }
-  if (status.qoj.saved) {
-    judges.push({ id: "qoj", label: "QOJ" });
-  }
-  return judges;
-};
 
 export function ConnectedJudgesProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
   const [credentialStatus, setCredentialStatusState] = useState<CredentialStatus>(emptyCredentialStatus);
@@ -75,7 +56,10 @@ export function ConnectedJudgesProvider({ children }: { readonly children: React
     };
   }, [setCredentialStatus]);
 
-  const connectedJudges = useMemo(() => connectedJudgesFromStatus(credentialStatus), [credentialStatus]);
+  const connectedJudges = useMemo(
+    () => connectedJudgesFromCredentialStatus(credentialStatus),
+    [credentialStatus]
+  );
 
   const value = useMemo<ConnectedJudgesContextValue>(() => ({
     status,

@@ -25,6 +25,9 @@ const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
 const syncObservers = vi.hoisted(() =>
   new Map<string, Array<{ readonly onData?: (event: any) => void; readonly onError?: (error: any) => void }>>()
 );
+const syncSnapshots = vi.hoisted(() =>
+  new Map<string, { readonly running: boolean; readonly events: readonly any[] }>()
+);
 
 const syncEvents = (provider: "codeforces" | "qoj") => [
   {
@@ -175,11 +178,15 @@ vi.mock("./trpc", () => ({
           observers.push(options);
           syncObservers.set(input.provider, observers);
           queueMicrotask(() => {
+            const snapshot = syncSnapshots.get(input.provider) ?? {
+              running: false,
+              events: []
+            };
             options.onData?.({
               type: "snapshot",
               provider: input.provider,
-              running: false,
-              events: []
+              running: snapshot.running,
+              events: snapshot.events
             });
           });
           return {
@@ -226,6 +233,7 @@ describe("HomeRoute", () => {
     cleanup();
     vi.clearAllMocks();
     syncObservers.clear();
+    syncSnapshots.clear();
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: true
@@ -236,18 +244,29 @@ describe("HomeRoute", () => {
     });
   });
 
-  it("renders the home sync shell with profile and sync controls", async () => {
+  it("renders the home shell without sync progress while idle", async () => {
     renderWithQuery(<HomeRoute />);
 
     await waitFor(() => expect(screen.getByText("ICPC Trainer")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole("button", { name: /codeforces/i })).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /synced/i })).toBeInTheDocument();
-    expect(screen.getByText("Judge sync")).toBeInTheDocument();
-    expect(screen.getByText("User submissions")).toBeInTheDocument();
-    expect(screen.getByText("Contest sync")).toBeInTheDocument();
-    expect(screen.getByText("1/2")).toBeInTheDocument();
-    expect(screen.getByText("2/2")).toBeInTheDocument();
+    expect(screen.queryByText("Judge sync")).not.toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
+  });
+
+  it("shows separate judge progress while a sync is running", async () => {
+    syncSnapshots.set("codeforces", {
+      running: true,
+      events: syncEvents("codeforces").slice(0, 3)
+    });
+
+    renderWithQuery(<HomeRoute />);
+
+    await waitFor(() => expect(screen.getAllByText("Codeforces")).toHaveLength(2));
+    expect(screen.getByText("User submission sync")).toBeInTheDocument();
+    expect(screen.getByText("1 user left")).toBeInTheDocument();
+    expect(screen.queryByText("Contest sync")).not.toBeInTheDocument();
+    expect(screen.queryByText("QOJ")).not.toBeInTheDocument();
   });
 
   it("starts Codeforces sync from the navbar", async () => {
@@ -258,8 +277,7 @@ describe("HomeRoute", () => {
     await waitFor(() =>
       expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
     );
-    expect(await screen.findByText("Completed")).toBeInTheDocument();
-    expect(screen.getAllByText("1 / 1")).toHaveLength(2);
+    await waitFor(() => expect(screen.queryByText("User submission sync")).not.toBeInTheDocument());
   });
 
   it("starts all authenticated judge syncs from the navbar", async () => {

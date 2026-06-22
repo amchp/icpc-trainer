@@ -4,10 +4,12 @@ import { useEffect } from "react";
 import { AppHeader } from "./AppHeader.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { SyncPanel } from "./SyncPanel.js";
+import { useSync } from "./SyncContext.js";
 
 export function HomeRoute(): React.JSX.Element {
   const navigate = useNavigate();
   const { hasConnectedJudge, status } = useConnectedJudges();
+  const sync = useSync();
 
   useEffect(() => {
     if (status === "ready" && !hasConnectedJudge) {
@@ -26,7 +28,7 @@ export function HomeRoute(): React.JSX.Element {
     <div className="min-h-screen text-zinc-100">
       <AppHeader />
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-        <SyncPanel />
+        {sync.status === "running" ? <SyncPanel /> : null}
       </main>
     </div>
   );

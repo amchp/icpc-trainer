@@ -151,11 +151,16 @@ export function Skeleton({
   return <div className={cn("animate-pulse rounded-md bg-zinc-800", className)} {...props} />;
 }
 
+interface ProgressProps extends React.ComponentProps<typeof ProgressPrimitive.Root> {
+  readonly indicatorClassName?: string;
+}
+
 export function Progress({
   className,
+  indicatorClassName,
   value = 0,
   ...props
-}: React.ComponentProps<typeof ProgressPrimitive.Root>): React.JSX.Element {
+}: ProgressProps): React.JSX.Element {
   const safeValue = Math.max(0, Math.min(Number(value ?? 0), 100));
 
   return (
@@ -165,7 +170,7 @@ export function Progress({
       {...props}
     >
       <ProgressPrimitive.Indicator
-        className="h-full w-full flex-1 bg-blue-500 transition-transform"
+        className={cn("h-full w-full flex-1 bg-blue-500 transition-transform", indicatorClassName)}
         style={{ transform: `translateX(-${100 - safeValue}%)` }}
       />
     </ProgressPrimitive.Root>
