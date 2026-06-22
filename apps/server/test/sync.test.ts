@@ -565,7 +565,12 @@ describe("createJudgeSyncService", () => {
         contestJudgeId: "100566",
         problemsSynced: 2
       }));
-      expect(database.db.select().from(problems).all()).toHaveLength(2);
+      const problemRows = database.db.select().from(problems).all();
+      expect(problemRows).toHaveLength(2);
+      expect(problemRows).toEqual([
+        expect.objectContaining({ judgeId: "100566A", solvePercentage: 100, rating: 700 }),
+        expect.objectContaining({ judgeId: "100566B", solvePercentage: 100, rating: 700 })
+      ]);
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
       expect(database.db.select().from(contests).get()).toMatchObject({
         judgeId: "100566",
@@ -624,6 +629,50 @@ describe("createJudgeSyncService", () => {
         contestsSynced: 1,
         errors: 0
       }
+    });
+  });
+
+  it("keeps problems unrated when contest stars are unknown", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 100566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "OK"
+          }
+        ]);
+      }
+
+      return codeforcesResponse({
+        contest: {
+          id: 100566,
+          name: "Testing Round #100566",
+          type: "ICPC",
+          phase: "FINISHED"
+        },
+        problems: [
+          { contestId: 100566, index: "A", name: "Matching Names" }
+        ],
+        rows: [
+          { party: {}, rank: 1, points: 1, penalty: 0, problemResults: [{ points: 1 }] }
+        ]
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await withDatabase(async (database) => {
+      await collect(createSyncService(database).sync({ provider: "codeforces" }));
+
+      expect(database.db
+        .select({ solvePercentage: problems.solvePercentage, rating: problems.rating })
+        .from(problems)
+        .all()).toEqual([
+        { solvePercentage: 100, rating: 0 }
+      ]);
     });
   });
 

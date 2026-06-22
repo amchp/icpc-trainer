@@ -12,6 +12,7 @@ import { Data, Effect } from "effect";
 
 import type { Judge, JudgeContest, JudgeError, JudgeSubmission } from "../judges.js";
 import { createAsyncEventHub, type AsyncEventHub } from "../../src/asyncEventHub.js";
+import { estimateProblemRating, estimateSolvePercentage } from "./problemRating.js";
 
 const CODEFORCES_CONTEST_URL = "https://codeforces.com/gym";
 const QOJ_CONTEST_URL = "https://qoj.ac/contest";
@@ -458,8 +459,21 @@ export const upsertContestProblems = (
   context: SyncOperationContext
 ): Effect.Effect<number, SyncOperationError> => syncEffect(context, () => {
   const timestamp = now();
+  const maxSolvesInContest = Math.max(0, ...contest.problems.map((problem) => problem.solves));
 
   for (const problem of contest.problems) {
+    const rating = estimateProblemRating({
+      stars: contest.stars,
+      participants: contest.participants,
+      solves: problem.solves,
+      maxSolvesInContest
+    });
+    const solvePercentage = estimateSolvePercentage({
+      participants: contest.participants,
+      solves: problem.solves,
+      maxSolvesInContest
+    });
+
     database.db
       .insert(problems)
       .values({
@@ -468,7 +482,8 @@ export const upsertContestProblems = (
         link: problem.link,
         contestId,
         solves: problem.solves,
-        rating: 0,
+        solvePercentage,
+        rating,
         createdAt: timestamp,
         updatedAt: timestamp
       })
@@ -478,7 +493,8 @@ export const upsertContestProblems = (
           link: problem.link,
           contestId,
           solves: problem.solves,
-          rating: 0,
+          solvePercentage,
+          rating,
           updatedAt: timestamp
         }
       })

@@ -8,6 +8,20 @@
       "when": 1782144584872,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782170977112,
+      "tag": "0001_military_true_believers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782171247823,
+      "tag": "0002_sleepy_starjammers",
+      "breakpoints": true
     }
   ]
 }

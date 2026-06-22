@@ -47,10 +47,14 @@ export const problems = sqliteTable("problems", {
   link: text("link").notNull(),
   contestId: integer("contest_id").references(() => contests.id).notNull(),
   solves: integer("solves").notNull(),
+  solvePercentage: integer("solve_percentage").notNull().default(0),
   rating: integer("rating").notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("problems_judge_id_judge_unique").on(table.judgeId, table.judge)
+  uniqueIndex("problems_judge_id_judge_unique").on(table.judgeId, table.judge),
+  index("problems_solve_percentage_idx").on(table.solvePercentage),
+  index("problems_rating_idx").on(table.rating),
+  index("problems_judge_rating_idx").on(table.judge, table.rating)
 ]);
 
 export const submissions = sqliteTable("submissions", {
