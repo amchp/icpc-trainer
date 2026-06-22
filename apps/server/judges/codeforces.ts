@@ -1,6 +1,6 @@
 
 import { getStoredCodeforcesCredentials } from "@icpc-trainer/api";
-import { DatabaseServiceTag } from "@icpc-trainer/db";
+import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
 import { createHash, randomBytes } from "node:crypto";
@@ -19,10 +19,12 @@ import {
   JudgeAPIError,
   JudgeCredentialError
 } from "./judges.js";
+import { createCodeforcesJudgeSync, notImplementedJudgeSync } from "./sync/sync_codeforces.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
 const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
+const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
 const CODEFORCES_PAGE_SIZE = 100_000;
 
 interface CodeforcesApiSuccess<T> {
@@ -325,7 +327,8 @@ const toSubmission = (submission: CodeforcesSubmission): JudgeSubmission => ({
 });
 
 const isGymSubmission = (submission: CodeforcesSubmission): boolean =>
-  submission.contestId >= CODEFORCES_GYM_CONTEST_ID_MIN;
+  submission.contestId >= CODEFORCES_GYM_CONTEST_ID_MIN &&
+  submission.contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
 
 const getAllContests = (
   requestCodeforces: RequestCodeforces
@@ -361,10 +364,12 @@ const getAllSubmissions = (
       }),
   );
 
-export const makeCodeforcesJudge = (): Judge => {
+export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
   const requestCodeforces = makeCodeforcesRequester();
 
-  return {
+  let judge: Judge;
+
+  judge = {
     getContests: getAllContests(requestCodeforces).pipe(
       Effect.map((contests) => contests.map(toPreviewContest)),
       Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
@@ -409,8 +414,14 @@ export const makeCodeforcesJudge = (): Judge => {
         Effect.map((submissions) => submissions.filter(isGymSubmission).map(toSubmission)),
         Effect.mapError((error) => toJudgeError(handle, "user", error))
       );
-    }
+    },
+
+    sync: database === undefined
+      ? notImplementedJudgeSync
+      : (input) => createCodeforcesJudgeSync(database, input, judge)
   };
+
+  return judge;
 };
 
 export const CodeforcesJudgeLive: Layer.Layer<JudgeTag> = Layer.succeed(

@@ -187,6 +187,34 @@ describe("QOJ judge HTML fixtures", () => {
     ]);
   });
 
+  it("parses accepted QOJ submissions from plural submission links", async () => {
+    routes.set(
+      "/submissions",
+      `<!doctype html>
+      <table>
+        <tr>
+          <td><a href="/submissions/98766">98766</a></td>
+          <td><a href="/user/profile/qoj-user">qoj-user</a></td>
+          <td><a href="/contest/1113/problem/11785">Archery Tournament</a></td>
+          <td><span class="uoj-score-max">Accepted</span></td>
+          <td>2024-04-05 12:35:00</td>
+        </tr>
+      </table>`
+    );
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: "qoj-user" }))).resolves.toEqual([
+      {
+        judgeId: "98766",
+        judgeContestId: "1113",
+        judgeProblemId: "11785",
+        problemName: "Archery Tournament",
+        verdict: SUBMISSION_STATUSES.AC,
+        submittedAt: new Date("2024/04/05 12:35:00")
+      }
+    ]);
+  });
+
   it("rejects login-required profile HTML instead of treating it as a user", async () => {
     const judge = makeQojJudge(baseUrl);
 

@@ -19,6 +19,7 @@ import {
   type JudgeUser,
   type Problem
 } from "./judges.js";
+import { notImplementedJudgeSync } from "./sync/sync_codeforces.js";
 
 const QOJ_BASE_URL = "https://qoj.ac";
 const USER_AGENT = "icpc-trainer-v2-qoj-sync/1.0";
@@ -470,7 +471,7 @@ const parseSubmissions = (html: string): ReadonlyArray<JudgeSubmission> => {
     const links = [...row.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map(
       (link) => ({ href: link[1] ?? "", text: cleanHtml(link[2] ?? "") })
     );
-    const judgeId = matchFirst(row, /href=["'][^"']*\/submission\/(\d+)["']/i) || cells[0] || "";
+    const judgeId = matchFirst(row, /href=["'][^"']*\/submissions?\/(\d+)["']/i) || cells[0] || "";
     const problemLink = links.find((link) => /\/problem\//.test(link.href));
     const judgeProblemId = problemLink === undefined
       ? ""
@@ -631,7 +632,9 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
         submitter: userHandle,
         username: userHandle
       }).pipe(Effect.map(parseSubmissions));
-    }
+    },
+
+    sync: notImplementedJudgeSync
   };
 };
 

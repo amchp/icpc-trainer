@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "55125627-94d3-4ca7-9a54-032fc0846422",
+  "id": "22aaa53e-9040-48e4-8192-c8ab0b59dc94",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "contests": {
@@ -86,6 +86,14 @@
             "judge"
           ],
           "isUnique": true
+        },
+        "contests_judge_synced_idx": {
+          "name": "contests_judge_synced_idx",
+          "columns": [
+            "judge",
+            "synced"
+          ],
+          "isUnique": false
         },
         "contests_name_idx": {
           "name": "contests_name_idx",
@@ -378,6 +386,14 @@
             "judge"
           ],
           "isUnique": true
+        },
+        "submissions_user_judge_idx": {
+          "name": "submissions_user_judge_idx",
+          "columns": [
+            "user_id",
+            "judge"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {

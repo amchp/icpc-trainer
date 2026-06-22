@@ -290,6 +290,51 @@ describe("HomeRoute", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Contest 100566 failed");
   });
 
+  it("stacks sync error toasts and removes the oldest when the stack is full", async () => {
+    vi.mocked(trpc.judges.sync.subscribe).mockImplementationOnce((_input, options) => {
+      queueMicrotask(() => {
+        for (const index of Array.from({ length: 8 }, (_, value) => value + 1)) {
+          options.onData?.({
+            type: "error",
+            provider: "codeforces",
+            phase: "contests",
+            step: "contests",
+            message: `Contest ${index} failed`,
+            contestJudgeId: String(index),
+            stepsTotal: 8,
+            stepsLeft: 8 - index
+          });
+        }
+        options.onData?.({
+          type: "completed",
+          provider: "codeforces",
+          stepsTotal: 8,
+          stepsLeft: 0,
+          summary: {
+            usersProcessed: 0,
+            submissionsFetched: 0,
+            submissionsInserted: 0,
+            submissionsUpdated: 0,
+            submissionsSkipped: 0,
+            contestsSynced: 0,
+            errors: 8
+          }
+        });
+      });
+      return { unsubscribe: vi.fn() };
+    });
+
+    renderWithQuery(<HomeRoute />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+
+    await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(6));
+    expect(screen.queryByText("Contest 1 failed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Contest 2 failed")).not.toBeInTheDocument();
+    expect(screen.getByText("Contest 3 failed")).toBeInTheDocument();
+    expect(screen.getByText("Contest 8 failed")).toBeInTheDocument();
+  });
+
   it("refreshes credential status after clearing connected judges", async () => {
     credentialStatusMock
       .mockResolvedValueOnce({

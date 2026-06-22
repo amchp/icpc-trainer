@@ -6,9 +6,11 @@ import { Effect, Scope } from "effect";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { WebSocketServer } from "ws";
 
+import { makeCodeforcesJudge } from "../judges/codeforces.js";
+import { makeQojJudge } from "../judges/qoj.js";
+import { createJudgeSyncService } from "../judges/sync/sync_codeforces.js";
 import type { ServerConfig } from "./config.js";
 import { createJudgePlayground } from "./playground.js";
-import { createJudgeSyncService } from "./sync.js";
 
 export interface StartedServer {
   readonly server: Server;
@@ -35,7 +37,10 @@ export const startServer = (
     });
     const createJudges = () => ({
       ...createJudgePlayground(database),
-      ...createJudgeSyncService(database)
+      ...createJudgeSyncService({
+        codeforces: makeCodeforcesJudge(database),
+        qoj: makeQojJudge()
+      })
     });
 
     const trpcHandler = createHTTPHandler({

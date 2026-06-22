@@ -1,11 +1,101 @@
 import { APP_SERVICE_ID, type HealthStatus } from "@icpc-trainer/shared";
 import type { DatabaseService } from "@icpc-trainer/db";
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import { Effect } from "effect";
+import { z } from "zod";
 
 import { createCredentialsRouter } from "./credentials.js";
-import { createJudgesRouter, type JudgeSyncService } from "./judges.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
+
+export const judgeSyncInputSchema = z.object({
+  provider: z.enum(["codeforces", "qoj"])
+});
+
+export type JudgeSyncInput = z.infer<typeof judgeSyncInputSchema>;
+
+export interface JudgeSyncSummary {
+  readonly usersProcessed: number;
+  readonly submissionsFetched: number;
+  readonly submissionsInserted: number;
+  readonly submissionsUpdated: number;
+  readonly submissionsSkipped: number;
+  readonly contestsSynced: number;
+  readonly errors: number;
+}
+
+export type JudgeSyncStep = "submissions" | "contests";
+
+interface JudgeSyncEventBase {
+  readonly provider: JudgeSyncInput["provider"];
+  readonly stepsTotal: number;
+  readonly stepsLeft: number;
+}
+
+export type JudgeSyncEvent =
+  | (JudgeSyncEventBase & {
+      readonly type: "started";
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "submissions.syncing";
+      readonly step: "submissions";
+      readonly usersTotal: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "submissions.userSyncing";
+      readonly step: "submissions";
+      readonly userHandle: string;
+      readonly userIndex: number;
+      readonly usersTotal: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "submissions.userSynced";
+      readonly step: "submissions";
+      readonly userHandle: string;
+      readonly fetched: number;
+      readonly inserted: number;
+      readonly updated: number;
+      readonly skipped: number;
+      readonly missingProblems: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "contests.syncing";
+      readonly step: "contests";
+      readonly contestsTotal: number;
+      readonly contestsLeft: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "contests.contestSyncing";
+      readonly step: "contests";
+      readonly contestJudgeId: string;
+      readonly contestsLeft: number;
+      readonly contestsTotal: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "contests.contestSynced";
+      readonly step: "contests";
+      readonly contestJudgeId: string;
+      readonly problemsSynced: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "error";
+      readonly phase: "submissions" | "contests" | "database" | "concurrency";
+      readonly step?: JudgeSyncStep;
+      readonly message: string;
+      readonly userHandle?: string;
+      readonly contestJudgeId?: string;
+      readonly judgeId?: string;
+    })
+  | {
+      readonly type: "completed";
+      readonly provider: JudgeSyncInput["provider"];
+      readonly stepsTotal: number;
+      readonly stepsLeft: 0;
+      readonly summary: JudgeSyncSummary;
+    };
+
+export interface JudgeSyncService {
+  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+}
 
 export interface ApiContext {
   readonly database: DatabaseService;
@@ -13,6 +103,20 @@ export interface ApiContext {
 }
 
 const t = initTRPC.context<ApiContext>().create();
+
+const createJudgesRouter = () =>
+  t.router({
+    sync: t.procedure.input(judgeSyncInputSchema).subscription(async function* ({ ctx, input }) {
+      if (ctx.judges.sync === undefined) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Judge sync service is not configured."
+        });
+      }
+
+      yield* ctx.judges.sync(input);
+    })
+  });
 
 export const appRouter = t.router({
   health: t.router({
@@ -28,7 +132,7 @@ export const appRouter = t.router({
     })
   }),
   credentials: createCredentialsRouter(t),
-  judges: createJudgesRouter(t),
+  judges: createJudgesRouter(),
   playground: createPlaygroundRouter(t)
 });
 
@@ -51,13 +155,6 @@ export type {
   StoredCodeforcesCredentials,
   StoredQojCredentials
 } from "./storedCredentials.js";
-
-export type {
-  JudgeSyncEvent,
-  JudgeSyncInput,
-  JudgeSyncService,
-  JudgeSyncSummary
-} from "./judges.js";
 
 export type {
   JudgePlaygroundService,

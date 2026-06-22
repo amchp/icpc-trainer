@@ -122,6 +122,17 @@ describe("makeCodeforcesJudge", () => {
               name: "Regular Contest"
             },
             verdict: "OK"
+          },
+          {
+            id: 49644215,
+            contestId: 200001,
+            creationTimeSeconds: 1450000900,
+            problem: {
+              contestId: 200001,
+              index: "A",
+              name: "Out of Range Gym"
+            },
+            verdict: "OK"
           }
         ]
       })

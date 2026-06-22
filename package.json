@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,web -c cyan,green \"ICPC_TRAINER_PORT=3774 pnpm dev:server\" \"VITE_API_BASE_URL=http://127.0.0.1:3774 pnpm --filter @icpc-trainer/web dev:open\"",
+    "dev:reset": "node scripts/reset-dev-server.mjs",
     "dev:web": "pnpm --filter @icpc-trainer/web dev",
     "dev:server": "pnpm --filter @icpc-trainer/server dev",
     "dev:desktop": "pnpm --filter @icpc-trainer/desktop dev",

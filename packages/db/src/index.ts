@@ -7,9 +7,9 @@ import { dirname, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { healthChecks, providerCredentials, schema } from "./schema.js";
+import { healthChecks, providerCredentials, schema, users } from "./schema.js";
 
-export { schema, healthChecks, providerCredentials };
+export { schema, healthChecks, providerCredentials, users };
 
 export type DatabaseClient = BetterSQLite3Database<typeof schema>;
 

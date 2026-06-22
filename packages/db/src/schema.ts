@@ -36,6 +36,7 @@ export const contests = sqliteTable("contests", {
   ...timestamps
 }, (table) => [
   uniqueIndex("contests_judge_id_judge_unique").on(table.judgeId, table.judge),
+  index("contests_judge_synced_idx").on(table.judge, table.synced),
   index("contests_name_idx").on(table.name)
 ]);
 
@@ -62,7 +63,8 @@ export const submissions = sqliteTable("submissions", {
   submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("submissions_judge_id_judge_unique").on(table.judgeId, table.judge)
+  uniqueIndex("submissions_judge_id_judge_unique").on(table.judgeId, table.judge),
+  index("submissions_user_judge_idx").on(table.userId, table.judge)
 ]);
 
 export const providerCredentials = sqliteTable("provider_credentials", {

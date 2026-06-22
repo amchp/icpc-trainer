@@ -18,6 +18,8 @@ interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const MAX_VISIBLE_TOASTS = 6;
+const TOAST_DURATION_MS = 20_000;
 let nextToastId = 1;
 
 export function ToasterProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
@@ -30,8 +32,8 @@ export function ToasterProvider({ children }: { readonly children: ReactNode }):
   const error = useCallback((toast: ToastInput) => {
     const id = nextToastId++;
     const nextToast: Toast = { ...toast, id, variant: "error" };
-    setToasts((current) => [...current, nextToast].slice(-3));
-    window.setTimeout(() => dismiss(id), 8000);
+    setToasts((current) => [...current, nextToast].slice(-MAX_VISIBLE_TOASTS));
+    window.setTimeout(() => dismiss(id), TOAST_DURATION_MS);
   }, [dismiss]);
 
   const value = useMemo<ToastContextValue>(() => ({ error }), [error]);
@@ -41,7 +43,7 @@ export function ToasterProvider({ children }: { readonly children: ReactNode }):
       {children}
       <div
         aria-live="assertive"
-        className="fixed right-4 top-4 z-50 flex w-[min(calc(100vw-2rem),24rem)] flex-col gap-3"
+        className="fixed right-4 top-4 z-50 flex max-h-[calc(100vh-2rem)] w-[min(calc(100vw-2rem),26rem)] flex-col gap-3 overflow-hidden"
       >
         {toasts.map((toast) => (
           <div

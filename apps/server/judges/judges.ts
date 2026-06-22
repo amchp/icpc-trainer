@@ -2,6 +2,7 @@
 import { Context, Data, Effect } from "effect";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import type { DatabaseServiceTag } from "@icpc-trainer/db";
+import type { JudgeSyncEvent, JudgeSyncInput } from "@icpc-trainer/api";
 
 export class JudgeNotFoundError extends Data.TaggedError("JudgeNotFoundError")<{
   readonly resource: "contest" | "user";
@@ -67,6 +68,7 @@ export interface GetSubmissionsOptions {
 }
 
 export interface Judge {
+  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
   readonly getContests: Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;
   readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, JudgeError, DatabaseServiceTag>;
   readonly getUser: (handle: string) => Effect.Effect<JudgeUser, JudgeError, DatabaseServiceTag>;
