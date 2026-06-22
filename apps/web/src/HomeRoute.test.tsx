@@ -5,9 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectJudgesPage } from "./ConnectJudgesPage.js";
 import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
+import { CodeforcesConnectJudgePage } from "./CodeforcesConnectJudgePage.js";
 import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundPage } from "./PlaygroundPage.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
+import { SyncProvider } from "./SyncContext.js";
+import { ToasterProvider } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -56,6 +59,96 @@ vi.mock("./trpc", () => ({
         }))
       }
     },
+    judges: {
+      sync: {
+        subscribe: vi.fn((_input, options) => {
+          queueMicrotask(() => {
+            options.onData({
+              type: "started",
+              provider: "codeforces",
+              stepsTotal: 2,
+              stepsLeft: 2
+            });
+            options.onData({
+              type: "submissions.syncing",
+              step: "submissions",
+              provider: "codeforces",
+              usersTotal: 1,
+              stepsTotal: 2,
+              stepsLeft: 2
+            });
+            options.onData({
+              type: "submissions.userSyncing",
+              step: "submissions",
+              provider: "codeforces",
+              userHandle: "tourist",
+              userIndex: 1,
+              usersTotal: 1,
+              stepsTotal: 2,
+              stepsLeft: 2
+            });
+            options.onData({
+              type: "submissions.userSynced",
+              step: "submissions",
+              provider: "codeforces",
+              userHandle: "tourist",
+              fetched: 3,
+              inserted: 2,
+              updated: 1,
+              skipped: 0,
+              missingProblems: 0,
+              stepsTotal: 2,
+              stepsLeft: 1
+            });
+            options.onData({
+              type: "contests.syncing",
+              step: "contests",
+              provider: "codeforces",
+              contestsTotal: 1,
+              contestsLeft: 1,
+              stepsTotal: 2,
+              stepsLeft: 1
+            });
+            options.onData({
+              type: "contests.contestSyncing",
+              step: "contests",
+              provider: "codeforces",
+              contestJudgeId: "566",
+              contestsTotal: 1,
+              contestsLeft: 1,
+              stepsTotal: 2,
+              stepsLeft: 1
+            });
+            options.onData({
+              type: "contests.contestSynced",
+              step: "contests",
+              provider: "codeforces",
+              contestJudgeId: "566",
+              problemsSynced: 2,
+              stepsTotal: 2,
+              stepsLeft: 0
+            });
+            options.onData({
+              type: "completed",
+              provider: "codeforces",
+              stepsTotal: 2,
+              stepsLeft: 0,
+              summary: {
+                usersProcessed: 1,
+                submissionsFetched: 3,
+                submissionsInserted: 2,
+                submissionsUpdated: 1,
+                submissionsSkipped: 0,
+                contestsSynced: 1,
+                errors: 0
+              }
+            });
+            options.onComplete?.();
+          });
+          return { unsubscribe: vi.fn() };
+        })
+      }
+    },
     playground: {
       run: {
         mutate: vi.fn(async () => ({
@@ -78,7 +171,11 @@ const renderWithQuery = (ui: ReactNode): void => {
 
   render(
     <QueryClientProvider client={queryClient}>
-      <ConnectedJudgesProvider>{ui}</ConnectedJudgesProvider>
+      <ToasterProvider>
+        <ConnectedJudgesProvider>
+          <SyncProvider>{ui}</SyncProvider>
+        </ConnectedJudgesProvider>
+      </ToasterProvider>
     </QueryClientProvider>
   );
 };
@@ -97,12 +194,100 @@ describe("HomeRoute", () => {
     });
   });
 
-  it("renders an empty home shell with a profile button", async () => {
+  it("renders the home sync shell with profile and sync controls", async () => {
     renderWithQuery(<HomeRoute />);
 
     await waitFor(() => expect(screen.getByText("ICPC Trainer")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole("button", { name: /codeforces/i })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /synced/i })).toBeInTheDocument();
+    expect(screen.getByText("Judge sync")).toBeInTheDocument();
+    expect(screen.getByText("User submissions")).toBeInTheDocument();
+    expect(screen.getByText("Contest sync")).toBeInTheDocument();
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+    expect(screen.getByText("2/2")).toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
+  });
+
+  it("starts Codeforces sync from the navbar", async () => {
+    renderWithQuery(<HomeRoute />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+
+    await waitFor(() =>
+      expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
+        { provider: "codeforces" },
+        expect.objectContaining({
+          onData: expect.any(Function)
+        })
+      )
+    );
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
+    expect(screen.getAllByText("1 / 1")).toHaveLength(2);
+  });
+
+  it("starts all authenticated judge syncs from the navbar", async () => {
+    credentialStatusMock.mockResolvedValue({
+      codeforces: {
+        saved: true
+      },
+      qoj: {
+        saved: true
+      }
+    });
+
+    renderWithQuery(<HomeRoute />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+
+    await waitFor(() => expect(trpc.judges.sync.subscribe).toHaveBeenCalledTimes(2));
+    expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
+      { provider: "codeforces" },
+      expect.objectContaining({ onData: expect.any(Function) })
+    );
+    expect(trpc.judges.sync.subscribe).toHaveBeenCalledWith(
+      { provider: "qoj" },
+      expect.objectContaining({ onData: expect.any(Function) })
+    );
+  });
+
+  it("shows a toast when sync emits an error", async () => {
+    vi.mocked(trpc.judges.sync.subscribe).mockImplementationOnce((_input, options) => {
+      queueMicrotask(() => {
+        options.onData?.({
+          type: "error",
+          provider: "codeforces",
+          phase: "contests",
+          step: "contests",
+          message: "Contest 100566 failed",
+          contestJudgeId: "100566",
+          stepsTotal: 1,
+          stepsLeft: 1
+        });
+        options.onData?.({
+          type: "completed",
+          provider: "codeforces",
+          stepsTotal: 1,
+          stepsLeft: 0,
+          summary: {
+            usersProcessed: 0,
+            submissionsFetched: 0,
+            submissionsInserted: 0,
+            submissionsUpdated: 0,
+            submissionsSkipped: 0,
+            contestsSynced: 0,
+            errors: 1
+          }
+        });
+      });
+      return { unsubscribe: vi.fn() };
+    });
+
+    renderWithQuery(<HomeRoute />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not sync codeforces");
+    expect(screen.getByRole("alert")).toHaveTextContent("Contest 100566 failed");
   });
 
   it("refreshes credential status after clearing connected judges", async () => {
@@ -184,6 +369,20 @@ describe("HomeRoute", () => {
       )
     );
     expect(navigateMock).toHaveBeenCalledWith({ to: "/" });
+  });
+
+  it("shows a toast with a clearer message when Codeforces connect cannot reach the server", async () => {
+    vi.mocked(trpc.credentials.save.mutate).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    renderWithQuery(<CodeforcesConnectJudgePage />);
+
+    fireEvent.change(screen.getByLabelText("Handle"), { target: { value: "tourist" } });
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "cf-key" } });
+    fireEvent.change(screen.getByLabelText("API secret"), { target: { value: "cf-secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /enter/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not connect Codeforces");
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not reach the ICPC Trainer server");
   });
 
   it("renders the playground with the shared navbar and saved credentials only", async () => {

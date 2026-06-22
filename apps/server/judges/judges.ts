@@ -56,6 +56,7 @@ export interface JudgeUser {
 export interface JudgeSubmission {
   readonly judgeId: string;
   readonly judgeContestId: string;
+  readonly judgeProblemId: string;
   readonly problemName: string;
   readonly verdict: SUBMISSION_STATUSES;
   readonly submittedAt: Date;

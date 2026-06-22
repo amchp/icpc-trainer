@@ -48,7 +48,9 @@ export const problems = sqliteTable("problems", {
   solves: integer("solves").notNull(),
   rating: integer("rating").notNull(),
   ...timestamps
-});
+}, (table) => [
+  uniqueIndex("problems_judge_id_judge_unique").on(table.judgeId, table.judge)
+]);
 
 export const submissions = sqliteTable("submissions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -57,8 +59,11 @@ export const submissions = sqliteTable("submissions", {
   problemId: integer("problem_id").references(() => problems.id).notNull(),
   userId: integer("user_id").references(() => users.id).notNull(),
   status: text("status", { enum: enumValues(SUBMISSION_STATUSES) }).notNull(),
+  submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull(),
   ...timestamps
-});
+}, (table) => [
+  uniqueIndex("submissions_judge_id_judge_unique").on(table.judgeId, table.judge)
+]);
 
 export const providerCredentials = sqliteTable("provider_credentials", {
   id: integer("id").primaryKey({ autoIncrement: true }),

@@ -1,3 +1,4 @@
+import * as ProgressPrimitive from "@radix-ui/react-progress";
 import * as React from "react";
 
 import { cn } from "../lib.js";
@@ -148,6 +149,27 @@ export function Skeleton({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
   return <div className={cn("animate-pulse rounded-md bg-zinc-800", className)} {...props} />;
+}
+
+export function Progress({
+  className,
+  value = 0,
+  ...props
+}: React.ComponentProps<typeof ProgressPrimitive.Root>): React.JSX.Element {
+  const safeValue = Math.max(0, Math.min(Number(value ?? 0), 100));
+
+  return (
+    <ProgressPrimitive.Root
+      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-zinc-800", className)}
+      value={safeValue}
+      {...props}
+    >
+      <ProgressPrimitive.Indicator
+        className="h-full w-full flex-1 bg-blue-500 transition-transform"
+        style={{ transform: `translateX(-${100 - safeValue}%)` }}
+      />
+    </ProgressPrimitive.Root>
+  );
 }
 
 export function Table({

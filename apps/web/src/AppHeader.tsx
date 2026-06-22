@@ -1,16 +1,18 @@
 import { APP_NAME } from "@icpc-trainer/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Plus, User } from "lucide-react";
+import { LogOut, Plus, RefreshCw, User } from "lucide-react";
 import { useState } from "react";
 
 import { Button, DropdownContent, DropdownItem, Separator } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
+import { useSync } from "./SyncContext.js";
 import { trpc } from "./trpc.js";
 
 export function AppHeader(): React.JSX.Element {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const { connectedJudges, refresh } = useConnectedJudges();
+  const { startSync, status: syncStatus } = useSync();
 
   const profileLabel = connectedJudges.length > 0
     ? connectedJudges.map((judge) => judge.label).join(" + ")
@@ -33,6 +35,18 @@ export function AppHeader(): React.JSX.Element {
           <img src="/icpc_trainer.png" alt="" className="size-8 object-contain" />
           <span className="truncate text-sm font-semibold">{APP_NAME}</span>
         </Link>
+
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={connectedJudges.length === 0 || syncStatus === "running"}
+          onClick={() => {
+            startSync(connectedJudges.map((judge) => judge.id));
+          }}
+        >
+          <RefreshCw className={syncStatus === "running" ? "size-4 animate-spin" : "size-4"} aria-hidden="true" />
+          Synced
+        </Button>
 
         <div className="relative">
           <Button

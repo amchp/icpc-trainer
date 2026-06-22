@@ -1,6 +1,6 @@
-import { providerCredentials } from "@icpc-trainer/db";
+import { providerCredentials, users } from "@icpc-trainer/db";
 import type { DatabaseService } from "@icpc-trainer/db";
-import { JUDGES } from "@icpc-trainer/shared";
+import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { PlaygroundProvider } from "./playground.js";
@@ -8,6 +8,7 @@ import type { PlaygroundProvider } from "./playground.js";
 const CODEFORCES_CREDENTIAL_TYPE = "api_credentials";
 const QOJ_CREDENTIAL_TYPE = "cookie_jar";
 const DEFAULT_PROVIDER_USER_KEY = "default";
+const ENV_PROVIDER_USER_KEY = "env";
 
 export interface CredentialDatabaseContext {
   readonly database: DatabaseService;
@@ -41,6 +42,17 @@ const credentialTypeFor = (provider: PlaygroundProvider): string =>
 
 const normalizeProviderUserKey = (value: string | undefined): string =>
   value?.trim().toLowerCase() || DEFAULT_PROVIDER_USER_KEY;
+
+const normalizePrimaryUsername = (value: string | undefined): string | null => {
+  const username = value?.trim();
+  const providerUserKey = normalizeProviderUserKey(value);
+  return username && providerUserKey !== DEFAULT_PROVIDER_USER_KEY && providerUserKey !== ENV_PROVIDER_USER_KEY
+    ? username
+    : null;
+};
+
+const providerJudge = (provider: PlaygroundProvider): JUDGES =>
+  provider === JUDGES.Codeforces ? JUDGES.Codeforces : JUDGES.Qoj;
 
 export const getLatestCredential = (
   ctx: CredentialDatabaseContext,
@@ -80,6 +92,8 @@ export const saveEncryptedCredential = (
   encryptedPayload: string,
 ): CredentialStatus => {
   const now = new Date();
+  const primaryUsername = normalizePrimaryUsername(input.providerUserKey);
+  const judge = providerJudge(input.provider);
 
   ctx.database.db
     .insert(providerCredentials)
@@ -106,6 +120,27 @@ export const saveEncryptedCredential = (
     })
     .run();
 
+  if (primaryUsername !== null) {
+    ctx.database.db
+      .insert(users)
+      .values({
+        username: primaryUsername,
+        type: USER_TYPES.Primary,
+        judge,
+        createdAt: now,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: users.username,
+        set: {
+          type: USER_TYPES.Primary,
+          judge,
+          updatedAt: now
+        }
+      })
+      .run();
+  }
+
   return getCredentialStatus(ctx);
 };
 
@@ -119,6 +154,16 @@ export const clearCredentials = (
       and(
         eq(providerCredentials.provider, provider),
         eq(providerCredentials.credentialType, credentialTypeFor(provider))
+      )
+    )
+    .run();
+
+  ctx.database.db
+    .delete(users)
+    .where(
+      and(
+        eq(users.judge, providerJudge(provider)),
+        eq(users.type, USER_TYPES.Primary)
       )
     )
     .run();

@@ -198,7 +198,16 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "problems_judge_id_judge_unique": {
+          "name": "problems_judge_id_judge_unique",
+          "columns": [
+            "judge_id",
+            "judge"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "problems_contest_id_contests_id_fk": {
           "name": "problems_contest_id_contests_id_fk",
@@ -339,6 +348,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -354,7 +370,16 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "submissions_judge_id_judge_unique": {
+          "name": "submissions_judge_id_judge_unique",
+          "columns": [
+            "judge_id",
+            "judge"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "submissions_problem_id_problems_id_fk": {
           "name": "submissions_problem_id_problems_id_fk",

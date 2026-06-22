@@ -1,5 +1,5 @@
 import type { AppRouter } from "@icpc-trainer/api";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { createTRPCClient, createWSClient, httpBatchLink, splitLink, wsLink } from "@trpc/client";
 
 const resolveBaseUrl = (): string => {
   const value = import.meta.env.VITE_API_BASE_URL;
@@ -9,10 +9,27 @@ const resolveBaseUrl = (): string => {
   return "";
 };
 
+const resolveWsUrl = (): string => {
+  const baseUrl = resolveBaseUrl();
+  if (baseUrl !== "") {
+    return `${baseUrl.replace(/^http/, "ws")}/trpc`;
+  }
+
+  return `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/trpc`;
+};
+
 export const trpc = createTRPCClient<AppRouter>({
   links: [
-    httpBatchLink({
-      url: `${resolveBaseUrl()}/trpc`
+    splitLink({
+      condition: (operation) => operation.type === "subscription",
+      true: wsLink({
+        client: createWSClient({
+          url: resolveWsUrl()
+        })
+      }),
+      false: httpBatchLink({
+        url: `${resolveBaseUrl()}/trpc`
+      })
     })
   ]
 });

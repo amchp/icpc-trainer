@@ -1,12 +1,13 @@
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
 
 import { Button, Card, FieldLabel, Input, Label, Separator } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { ConnectJudgesFormHeader } from "./ConnectJudgesFormHeader.js";
+import { formatConnectJudgeError } from "./connectJudgeErrors.js";
 import type { ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
+import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
 export function CodeforcesConnectJudgeForm({
@@ -14,7 +15,7 @@ export function CodeforcesConnectJudgeForm({
 }: ProviderConnectJudgeFormProps): React.JSX.Element {
   const navigate = useNavigate();
   const { setCredentialStatus } = useConnectedJudges();
-  const [message, setMessage] = useState<string | null>(null);
+  const toaster = useToaster();
 
   const form = useForm({
     defaultValues: {
@@ -23,7 +24,6 @@ export function CodeforcesConnectJudgeForm({
       apiSecret: ""
     },
     onSubmit: async ({ value }) => {
-      setMessage(null);
       try {
         const status = await trpc.credentials.save.mutate({
           provider: "codeforces",
@@ -36,7 +36,10 @@ export function CodeforcesConnectJudgeForm({
         setCredentialStatus(status);
         void navigate({ to: "/" });
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Connection failed.");
+        toaster.error({
+          title: "Could not connect Codeforces",
+          description: formatConnectJudgeError(error)
+        });
       }
     }
   });
@@ -69,6 +72,7 @@ export function CodeforcesConnectJudgeForm({
                   placeholder="tourist"
                   autoComplete="username"
                   disabled={form.state.isSubmitting}
+                  required
                 />
               </Label>
             )}
@@ -112,14 +116,10 @@ export function CodeforcesConnectJudgeForm({
 
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
-              <>
-                {message ? <p className="text-sm text-red-300">{message}</p> : null}
-
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Enter
-                </Button>
-              </>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                Enter
+              </Button>
             )}
           </form.Subscribe>
         </div>

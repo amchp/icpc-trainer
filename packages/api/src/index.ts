@@ -4,11 +4,12 @@ import { initTRPC } from "@trpc/server";
 import { Effect } from "effect";
 
 import { createCredentialsRouter } from "./credentials.js";
+import { createJudgesRouter, type JudgeSyncService } from "./judges.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 
 export interface ApiContext {
   readonly database: DatabaseService;
-  readonly judges: JudgePlaygroundService;
+  readonly judges: JudgePlaygroundService & Partial<JudgeSyncService>;
 }
 
 const t = initTRPC.context<ApiContext>().create();
@@ -27,6 +28,7 @@ export const appRouter = t.router({
     })
   }),
   credentials: createCredentialsRouter(t),
+  judges: createJudgesRouter(t),
   playground: createPlaygroundRouter(t)
 });
 
@@ -49,6 +51,13 @@ export type {
   StoredCodeforcesCredentials,
   StoredQojCredentials
 } from "./storedCredentials.js";
+
+export type {
+  JudgeSyncEvent,
+  JudgeSyncInput,
+  JudgeSyncService,
+  JudgeSyncSummary
+} from "./judges.js";
 
 export type {
   JudgePlaygroundService,

@@ -2,7 +2,7 @@
 import { getStoredQojCredentials } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer } from "effect";
 import { Impit } from "impit";
 
 import {
@@ -471,18 +471,23 @@ const parseSubmissions = (html: string): ReadonlyArray<JudgeSubmission> => {
       (link) => ({ href: link[1] ?? "", text: cleanHtml(link[2] ?? "") })
     );
     const judgeId = matchFirst(row, /href=["'][^"']*\/submission\/(\d+)["']/i) || cells[0] || "";
+    const problemLink = links.find((link) => /\/problem\//.test(link.href));
+    const judgeProblemId = problemLink === undefined
+      ? ""
+      : decodeURIComponent(matchFirst(problemLink.href, /\/problem\/([^"'#?]+)/i)).trim();
     const problemName =
-      links.find((link) => /\/problem\//.test(link.href))?.text ||
+      problemLink?.text ||
       cells.find((cell) => /[A-Za-z]/.test(cell) && !isVerdictText(cell)) ||
       "";
 
-    if (judgeId === "" || problemName === "") {
+    if (judgeId === "" || judgeProblemId === "" || problemName === "") {
       continue;
     }
 
     submissions.push({
       judgeId,
       judgeContestId: extractContestId(row),
+      judgeProblemId,
       problemName,
       verdict: toSubmissionStatus(cells.find(isVerdictText) ?? row),
       submittedAt: parseSubmissionDate(cells) ?? new Date(0)

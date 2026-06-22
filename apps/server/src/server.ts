@@ -1,11 +1,14 @@
 import { appRouter, seedStoredCredentials } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
+import { applyWSSHandler } from "@trpc/server/adapters/ws";
 import { Effect, Scope } from "effect";
 import { createServer, type Server, type ServerResponse } from "node:http";
+import { WebSocketServer } from "ws";
 
 import type { ServerConfig } from "./config.js";
 import { createJudgePlayground } from "./playground.js";
+import { createJudgeSyncService } from "./sync.js";
 
 export interface StartedServer {
   readonly server: Server;
@@ -30,11 +33,15 @@ export const startServer = (
       codeforces: config.codeforces,
       qoj: config.qoj
     });
+    const createJudges = () => ({
+      ...createJudgePlayground(database),
+      ...createJudgeSyncService(database)
+    });
 
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: () => ({ database, judges: createJudgePlayground(database) })
+      createContext: () => ({ database, judges: createJudges() })
     });
 
     const server = createServer((request, response) => {
@@ -68,6 +75,12 @@ export const startServer = (
 
       trpcHandler(request, response);
     });
+    const wss = new WebSocketServer({ server, path: "/trpc" });
+    const wsHandler = applyWSSHandler({
+      wss,
+      router: appRouter,
+      createContext: () => ({ database, judges: createJudges() })
+    });
 
     yield* Effect.async<void, Error>((resume) => {
       server.once("error", (error) => resume(Effect.fail(error)));
@@ -76,6 +89,8 @@ export const startServer = (
 
     yield* Effect.addFinalizer(() =>
       Effect.async<void>((resume) => {
+        wsHandler.broadcastReconnectNotification();
+        wss.close();
         server.close(() => resume(Effect.void));
       }),
     );

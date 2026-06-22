@@ -92,10 +92,10 @@ describe("makeCodeforcesJudge", () => {
         result: [
           {
             id: 49644212,
-            contestId: 566,
+            contestId: 100566,
             creationTimeSeconds: 1450000000,
             problem: {
-              contestId: 566,
+              contestId: 100566,
               index: "A",
               name: "Matching Names"
             },
@@ -103,14 +103,25 @@ describe("makeCodeforcesJudge", () => {
           },
           {
             id: 49644213,
-            contestId: 566,
+            contestId: 100566,
             creationTimeSeconds: 1450000300,
             problem: {
-              contestId: 566,
+              contestId: 100566,
               index: "B",
               name: "Replicating Processes"
             },
             verdict: "TIME_LIMIT_EXCEEDED"
+          },
+          {
+            id: 49644214,
+            contestId: 566,
+            creationTimeSeconds: 1450000600,
+            problem: {
+              contestId: 566,
+              index: "C",
+              name: "Regular Contest"
+            },
+            verdict: "OK"
           }
         ]
       })
@@ -130,14 +141,16 @@ describe("makeCodeforcesJudge", () => {
     expect(submissions).toEqual([
       {
         judgeId: "49644212",
-        judgeContestId: "566",
+        judgeContestId: "100566",
+        judgeProblemId: "100566A",
         problemName: "A. Matching Names",
         verdict: SUBMISSION_STATUSES.AC,
         submittedAt: new Date(1450000000 * 1000)
       },
       {
         judgeId: "49644213",
-        judgeContestId: "566",
+        judgeContestId: "100566",
+        judgeProblemId: "100566B",
         problemName: "B. Replicating Processes",
         verdict: SUBMISSION_STATUSES.TLE,
         submittedAt: new Date(1450000300 * 1000)

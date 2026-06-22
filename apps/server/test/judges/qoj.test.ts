@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import { appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
+import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -156,6 +157,34 @@ describe("QOJ judge HTML fixtures", () => {
     const judge = makeQojJudge(baseUrl);
 
     await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
+  });
+
+  it("parses QOJ submissions with database-matchable problem ids", async () => {
+    routes.set(
+      "/submissions",
+      `<!doctype html>
+      <table>
+        <tr>
+          <td><a href="/submission/98765">98765</a></td>
+          <td><a href="/user/profile/qoj-user">qoj-user</a></td>
+          <td><a href="/contest/1113/problem/11785">Archery Tournament</a></td>
+          <td>Accepted</td>
+          <td>2024-04-05 12:30:00</td>
+        </tr>
+      </table>`
+    );
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(judge.getSubmissions({ userHandle: " qoj-user " }))).resolves.toEqual([
+      {
+        judgeId: "98765",
+        judgeContestId: "1113",
+        judgeProblemId: "11785",
+        problemName: "Archery Tournament",
+        verdict: SUBMISSION_STATUSES.AC,
+        submittedAt: new Date("2024/04/05 12:30:00")
+      }
+    ]);
   });
 
   it("rejects login-required profile HTML instead of treating it as a user", async () => {

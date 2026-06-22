@@ -22,6 +22,7 @@ import {
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
+const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_PAGE_SIZE = 100_000;
 
 interface CodeforcesApiSuccess<T> {
@@ -317,10 +318,14 @@ const toSubmissionStatus = (verdict: string | undefined): SUBMISSION_STATUSES =>
 const toSubmission = (submission: CodeforcesSubmission): JudgeSubmission => ({
   judgeId: String(submission.id),
   judgeContestId: String(submission.contestId),
+  judgeProblemId: `${submission.problem.contestId}${submission.problem.index}`,
   problemName: `${submission.problem.index}. ${submission.problem.name}`,
   verdict: toSubmissionStatus(submission.verdict),
   submittedAt: new Date(submission.creationTimeSeconds * 1000)
 });
+
+const isGymSubmission = (submission: CodeforcesSubmission): boolean =>
+  submission.contestId >= CODEFORCES_GYM_CONTEST_ID_MIN;
 
 const getAllContests = (
   requestCodeforces: RequestCodeforces
@@ -401,7 +406,7 @@ export const makeCodeforcesJudge = (): Judge => {
       const handle = options.userHandle.trim();
 
       return getAllSubmissions(handle, requestCodeforces).pipe(
-        Effect.map((submissions) => submissions.map(toSubmission)),
+        Effect.map((submissions) => submissions.filter(isGymSubmission).map(toSubmission)),
         Effect.mapError((error) => toJudgeError(handle, "user", error))
       );
     }

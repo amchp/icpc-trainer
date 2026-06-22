@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `problems` (
 	FOREIGN KEY (`contest_id`) REFERENCES `contests`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `problems_judge_id_judge_unique` ON `problems` (`judge_id`,`judge`);--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS `provider_credentials` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`provider` text NOT NULL,
@@ -51,12 +52,14 @@ CREATE TABLE IF NOT EXISTS `submissions` (
 	`problem_id` integer NOT NULL,
 	`user_id` integer NOT NULL,
 	`status` text NOT NULL,
+	`submitted_at` integer NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`problem_id`) REFERENCES `problems`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `submissions_judge_id_judge_unique` ON `submissions` (`judge_id`,`judge`);--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS `users` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`username` text NOT NULL,
