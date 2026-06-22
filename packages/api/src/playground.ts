@@ -1,23 +1,23 @@
 import { TRPCError, type initTRPC } from "@trpc/server";
+import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
 
-export type PlaygroundProvider = "codeforces" | "qoj";
-export type PlaygroundOperation = "contests" | "contest" | "user" | "submissions";
+const optionalTrimmedString = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().optional(),
+);
 
-export interface PlaygroundInput {
-  readonly provider: PlaygroundProvider;
-  readonly operation: PlaygroundOperation;
-  readonly contestId?: string;
-  readonly userHandle?: string;
-  readonly codeforces?: {
-    readonly apiKey?: string;
-    readonly apiSecret?: string;
-  };
-  readonly qoj?: {
-    readonly cookieJar?: string;
-  };
-}
+export const playgroundInputSchema = z.object({
+  provider: z.enum(["codeforces", "qoj"]),
+  operation: z.enum(["contests", "contest", "user", "submissions"]),
+  contestId: optionalTrimmedString,
+  userHandle: optionalTrimmedString
+});
+
+export type PlaygroundInput = z.infer<typeof playgroundInputSchema>;
+export type PlaygroundProvider = PlaygroundInput["provider"];
+export type PlaygroundOperation = PlaygroundInput["operation"];
 
 export interface JudgePlaygroundService {
   readonly run: (input: PlaygroundInput) => Promise<PlaygroundResult>;
@@ -49,7 +49,7 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 
 export const createPlaygroundRouter = (t: TrpcInstance) =>
   t.router({
-    run: t.procedure.input((value) => parsePlaygroundInput(value)).mutation(async ({ ctx, input }) => {
+    run: t.procedure.input(playgroundInputSchema).mutation(async ({ ctx, input }) => {
       try {
         return await ctx.judges.run(input);
       } catch (error) {
@@ -61,69 +61,3 @@ export const createPlaygroundRouter = (t: TrpcInstance) =>
       }
     })
   });
-
-const parsePlaygroundInput = (value: unknown): PlaygroundInput => {
-  if (typeof value !== "object" || value === null) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Playground input must be an object." });
-  }
-
-  const input = value as Record<string, unknown>;
-  const provider = input.provider;
-  const operation = input.operation;
-
-  if (provider !== "codeforces" && provider !== "qoj") {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Choose codeforces or qoj." });
-  }
-
-  if (
-    operation !== "contests" &&
-    operation !== "contest" &&
-    operation !== "user" &&
-    operation !== "submissions"
-  ) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a supported operation." });
-  }
-
-  return {
-    provider,
-    operation,
-    contestId: readString(input.contestId),
-    userHandle: readString(input.userHandle),
-    codeforces: readCodeforces(input.codeforces),
-    qoj: readQoj(input.qoj)
-  };
-};
-
-const readString = (value: unknown): string | undefined => {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
-};
-
-const readCodeforces = (value: unknown): PlaygroundInput["codeforces"] => {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-
-  const input = value as Record<string, unknown>;
-
-  return {
-    apiKey: readString(input.apiKey),
-    apiSecret: readString(input.apiSecret)
-  };
-};
-
-const readQoj = (value: unknown): PlaygroundInput["qoj"] => {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-
-  const input = value as Record<string, unknown>;
-
-  return {
-    cookieJar: readString(input.cookieJar)
-  };
-};

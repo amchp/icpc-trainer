@@ -1,17 +1,17 @@
-
+import { appRouter } from "@icpc-trainer/api";
+import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  makeCodeforcesJudge,
-  setCodeforcesAuth
-} from "../../judges/codeforces.js";
+import { makeCodeforcesJudge } from "../../judges/codeforces.js";
 
 const codeforcesAuth = {
   apiKey: "key",
   apiSecret: "secret"
 };
+
+const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
 const jsonResponse = (payload: unknown): Response =>
   ({
@@ -38,10 +38,51 @@ const expectRequestedUrl = (value: unknown, pathname: string): URL => {
   return url;
 };
 
+const runWithDatabase = async <A>(
+  effect: Effect.Effect<A, unknown, DatabaseServiceTag>,
+  auth?: { readonly apiKey: string; readonly apiSecret: string },
+): Promise<A> => {
+  process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+  const program = Effect.gen(function* () {
+    const database = yield* DatabaseServiceTag;
+    yield* database.migrate;
+
+    if (auth !== undefined) {
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input })
+        }
+      });
+      yield* Effect.promise(() =>
+        caller.credentials.save({
+          provider: "codeforces",
+          providerUserKey: "test",
+          codeforces: auth
+        })
+      );
+    }
+
+    return yield* effect;
+  });
+
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+};
+
+const runWithCodeforcesAuth = async <A>(
+  effect: Effect.Effect<A, unknown, DatabaseServiceTag>,
+  auth = codeforcesAuth,
+): Promise<A> => runWithDatabase(effect, auth);
+
 describe("makeCodeforcesJudge", () => {
   afterEach(() => {
-    setCodeforcesAuth(undefined);
     vi.unstubAllGlobals();
+    if (originalCredentialKey === undefined) {
+      delete process.env.ICPC_TRAINER_CREDENTIAL_KEY;
+    } else {
+      process.env.ICPC_TRAINER_CREDENTIAL_KEY = originalCredentialKey;
+    }
   });
 
   it("calls user.status with the requested handle and parses Codeforces submissions", async () => {
@@ -75,9 +116,8 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
-    const submissions = await Effect.runPromise(
+    const submissions = await runWithCodeforcesAuth(
       makeCodeforcesJudge().getSubmissions({ userHandle: " Fefer_Ivan " })
     );
 
@@ -156,9 +196,8 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
-    const contest = await Effect.runPromise(makeCodeforcesJudge().getContest("566"));
+    const contest = await runWithCodeforcesAuth(makeCodeforcesJudge().getContest("566"));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.standings");
@@ -211,9 +250,8 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
-    const contests = await Effect.runPromise(makeCodeforcesJudge().getContests);
+    const contests = await runWithCodeforcesAuth(makeCodeforcesJudge().getContests);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.list");
@@ -249,9 +287,8 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
-    const user = await Effect.runPromise(makeCodeforcesJudge().getUser("Fefer_Ivan"));
+    const user = await runWithCodeforcesAuth(makeCodeforcesJudge().getUser("Fefer_Ivan"));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
@@ -272,9 +309,8 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
-    await Effect.runPromise(makeCodeforcesJudge().getUser("Fefer_Ivan"));
+    await runWithCodeforcesAuth(makeCodeforcesJudge().getUser("Fefer_Ivan"));
 
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
     expect(url.searchParams.get("handles")).toBe("Fefer_Ivan");
@@ -291,10 +327,12 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth({ apiKey: "bad-key", apiSecret: "bad-secret" });
 
     await expect(
-      Effect.runPromise(Effect.flip(makeCodeforcesJudge().getUser("x")))
+      runWithCodeforcesAuth(
+        Effect.flip(makeCodeforcesJudge().getUser("x")),
+        { apiKey: "bad-key", apiSecret: "bad-secret" }
+      )
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "Invalid apiKey or apiSig"
@@ -306,10 +344,10 @@ describe("makeCodeforcesJudge", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      Effect.runPromise(Effect.flip(makeCodeforcesJudge().getContest("566")))
+      runWithDatabase(Effect.flip(makeCodeforcesJudge().getContest("566")))
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
-      cause: "Codeforces authentication is required. Provide an API key and API secret."
+      cause: "Connect Codeforces before using the playground."
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -322,10 +360,9 @@ describe("makeCodeforcesJudge", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
     await expect(
-      Effect.runPromise(Effect.flip(makeCodeforcesJudge().getContest("104217")))
+      runWithCodeforcesAuth(Effect.flip(makeCodeforcesJudge().getContest("104217")))
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "Contest is private. Access denied."
@@ -343,10 +380,9 @@ describe("makeCodeforcesJudge", () => {
       )
     );
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
 
     await expect(
-      Effect.runPromise(Effect.flip(makeCodeforcesJudge().getContest("abc")))
+      runWithCodeforcesAuth(Effect.flip(makeCodeforcesJudge().getContest("abc")))
     ).resolves.toMatchObject({
       _tag: "JudgeAPIError",
       cause: "Codeforces API returned HTTP 400: contestId: Field should contain integer."
@@ -363,23 +399,20 @@ describe("makeCodeforcesJudge", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const judge = makeCodeforcesJudge();
-    setCodeforcesAuth(codeforcesAuth);
 
-    await Effect.runPromise(judge.getUser("Fefer_Ivan"));
+    await runWithCodeforcesAuth(judge.getUser("Fefer_Ivan"));
 
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
     expect(url.searchParams.get("apiKey")).toBe("key");
   });
 
-  it("clears stored Codeforces credentials when empty auth is set", async () => {
+  it("does not call Codeforces when credentials are missing", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    setCodeforcesAuth(codeforcesAuth);
-    setCodeforcesAuth({});
 
-    await expect(Effect.runPromise(Effect.flip(makeCodeforcesJudge().getUser("x")))).resolves.toMatchObject({
+    await expect(runWithDatabase(Effect.flip(makeCodeforcesJudge().getUser("x")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
-      cause: "Codeforces authentication is required. Provide an API key and API secret."
+      cause: "Connect Codeforces before using the playground."
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });

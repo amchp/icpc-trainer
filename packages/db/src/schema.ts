@@ -60,10 +60,27 @@ export const submissions = sqliteTable("submissions", {
   ...timestamps
 });
 
+export const providerCredentials = sqliteTable("provider_credentials", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  provider: text("provider").notNull(),
+  providerUserKey: text("provider_user_key").notNull(),
+  credentialType: text("credential_type").notNull(),
+  encryptedPayload: text("encrypted_payload").notNull(),
+  lastValidatedAt: integer("last_validated_at", { mode: "timestamp_ms" }),
+  ...timestamps
+}, (table) => [
+  uniqueIndex("provider_credentials_provider_user_type_unique").on(
+    table.provider,
+    table.providerUserKey,
+    table.credentialType
+  )
+]);
+
 export const schema = {
   healthChecks,
   users,
   contests,
   problems,
-  submissions
+  submissions,
+  providerCredentials
 };

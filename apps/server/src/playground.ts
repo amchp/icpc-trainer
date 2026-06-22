@@ -1,22 +1,16 @@
 import {
+  clearStoredCredentials,
   type JudgePlaygroundService,
   type PlaygroundError,
   type PlaygroundInput,
   type PlaygroundResult
 } from "@icpc-trainer/api";
+import { DatabaseServiceTag, type DatabaseService } from "@icpc-trainer/db";
 import { Effect } from "effect";
 
-import type { ServerConfig } from "./config.js";
-import { makeCodeforcesJudge, setCodeforcesAuth } from "../judges/codeforces.js";
+import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import type { JudgeError } from "../judges/judges.js";
 import { makeQojJudge } from "../judges/qoj.js";
-
-const hasCodeforcesAuthInput = (input: PlaygroundInput): boolean =>
-  input.codeforces !== undefined;
-
-const mergeQojAuth = (config: ServerConfig, input: PlaygroundInput): ServerConfig["qoj"] => ({
-  cookieJar: input.qoj?.cookieJar ?? config.qoj.cookieJar
-});
 
 const requiredInput = (value: string | undefined, label: string): string => {
   if (value === undefined || value.trim() === "") {
@@ -100,42 +94,66 @@ export const toPlaygroundError = (error: JudgeError): PlaygroundError => {
 };
 
 const toPlaygroundResult = async <T>(
-  effect: Effect.Effect<T, JudgeError>
+  database: DatabaseService,
+  input: PlaygroundInput,
+  effect: Effect.Effect<T, JudgeError, never>
 ): Promise<PlaygroundResult> =>
   Effect.runPromise(
     effect.pipe(
       Effect.match({
-        onFailure: (error) => ({ ok: false as const, error: toPlaygroundError(error) }),
+        onFailure: (error) => {
+          if (error._tag === "JudgeCredentialError") {
+            clearStoredCredentials({ database }, input.provider);
+          }
+
+          return { ok: false as const, error: toPlaygroundError(error) };
+        },
         onSuccess: (value) => ({ ok: true as const, result: toJsonValue(value) })
       })
     )
   );
 
-export const createJudgePlayground = (config: ServerConfig): JudgePlaygroundService => ({
-  run: async (input) => {
-    const judge =
-      input.provider === "codeforces"
+const runPlaygroundEffect = async <T>(
+  database: DatabaseService,
+  input: PlaygroundInput,
+  effect: Effect.Effect<T, JudgeError, DatabaseServiceTag>,
+): Promise<PlaygroundResult> => {
+  const provided = Effect.provideService(effect, DatabaseServiceTag, database);
+  return await toPlaygroundResult(database, input, provided);
+};
+
+export const createJudgePlayground = (database: DatabaseService): JudgePlaygroundService => {
+  return {
+    run: async (input) => {
+      const judge = input.provider === "codeforces"
         ? makeCodeforcesJudge()
-        : makeQojJudge(undefined, mergeQojAuth(config, input));
+        : makeQojJudge();
 
-    if (input.provider === "codeforces" && hasCodeforcesAuthInput(input)) {
-      setCodeforcesAuth(input.codeforces);
+      if (input.operation === "contests") {
+        return await runPlaygroundEffect(database, input, judge.getContests);
+      }
+
+      if (input.operation === "contest") {
+        return await runPlaygroundEffect(
+          database,
+          input,
+          judge.getContest(requiredInput(input.contestId, "Contest ID"))
+        );
+      }
+
+      if (input.operation === "user") {
+        return await runPlaygroundEffect(
+          database,
+          input,
+          judge.getUser(requiredInput(input.userHandle, "User handle"))
+        );
+      }
+
+      return await runPlaygroundEffect(
+        database,
+        input,
+        judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
+      );
     }
-
-    if (input.operation === "contests") {
-      return await toPlaygroundResult(judge.getContests);
-    }
-
-    if (input.operation === "contest") {
-      return await toPlaygroundResult(judge.getContest(requiredInput(input.contestId, "Contest ID")));
-    }
-
-    if (input.operation === "user") {
-      return await toPlaygroundResult(judge.getUser(requiredInput(input.userHandle, "User handle")));
-    }
-
-    return await toPlaygroundResult(
-      judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
-    );
-  }
-});
+  };
+};

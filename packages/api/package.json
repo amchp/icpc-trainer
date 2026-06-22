@@ -21,7 +21,9 @@
     "@trpc/client": "11.18.0",
     "@trpc/react-query": "11.18.0",
     "@trpc/server": "11.18.0",
-    "effect": "3.21.4"
+    "drizzle-orm": "0.45.2",
+    "effect": "3.21.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@icpc-trainer/tsconfig": "workspace:*",

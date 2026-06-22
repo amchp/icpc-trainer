@@ -1,4 +1,6 @@
 
+import { getStoredQojCredentials } from "@icpc-trainer/api";
+import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer, Option } from "effect";
 import { Impit } from "impit";
@@ -78,13 +80,23 @@ const buildUrl = (
   return url.toString();
 };
 
-const createQojRequester = (baseUrl = QOJ_BASE_URL, auth?: QojAuth) => {
+const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
   let requestChain: Promise<void> = Promise.resolve();
   let nextAvailableAt = 0;
 
-  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError> =>
-    Effect.tryPromise({
-      try: () => {
+  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError, DatabaseServiceTag> =>
+    Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      const auth = getStoredQojCredentials({ database });
+      if (!auth.ok) {
+        return yield* Effect.fail(new JudgeCredentialError({ judgeId: "qoj", cause: auth.cause }));
+      }
+
+      const cookieJar = auth.credentials.cookieJar.trim();
+      const normalizedCookieJar = cookieJar === "" ? undefined : cookieJar;
+
+      return yield* Effect.tryPromise({
+        try: () => {
         const run = async (): Promise<string> => {
           for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt += 1) {
             const waitMs = Math.max(0, nextAvailableAt - Date.now());
@@ -95,7 +107,7 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL, auth?: QojAuth) => {
             nextAvailableAt = Date.now() + OUTBOUND_INTERVAL_MS;
 
             try {
-              return await fetchQojText(buildUrl(path, params, baseUrl), auth);
+              return await fetchQojText(buildUrl(path, params, baseUrl), normalizedCookieJar);
             } catch (error) {
               const normalizedError = toQojRequestError(error);
 
@@ -123,19 +135,17 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL, auth?: QojAuth) => {
         return scheduled;
       },
       catch: (error) => toJudgeRequestError(toQojRequestError(error))
+      });
     });
 };
 
 const fetchQojText = async (
   url: string,
-  auth?: QojAuth
+  cookieJar: string | undefined
 ): Promise<string> => {
-  const cookieJar = auth?.cookieJar?.trim();
-  const normalizedCookieJar = cookieJar === undefined || cookieJar === "" ? undefined : cookieJar;
-
   const response = isLiveQojUrl(url)
-    ? await fetchQojWithImpit(url, normalizedCookieJar)
-    : await fetchQojWithNode(url, normalizedCookieJar);
+    ? await fetchQojWithImpit(url, cookieJar)
+    : await fetchQojWithNode(url, cookieJar);
   const html = response.html;
 
   if (!response.ok) {
@@ -546,8 +556,8 @@ const decodeHtmlEntities = (value: string): string => {
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const makeQojJudge = (baseUrl = QOJ_BASE_URL, auth?: QojAuth): Judge => {
-  const requestQoj = createQojRequester(baseUrl, auth);
+export const makeQojJudge = (baseUrl = QOJ_BASE_URL): Judge => {
+  const requestQoj = createQojRequester(baseUrl);
 
   return {
     getContests: requestQoj("/contests").pipe(Effect.map(parseContestList)),

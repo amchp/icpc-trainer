@@ -1,4 +1,4 @@
-import { appRouter } from "@icpc-trainer/api";
+import { appRouter, seedStoredCredentials } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { Effect, Scope } from "effect";
@@ -6,7 +6,6 @@ import { createServer, type Server, type ServerResponse } from "node:http";
 
 import type { ServerConfig } from "./config.js";
 import { createJudgePlayground } from "./playground.js";
-import { setCodeforcesAuth } from "../judges/codeforces.js";
 
 export interface StartedServer {
   readonly server: Server;
@@ -27,14 +26,15 @@ export const startServer = (
   Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
-    yield* Effect.sync(() => {
-      setCodeforcesAuth(config.codeforces);
+    seedStoredCredentials({ database }, {
+      codeforces: config.codeforces,
+      qoj: config.qoj
     });
 
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: () => ({ database, judges: createJudgePlayground(config) })
+      createContext: () => ({ database, judges: createJudgePlayground(database) })
     });
 
     const server = createServer((request, response) => {

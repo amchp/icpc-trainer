@@ -1,4 +1,6 @@
 
+import { getStoredCodeforcesCredentials } from "@icpc-trainer/api";
+import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
 import { createHash, randomBytes } from "node:crypto";
@@ -44,7 +46,7 @@ export interface CodeforcesAuth {
 type RequestCodeforces = <T>(
   method: string,
   params?: Record<string, CodeforcesRequestParam>
-) => Effect.Effect<T, CodeforcesApiError>;
+) => Effect.Effect<T, CodeforcesApiError, DatabaseServiceTag>;
 
 interface CodeforcesContest {
   readonly id: number;
@@ -107,22 +109,11 @@ interface CodeforcesApiError {
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
-let codeforcesAuth: CodeforcesAuth | undefined;
-
 const hasCodeforcesAuth = (auth: CodeforcesAuth | undefined): auth is Required<CodeforcesAuth> =>
   auth?.apiKey !== undefined &&
   auth.apiKey.trim() !== "" &&
   auth.apiSecret !== undefined &&
   auth.apiSecret.trim() !== "";
-
-export const setCodeforcesAuth = (auth: CodeforcesAuth | undefined): void => {
-  codeforcesAuth = hasCodeforcesAuth(auth)
-    ? {
-        apiKey: auth.apiKey.trim(),
-        apiSecret: auth.apiSecret.trim()
-      }
-    : undefined;
-};
 
 const buildSignedUrl = (
   method: string,
@@ -175,19 +166,21 @@ const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiEr
 
 const makeCodeforcesRequester = (): RequestCodeforces =>
   <T>(method: string, params?: Record<string, CodeforcesRequestParam>) =>
-    Effect.tryPromise({
-      try: async () => {
-        const auth = codeforcesAuth;
+    Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      const storedAuth = getStoredCodeforcesCredentials({ database });
+      if (!storedAuth.ok || !hasCodeforcesAuth(storedAuth.credentials)) {
+        return yield* Effect.fail({
+          comment: storedAuth.ok
+            ? "Codeforces authentication is required. Provide an API key and API secret."
+            : storedAuth.cause,
+          credential: true
+        });
+      }
 
-        if (!hasCodeforcesAuth(auth)) {
-          return Promise.reject({
-            comment: "Codeforces authentication is required. Provide an API key and API secret.",
-            credential: true
-          });
-        }
-
-        const response = await fetch(buildSignedUrl(method, params, auth));
-
+      return yield* Effect.tryPromise({
+        try: async () => {
+        const response = await fetch(buildSignedUrl(method, params, storedAuth.credentials));
         if (!response.ok) {
           return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
         }
@@ -204,14 +197,15 @@ const makeCodeforcesRequester = (): RequestCodeforces =>
         typeof cause === "object" && cause !== null && "comment" in cause
           ? (cause as CodeforcesApiError)
           : { cause: toError(cause) }
+      });
     });
 
 const getAllCodeforcesPages = <T>(
-  getPage: (from: number, count: number) => Effect.Effect<ReadonlyArray<T>, CodeforcesApiError>,
+  getPage: (from: number, count: number) => Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag>,
   pageSize = CODEFORCES_PAGE_SIZE,
   from = 1,
   items: ReadonlyArray<T> = []
-): Effect.Effect<ReadonlyArray<T>, CodeforcesApiError> =>
+): Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag> =>
   getPage(from, pageSize).pipe(
     Effect.flatMap((page) => {
       const nextItems = [...items, ...page];
@@ -330,7 +324,7 @@ const toSubmission = (submission: CodeforcesSubmission): JudgeSubmission => ({
 
 const getAllContests = (
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError> =>
+): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError, DatabaseServiceTag> =>
   requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list", {
     gym: true
   });
@@ -338,7 +332,7 @@ const getAllContests = (
 const getAllStandingPages = (
   contestId: string,
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesStandings>, CodeforcesApiError> =>
+): Effect.Effect<ReadonlyArray<CodeforcesStandings>, CodeforcesApiError, DatabaseServiceTag> =>
   getAllCodeforcesPages(
     (from, count) =>
       requestCodeforces<CodeforcesStandings>("contest.standings", {
@@ -352,7 +346,7 @@ const getAllStandingPages = (
 const getAllSubmissions = (
   handle: string,
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesSubmission>, CodeforcesApiError> =>
+): Effect.Effect<ReadonlyArray<CodeforcesSubmission>, CodeforcesApiError, DatabaseServiceTag> =>
   getAllCodeforcesPages(
     (from, count) =>
       requestCodeforces<ReadonlyArray<CodeforcesSubmission>>("user.status", {

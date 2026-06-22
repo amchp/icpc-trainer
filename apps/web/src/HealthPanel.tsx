@@ -18,7 +18,7 @@ export function HealthPanel(): React.JSX.Element {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
-            <Activity className="size-4 text-emerald-300" aria-hidden="true" />
+            <Activity className="size-4 text-blue-300" aria-hidden="true" />
             Runtime health
           </div>
           <p className="mt-1 text-sm text-zinc-500">tRPC query backed by an Effect service.</p>
@@ -49,7 +49,7 @@ export function HealthPanel(): React.JSX.Element {
           </div>
           <div>
             <dt className="text-zinc-500">Database</dt>
-            <dd className="mt-1 font-medium text-emerald-300">{healthData.database}</dd>
+            <dd className="mt-1 font-medium text-blue-300">{healthData.database}</dd>
           </div>
           <div>
             <dt className="text-zinc-500">Checked</dt>

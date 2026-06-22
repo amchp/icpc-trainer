@@ -3,6 +3,7 @@ import type { DatabaseService } from "@icpc-trainer/db";
 import { initTRPC } from "@trpc/server";
 import { Effect } from "effect";
 
+import { createCredentialsRouter } from "./credentials.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 
 export interface ApiContext {
@@ -25,10 +26,29 @@ export const appRouter = t.router({
       };
     })
   }),
+  credentials: createCredentialsRouter(t),
   playground: createPlaygroundRouter(t)
 });
 
 export type AppRouter = typeof appRouter;
+
+export type {
+  CredentialStatus,
+  SaveCredentialsInput,
+} from "./credentials.js";
+
+export {
+  clearStoredCredentials,
+  getStoredCodeforcesCredentials,
+  getStoredQojCredentials,
+  seedStoredCredentials
+} from "./storedCredentials.js";
+
+export type {
+  SeedStoredCredentialsInput,
+  StoredCodeforcesCredentials,
+  StoredQojCredentials
+} from "./storedCredentials.js";
 
 export type {
   JudgePlaygroundService,

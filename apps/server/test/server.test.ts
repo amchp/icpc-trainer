@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { appRouter } from "@icpc-trainer/api";
+import { DatabaseLive, DatabaseServiceTag, providerCredentials } from "@icpc-trainer/db";
+import { Effect } from "effect";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   JudgeAPIError,
@@ -6,7 +9,34 @@ import {
   JudgeNotFoundError,
   JudgeUnavailableError
 } from "../judges/judges.js";
-import { formatJudgeError, toPlaygroundError } from "../src/playground.js";
+import { createJudgePlayground, formatJudgeError, toPlaygroundError } from "../src/playground.js";
+
+const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
+
+const jsonResponse = (body: unknown): Response =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      "content-type": "application/json"
+    }
+  });
+
+const requestedUrl = (value: unknown): URL => {
+  if (typeof value !== "string") {
+    throw new Error("Expected fetch URL to be a string.");
+  }
+
+  return new URL(value);
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  if (originalCredentialKey === undefined) {
+    delete process.env.ICPC_TRAINER_CREDENTIAL_KEY;
+  } else {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = originalCredentialKey;
+  }
+});
 
 describe("formatJudgeError", () => {
   it("formats credential errors with the provider detail", () => {
@@ -48,5 +78,133 @@ describe("formatJudgeError", () => {
       cause: "Codeforces API request failed: contestId: Field should contain integer.",
       causeType: "string"
     });
+  });
+});
+
+describe("createJudgePlayground", () => {
+  it("returns a credential error when no Codeforces credentials are saved", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      return yield* Effect.promise(() =>
+        createJudgePlayground(database).run({
+          provider: "codeforces",
+          operation: "contests"
+        })
+      );
+    });
+
+    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        tag: "JudgeCredentialError",
+        judgeId: "codeforces",
+        cause: "Connect Codeforces before using the playground."
+      }
+    });
+  });
+
+  it("loads Codeforces credentials from the database before making API requests", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "OK",
+        result: [{ handle: "tourist" }]
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: createJudgePlayground(database)
+      });
+
+      yield* Effect.promise(() =>
+        caller.credentials.save({
+          provider: "codeforces",
+          providerUserKey: "tourist",
+          codeforces: {
+            apiKey: "cf-key",
+            apiSecret: "cf-secret"
+          }
+        })
+      );
+
+      return yield* Effect.promise(() =>
+        createJudgePlayground(database).run({
+          provider: "codeforces",
+          operation: "user",
+          userHandle: "tourist"
+        })
+      );
+    });
+
+    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+    const url = requestedUrl(fetchMock.mock.calls[0]?.[0]);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(url.pathname).toBe("/api/user.info");
+    expect(url.searchParams.get("apiKey")).toBe("cf-key");
+  });
+
+  it("deletes saved credentials after a credential failure", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "FAILED",
+        comment: "Invalid apiKey or apiSig"
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: createJudgePlayground(database)
+      });
+
+      yield* Effect.promise(() =>
+        caller.credentials.save({
+          provider: "codeforces",
+          providerUserKey: "tourist",
+          codeforces: {
+            apiKey: "bad-key",
+            apiSecret: "bad-secret"
+          }
+        })
+      );
+
+      const result = yield* Effect.promise(() =>
+        createJudgePlayground(database).run({
+          provider: "codeforces",
+          operation: "user",
+          userHandle: "tourist"
+        })
+      );
+
+      const remaining = database.db.select().from(providerCredentials).all();
+      return { remaining, result };
+    });
+
+    const { remaining, result } = await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        tag: "JudgeCredentialError",
+        cause: "Invalid apiKey or apiSig"
+      }
+    });
+    expect(remaining).toHaveLength(0);
   });
 });

@@ -1,13 +1,15 @@
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { count } from "drizzle-orm";
 import { Context, Effect, Layer, Scope } from "effect";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
-import { healthChecks, schema } from "./schema.js";
+import { healthChecks, providerCredentials, schema } from "./schema.js";
 
-export { schema, healthChecks };
+export { schema, healthChecks, providerCredentials };
 
 export type DatabaseClient = BetterSQLite3Database<typeof schema>;
 
@@ -40,15 +42,11 @@ const ensureDatabaseDirectory = (filename: string): void => {
   mkdirSync(dirname(filename), { recursive: true });
 };
 
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const migrationsFolder = resolve(packageRoot, "drizzle");
+
 export const migrateDatabase = (db: DatabaseClient): Effect.Effect<void> =>
-  Effect.sync(() => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS health_checks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at INTEGER NOT NULL
-      )
-    `);
-  });
+  Effect.sync(() => migrate(db, { migrationsFolder }));
 
 export const makeDatabaseService = (
   config: DatabaseConfig,

@@ -1,0 +1,94 @@
+import type { CredentialStatus, PlaygroundProvider } from "@icpc-trainer/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { trpc } from "./trpc.js";
+
+export interface ConnectedJudge {
+  readonly id: PlaygroundProvider;
+  readonly label: string;
+}
+
+interface ConnectedJudgesContextValue {
+  readonly status: "loading" | "ready" | "error";
+  readonly credentialStatus: CredentialStatus;
+  readonly connectedJudges: readonly ConnectedJudge[];
+  readonly hasConnectedJudge: boolean;
+  readonly refresh: () => Promise<CredentialStatus>;
+  readonly setCredentialStatus: (status: CredentialStatus) => void;
+}
+
+const emptyCredentialStatus = (): CredentialStatus => ({
+  codeforces: {
+    saved: false
+  },
+  qoj: {
+    saved: false
+  }
+});
+
+const ConnectedJudgesContext = createContext<ConnectedJudgesContextValue | null>(null);
+
+const connectedJudgesFromStatus = (status: CredentialStatus): readonly ConnectedJudge[] => {
+  const judges: ConnectedJudge[] = [];
+  if (status.codeforces.saved) {
+    judges.push({ id: "codeforces", label: "Codeforces" });
+  }
+  if (status.qoj.saved) {
+    judges.push({ id: "qoj", label: "QOJ" });
+  }
+  return judges;
+};
+
+export function ConnectedJudgesProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const [credentialStatus, setCredentialStatusState] = useState<CredentialStatus>(emptyCredentialStatus);
+  const [status, setStatus] = useState<ConnectedJudgesContextValue["status"]>("loading");
+
+  const setCredentialStatus = useCallback((nextStatus: CredentialStatus) => {
+    setCredentialStatusState(nextStatus);
+    setStatus("ready");
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const nextStatus = await trpc.credentials.status.query();
+    setCredentialStatus(nextStatus);
+    return nextStatus;
+  }, [setCredentialStatus]);
+
+  useEffect(() => {
+    let active = true;
+    void trpc.credentials.status.query().then((nextStatus) => {
+      if (active) {
+        setCredentialStatus(nextStatus);
+      }
+    }).catch(() => {
+      if (active) {
+        setStatus("error");
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [setCredentialStatus]);
+
+  const connectedJudges = useMemo(() => connectedJudgesFromStatus(credentialStatus), [credentialStatus]);
+
+  const value = useMemo<ConnectedJudgesContextValue>(() => ({
+    status,
+    credentialStatus,
+    connectedJudges,
+    hasConnectedJudge: connectedJudges.length > 0,
+    refresh,
+    setCredentialStatus
+  }), [connectedJudges, credentialStatus, refresh, setCredentialStatus, status]);
+
+  return <ConnectedJudgesContext.Provider value={value}>{children}</ConnectedJudgesContext.Provider>;
+}
+
+export function useConnectedJudges(): ConnectedJudgesContextValue {
+  const context = useContext(ConnectedJudgesContext);
+  if (!context) {
+    throw new Error("useConnectedJudges must be used inside ConnectedJudgesProvider.");
+  }
+  return context;
+}

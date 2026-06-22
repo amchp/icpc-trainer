@@ -1,4 +1,7 @@
 import { resolveDatabasePath } from "@icpc-trainer/db";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export interface ServerConfig {
   readonly host: string;
@@ -30,6 +33,22 @@ const readOptional = (value: string | undefined): string | undefined => {
   return trimmed === undefined || trimmed === "" ? undefined : trimmed;
 };
 
+const ensureCredentialKey = (env: NodeJS.ProcessEnv, databasePath: string): void => {
+  if (readOptional(env.ICPC_TRAINER_CREDENTIAL_KEY) !== undefined) {
+    return;
+  }
+
+  const keyPath = env.ICPC_TRAINER_CREDENTIAL_KEY_FILE?.trim() ||
+    join(databasePath === ":memory:" ? ".local" : dirname(databasePath), "icpc-trainer.credentials.key");
+  mkdirSync(dirname(keyPath), { recursive: true });
+
+  if (!existsSync(keyPath)) {
+    writeFileSync(keyPath, `${randomBytes(32).toString("base64")}\n`, { mode: 0o600 });
+  }
+
+  env.ICPC_TRAINER_CREDENTIAL_KEY = readFileSync(keyPath, "utf8").trim();
+};
+
 const buildQojCookieJar = (env: NodeJS.ProcessEnv): string | undefined => {
   const cookieEntries = [
     ["uoj_remember_token", env.ICPC_TRAINER_QOJ_COOKIE_UOJ_REMEMBER_TOKEN],
@@ -46,15 +65,22 @@ const buildQojCookieJar = (env: NodeJS.ProcessEnv): string | undefined => {
     : cookieEntries.map(([key, value]) => `${key}=${value}`).join("; ");
 };
 
-export const loadServerConfig = (env: NodeJS.ProcessEnv = process.env): ServerConfig => ({
-  host: env.ICPC_TRAINER_HOST?.trim() || "127.0.0.1",
-  port: parsePort(env.ICPC_TRAINER_PORT),
-  databasePath: resolveDatabasePath(env.ICPC_TRAINER_SQLITE_PATH ?? env.ICPC_TRAINER_DATABASE_URL),
-  codeforces: {
-    apiKey: readOptional(env.ICPC_TRAINER_CODEFORCES_API_KEY),
-    apiSecret: readOptional(env.ICPC_TRAINER_CODEFORCES_API_SECRET)
-  },
-  qoj: {
-    cookieJar: buildQojCookieJar(env)
+export const loadServerConfig = (env: NodeJS.ProcessEnv = process.env): ServerConfig => {
+  const databasePath = resolveDatabasePath(env.ICPC_TRAINER_SQLITE_PATH ?? env.ICPC_TRAINER_DATABASE_URL);
+  if (env === process.env) {
+    ensureCredentialKey(env, databasePath);
   }
-});
+
+  return {
+    host: env.ICPC_TRAINER_HOST?.trim() || "127.0.0.1",
+    port: parsePort(env.ICPC_TRAINER_PORT),
+    databasePath,
+    codeforces: {
+      apiKey: readOptional(env.ICPC_TRAINER_CODEFORCES_API_KEY),
+      apiSecret: readOptional(env.ICPC_TRAINER_CODEFORCES_API_SECRET)
+    },
+    qoj: {
+      cookieJar: buildQojCookieJar(env)
+    }
+  };
+};

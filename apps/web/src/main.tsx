@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./styles.css";
+import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { router } from "./router.js";
 
 const queryClient = new QueryClient();
@@ -16,7 +17,9 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ConnectedJudgesProvider>
+        <RouterProvider router={router} />
+      </ConnectedJudgesProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

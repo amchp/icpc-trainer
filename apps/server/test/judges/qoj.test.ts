@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
+import { appRouter } from "@icpc-trainer/api";
+import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { Effect } from "effect";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -9,6 +11,8 @@ import { makeQojJudge } from "../../judges/qoj.js";
 const fixturesDir = join(import.meta.dirname, "../fixtures/qoj");
 
 const fixture = (name: string): string => readFileSync(join(fixturesDir, name), "utf8");
+const qojCookieJar = "uoj_username=qoj-user; uojsessid=session";
+const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
 const routes = new Map<string, string>([
   ["/contest/1113", fixture("result-link.html")],
@@ -71,16 +75,51 @@ describe("QOJ judge HTML fixtures", () => {
         resolve();
       });
     });
+    if (originalCredentialKey === undefined) {
+      delete process.env.ICPC_TRAINER_CREDENTIAL_KEY;
+    } else {
+      process.env.ICPC_TRAINER_CREDENTIAL_KEY = originalCredentialKey;
+    }
   });
 
   beforeEach(() => {
     requestedPaths = [];
+    lastCookieHeader = undefined;
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = originalCredentialKey ?? Buffer.alloc(32, 7).toString("base64");
   });
+
+  const runWithQojAuth = async <A>(effect: Effect.Effect<A, unknown, DatabaseServiceTag>): Promise<A> => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input })
+        }
+      });
+      yield* Effect.promise(() =>
+        caller.credentials.save({
+          provider: "qoj",
+          providerUserKey: "qoj-user",
+          qoj: {
+            cookieJar: qojCookieJar
+          }
+        })
+      );
+
+      return yield* effect;
+    });
+
+    return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+  };
 
   it("parses contest metadata and problems from copied QOJ contest HTML", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    const contest = await Effect.runPromise(judge.getContest("https://qoj.ac/contest/1113"));
+    const contest = await runWithQojAuth(judge.getContest("https://qoj.ac/contest/1113"));
 
     expect(fixture("result-link.html")).toContain('/results/QOJ1113');
     expect(requestedPaths).toEqual(["/contest/1113", "/results/QOJ1113"]);
@@ -116,31 +155,29 @@ describe("QOJ judge HTML fixtures", () => {
   it("accepts an existing profile fixture", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
+    await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
   });
 
   it("rejects login-required profile HTML instead of treating it as a user", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(Effect.flip(judge.getUser("private")))).resolves.toMatchObject({
+    await expect(runWithQojAuth(Effect.flip(judge.getUser("private")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "QOJ login required. Paste a fresh QOJ cookie set from your browser."
     });
   });
 
   it("sends QOJ cookie authentication when supplied", async () => {
-    const judge = makeQojJudge(baseUrl, {
-      cookieJar: "uoj_username=qoj-user; uojsessid=session"
-    });
+    const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
-    expect(lastCookieHeader).toBe("uoj_username=qoj-user; uojsessid=session");
+    await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
+    expect(lastCookieHeader).toBe(qojCookieJar);
   });
 
   it("does not classify successful Cloudflare-looking HTML before parsing", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(judge.getUser("cloudflare"))).resolves.toEqual({
+    await expect(runWithQojAuth(judge.getUser("cloudflare"))).resolves.toEqual({
       handle: "cloudflare"
     });
   });
@@ -150,7 +187,7 @@ describe("QOJ judge HTML fixtures", () => {
     const judge = makeQojJudge(baseUrl);
 
     await expect(
-      Effect.runPromise(Effect.flip(judge.getUser("cloudflare-http")))
+      runWithQojAuth(Effect.flip(judge.getUser("cloudflare-http")))
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "QOJ returned HTTP 403: Attention Required! | Cloudflare Checking your browser before accessing qoj.ac."
@@ -160,7 +197,7 @@ describe("QOJ judge HTML fixtures", () => {
   it("returns status and response text for current Cloudflare JavaScript challenge pages", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(Effect.flip(judge.getUser("cloudflare-js")))).resolves.toMatchObject({
+    await expect(runWithQojAuth(Effect.flip(judge.getUser("cloudflare-js")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "QOJ returned HTTP 403: Just a moment... Just a moment... Enable JavaScript and cookies to continue"
     });
@@ -169,7 +206,7 @@ describe("QOJ judge HTML fixtures", () => {
   it("returns a credential error for HTTP login-required pages with details", async () => {
     const judge = makeQojJudge(baseUrl);
 
-    await expect(Effect.runPromise(Effect.flip(judge.getContest("login")))).resolves.toMatchObject({
+    await expect(runWithQojAuth(Effect.flip(judge.getContest("login")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "QOJ login required. Paste a fresh QOJ cookie set from your browser."
     });
