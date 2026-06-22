@@ -28,6 +28,35 @@ const routes = new Map<string, string>([
   ["/user/profile/private", fixture("login-required.html")]
 ]);
 
+const minimalContestHtml = (
+  contestId: string,
+  problemCount: number,
+  name = `Contest ${contestId}`
+): string => `
+  <!doctype html>
+  <html>
+    <head><title>${name} - QOJ</title></head>
+    <body>
+      <a href="/results/QOJ${contestId}">External Standings</a>
+      <table>
+        <tbody>
+          ${Array.from({ length: problemCount }, (_, index) => {
+            const letter = String.fromCodePoint("A".codePointAt(0)! + index);
+
+            return `
+              <tr>
+                <td>${letter}</td>
+                <td><a href="/contest/${contestId}/problem/${letter}">Problem ${letter}</a></td>
+                <td>0</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </body>
+  </html>
+`;
+
 const statuses = new Map<string, number>([
   ["/user/profile/cloudflare-http", 403],
   ["/user/profile/cloudflare-js", 403]
@@ -131,7 +160,7 @@ describe("QOJ judge HTML fixtures", () => {
       judgeId: "1113",
       name: "The 2017 ICPC Northern Eurasia Finals",
       participants: 3,
-      stars: 0
+      stars: 4
     });
     expect(contest.problems).toHaveLength(12);
     expect(contest.problems.slice(0, 3)).toEqual([
@@ -154,6 +183,46 @@ describe("QOJ judge HTML fixtures", () => {
         link: "https://qoj.ac/contest/1113/problem/11787"
       }
     ]);
+  });
+
+  it("rates QOJ World Finals contests as five stars", async () => {
+    routes.set("/contest/2000", minimalContestHtml("2000", 1, "The 2024 ICPC World Finals"));
+    const judge = makeQojJudge(baseUrl);
+
+    const contest = await runWithQojAuth(judge.getContest("2000"));
+
+    expect(contest).toMatchObject({
+      name: "The 2024 ICPC World Finals",
+      stars: 5
+    });
+  });
+
+  it.each([
+    ["2001", "Moscow Pre-Finals Workshop 2016"],
+    ["2002", "All Ireland Programming Olympiad 2017 National Finals"],
+    ["2003", "The 2017 ICPC Northern Eurasia Finals"],
+    ["2004", "The 4th Universal Cup. Stage 10"],
+    ["2005", "Random Training Contest"]
+  ])("rates non-World-Finals QOJ contests as four stars: %s", async (contestId, name) => {
+    routes.set(`/contest/${contestId}`, minimalContestHtml(contestId, 1, name));
+    const judge = makeQojJudge(baseUrl);
+
+    const contest = await runWithQojAuth(judge.getContest(contestId));
+
+    expect(contest).toMatchObject({
+      name,
+      stars: 4
+    });
+  });
+
+  it("keeps default QOJ stars when external results are unavailable", async () => {
+    routes.set("/contest/2006", minimalContestHtml("2006", 5, "Normal QOJ Contest"));
+    const judge = makeQojJudge(baseUrl);
+
+    const contest = await runWithQojAuth(judge.getContest("2006"));
+
+    expect(requestedPaths).toEqual(["/contest/2006", "/results/QOJ2006"]);
+    expect(contest.stars).toBe(4);
   });
 
   it("accepts an existing profile fixture", async () => {

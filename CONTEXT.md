@@ -12,6 +12,10 @@ _Avoid_: Provider, online judge
 A judge-hosted collection of problems that should be trained or reviewed together.
 _Avoid_: Round, gym
 
+**Contest Stars**:
+A numeric **Contest** difficulty rating. Higher values mean a harder **Contest**.
+_Avoid_: Raw score, solved count
+
 **Problem**:
 A single task from a **Contest**. Each **Problem** belongs to exactly one **Contest** in the app.
 _Avoid_: Task

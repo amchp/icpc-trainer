@@ -360,15 +360,17 @@ const toContest = (
   resultHtml?: string
 ): JudgeContest => {
   const resultStats = resultHtml === undefined ? undefined : parseResultStats(resultHtml);
+  const contestProblems = parseContestProblemRows(contestHtml);
+  const name = parseContestName(contestHtml);
 
   return {
     judgeId: contestId,
-    name: parseContestName(contestHtml),
+    name,
     participants: resultStats?.participants ?? parseParticipants(contestHtml),
-    problems: parseContestProblemRows(contestHtml).map((problem) =>
+    problems: contestProblems.map((problem) =>
       toProblem(contestId, problem, resultStats)
     ),
-    stars: 0
+    stars: estimateStarsFromContestName(name)
   };
 };
 
@@ -427,6 +429,9 @@ const parseResultStats = (html: string): QojResultStats => {
     solvesByLetter
   };
 };
+
+const estimateStarsFromContestName = (name: string): number =>
+  /\bworld\s+finals\b/i.test(name) ? 5 : 4;
 
 const parseStandingsHeader = (
   value: string
