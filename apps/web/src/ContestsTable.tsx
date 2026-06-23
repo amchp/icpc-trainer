@@ -86,7 +86,6 @@ export function ContestsTable({
     <Card className="overflow-hidden">
       <ContestsTableFilters
         searchQuery={searchQuery}
-        contestCount={filteredRows.length}
         judgeSourceFilters={judgeSourceFilters}
         judgeSourceCounts={judgeSourceCounts}
         onSearchQueryChange={setSearchQuery}

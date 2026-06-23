@@ -5,14 +5,12 @@ import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSour
 
 export function ContestsTableFilters({
   searchQuery,
-  contestCount,
   judgeSourceFilters,
   judgeSourceCounts,
   onSearchQueryChange,
   onJudgeSourceFiltersChange
 }: {
   readonly searchQuery: string;
-  readonly contestCount: number;
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
   readonly onSearchQueryChange: (value: string) => void;
@@ -37,9 +35,6 @@ export function ContestsTableFilters({
           counts={judgeSourceCounts}
           onChange={onJudgeSourceFiltersChange}
         />
-        <p className="text-sm text-zinc-500">
-          {contestCount} {contestCount === 1 ? "contest" : "contests"}
-        </p>
       </div>
     </div>
   );
