@@ -25,7 +25,7 @@ describe("DatabaseLive", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(schema.users).values({
         username: "tourist",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -119,7 +119,7 @@ describe("DatabaseLive", () => {
       database.db.insert(schema.users).values([
         {
           username: "juancs",
-          type: USER_TYPES.Primary,
+          type: USER_TYPES.Team,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp

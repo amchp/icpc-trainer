@@ -10,11 +10,12 @@ interface ToastInput {
 
 interface Toast extends ToastInput {
   readonly id: number;
-  readonly variant: "error";
+  readonly variant: "error" | "warning";
 }
 
 interface ToastContextValue {
   readonly error: (toast: ToastInput) => void;
+  readonly warning: (toast: ToastInput) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -36,7 +37,14 @@ export function ToasterProvider({ children }: { readonly children: ReactNode }):
     window.setTimeout(() => dismiss(id), TOAST_DURATION_MS);
   }, [dismiss]);
 
-  const value = useMemo<ToastContextValue>(() => ({ error }), [error]);
+  const warning = useCallback((toast: ToastInput) => {
+    const id = nextToastId++;
+    const nextToast: Toast = { ...toast, id, variant: "warning" };
+    setToasts((current) => [...current, nextToast].slice(-MAX_VISIBLE_TOASTS));
+    window.setTimeout(() => dismiss(id), TOAST_DURATION_MS);
+  }, [dismiss]);
+
+  const value = useMemo<ToastContextValue>(() => ({ error, warning }), [error, warning]);
 
   return (
     <ToastContext.Provider value={value}>
@@ -52,12 +60,24 @@ export function ToasterProvider({ children }: { readonly children: ReactNode }):
             className={cn(
               "rounded-lg border bg-zinc-950 p-4 text-sm shadow-xl",
               toast.variant === "error" && "border-red-500/40 text-zinc-100 shadow-red-950/20",
+              toast.variant === "warning" && "border-amber-500/40 text-zinc-100 shadow-amber-950/20",
             )}
           >
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-300" aria-hidden="true" />
+              <AlertTriangle
+                className={cn(
+                  "mt-0.5 size-4 shrink-0",
+                  toast.variant === "error" ? "text-red-300" : "text-amber-300"
+                )}
+                aria-hidden="true"
+              />
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-red-100">{toast.title}</p>
+                <p className={cn(
+                  "font-medium",
+                  toast.variant === "error" ? "text-red-100" : "text-amber-100"
+                )}>
+                  {toast.title}
+                </p>
                 {toast.description ? (
                   <p className="mt-1 leading-5 text-zinc-400">{toast.description}</p>
                 ) : null}

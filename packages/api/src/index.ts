@@ -4,6 +4,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { Effect } from "effect";
 import { z } from "zod";
 
+import { createAccountRouter } from "./account.js";
 import {
   createCredentialsRouter,
   type CredentialStatus,
@@ -175,6 +176,7 @@ const createJudgesRouter = () =>
   });
 
 export const appRouter = t.router({
+  account: createAccountRouter(t),
   health: t.router({
     ping: t.procedure.query(async ({ ctx }): Promise<HealthStatus> => {
       const database = await Effect.runPromise(ctx.database.healthCheck);
@@ -195,6 +197,10 @@ export const appRouter = t.router({
 });
 
 export type AppRouter = typeof appRouter;
+
+export type {
+  AppDataStatus
+} from "./account.js";
 
 export type {
   CredentialStatus,

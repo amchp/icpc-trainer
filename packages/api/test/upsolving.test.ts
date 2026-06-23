@@ -8,7 +8,7 @@ import { appRouter } from "../src/index.js";
 const { contests, problems, submissions, users } = schema;
 
 describe("upsolving router", () => {
-  it("returns all synced problem rows with primary and teammate status", async () => {
+  it("returns all synced problem rows with team user status only", async () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
@@ -16,8 +16,8 @@ describe("upsolving router", () => {
 
       database.db.insert(users).values([
         {
-          username: "primary",
-          type: USER_TYPES.Primary,
+          username: "other",
+          type: USER_TYPES.User,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -135,13 +135,13 @@ describe("upsolving router", () => {
 
       const userRows = database.db.select().from(users).all();
       const problemRows = database.db.select().from(problems).all();
-      const primary = userRows.find((user) => user.username === "primary");
+      const other = userRows.find((user) => user.username === "other");
       const teammate = userRows.find((user) => user.username === "teammate");
       const friend = userRows.find((user) => user.username === "friend");
       const solved = problemRows.find((problem) => problem.judgeId === "100A");
       const attempted = problemRows.find((problem) => problem.judgeId === "100B");
       const newProblem = problemRows.find((problem) => problem.judgeId === "200A");
-      if (!primary || !teammate || !friend || !solved || !attempted || !newProblem) {
+      if (!other || !teammate || !friend || !solved || !attempted || !newProblem) {
         throw new Error("Expected seeded users and problems.");
       }
 
@@ -160,7 +160,7 @@ describe("upsolving router", () => {
           judgeId: "sub-2",
           judge: JUDGES.Codeforces,
           problemId: attempted.id,
-          userId: primary.id,
+          userId: other.id,
           status: SUBMISSION_STATUSES.WA,
           submittedAt: timestamp,
           createdAt: timestamp,
@@ -203,7 +203,7 @@ describe("upsolving router", () => {
       }),
       expect.objectContaining({
         problemJudgeId: "100B",
-        status: "attempted"
+        status: "new"
       }),
       expect.objectContaining({
         problemJudgeId: "200A",
@@ -229,7 +229,7 @@ describe("upsolving router", () => {
       contestCount: 2,
       problemCount: 3,
       solvedCount: 1,
-      attemptedCount: 1
+      attemptedCount: 0
     });
   });
 });

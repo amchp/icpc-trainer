@@ -34,7 +34,7 @@ export function CodeforcesConnectJudgeForm({
           }
         });
         setCredentialStatus(status);
-        void navigate({ to: "/" });
+        void navigate({ to: "/judges" });
       } catch (error) {
         toaster.error({
           title: "Could not connect Codeforces",

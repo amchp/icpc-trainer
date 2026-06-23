@@ -68,7 +68,7 @@ export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFo
           }
         });
         setCredentialStatus(status);
-        void navigate({ to: "/" });
+        void navigate({ to: "/judges" });
       } catch (error) {
         toaster.error({
           title: "Could not connect QOJ",

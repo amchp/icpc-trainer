@@ -58,7 +58,7 @@ describe("credentials router", () => {
     expect(stored?.encryptedPayload).not.toContain("cf-secret");
   });
 
-  it("adds saved judge handles as primary users", async () => {
+  it("adds saved judge handles as team users without storing handles as credential keys", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
     const program = Effect.gen(function* () {
@@ -81,21 +81,27 @@ describe("credentials router", () => {
         }
       }));
 
-      return database.db.select().from(users).where(eq(users.username, "tourist")).get();
+      const stored = database.db.select().from(providerCredentials).get();
+      const user = database.db.select().from(users).where(eq(users.username, "tourist")).get();
+      return { stored, user };
     });
 
-    const primaryUser = await Effect.runPromise(
+    const result = await Effect.runPromise(
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
     );
 
-    expect(primaryUser).toMatchObject({
+    expect(result.stored).toMatchObject({
+      provider: "codeforces",
+      providerUserKey: "default"
+    });
+    expect(result.user).toMatchObject({
       username: "tourist",
-      type: USER_TYPES.Primary,
+      type: USER_TYPES.Team,
       judge: "codeforces"
     });
   });
 
-  it("allows the same primary username on different judges", async () => {
+  it("allows the same team username on different judges when saving credentials", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
     const program = Effect.gen(function* () {
@@ -128,20 +134,20 @@ describe("credentials router", () => {
       return database.db.select().from(users).where(eq(users.username, "juancs")).all();
     });
 
-    const primaryUsers = await Effect.runPromise(
+    const teamUsers = await Effect.runPromise(
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
     );
 
-    expect(primaryUsers).toHaveLength(2);
-    expect(primaryUsers).toEqual(expect.arrayContaining([
+    expect(teamUsers).toHaveLength(2);
+    expect(teamUsers).toEqual(expect.arrayContaining([
       expect.objectContaining({
         username: "juancs",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Codeforces
       }),
       expect.objectContaining({
         username: "juancs",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj
       })
     ]));
@@ -184,7 +190,7 @@ describe("credentials router", () => {
     expect(stored).toHaveLength(0);
   });
 
-  it("removes primary users when clearing judge credentials", async () => {
+  it("keeps team users when clearing judge credentials", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
     const program = Effect.gen(function* () {
@@ -210,11 +216,15 @@ describe("credentials router", () => {
       return database.db.select().from(users).where(eq(users.username, "qoj-user")).get() ?? null;
     });
 
-    const primaryUser = await Effect.runPromise(
+    const teamUser = await Effect.runPromise(
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
     );
 
-    expect(primaryUser).toBeNull();
+    expect(teamUser).toMatchObject({
+      username: "qoj-user",
+      type: USER_TYPES.Team,
+      judge: JUDGES.Qoj
+    });
   });
 
   it("seeds config credentials into encrypted database storage", async () => {

@@ -1,4 +1,4 @@
-import { ConnectJudgesProviderSelection } from "./ConnectJudgesProviderSelection.js";
+import { AvailableJudgeProviderSelection } from "./AvailableJudgeProviderSelection.js";
 
 export function ConnectJudgesPage(): React.JSX.Element {
   return (
@@ -8,7 +8,7 @@ export function ConnectJudgesPage(): React.JSX.Element {
           <h1 className="text-2xl font-semibold tracking-normal">Connect Judges</h1>
         </div>
 
-        <ConnectJudgesProviderSelection />
+        <AvailableJudgeProviderSelection />
       </section>
     </main>
   );

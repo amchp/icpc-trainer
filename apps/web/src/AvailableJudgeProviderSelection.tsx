@@ -2,14 +2,22 @@ import { useNavigate } from "@tanstack/react-router";
 import { KeyRound, ShieldCheck } from "lucide-react";
 
 import { Button } from "./components/ui.js";
+import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { connectJudgeProviders } from "./connectJudgesShared.js";
 
-export function ConnectJudgesProviderSelection(): React.JSX.Element {
+export function AvailableJudgeProviderSelection(): React.JSX.Element {
   const navigate = useNavigate();
+  const { connectedJudges } = useConnectedJudges();
+  const connectedJudgeIds = new Set(connectedJudges.map((judge) => judge.id));
+  const availableProviders = connectJudgeProviders.filter((provider) => !connectedJudgeIds.has(provider.id));
+
+  if (availableProviders.length === 0) {
+    return <p className="text-sm text-zinc-500">All connected</p>;
+  }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {connectJudgeProviders.map((provider) => {
+      {availableProviders.map((provider) => {
         const Icon = provider.id === "codeforces" ? KeyRound : ShieldCheck;
         return (
           <Button

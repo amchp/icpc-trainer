@@ -8,7 +8,6 @@ import type { PlaygroundProvider } from "./playground.js";
 const CODEFORCES_CREDENTIAL_TYPE = "api_credentials";
 const QOJ_CREDENTIAL_TYPE = "cookie_jar";
 const DEFAULT_PROVIDER_USER_KEY = "default";
-const ENV_PROVIDER_USER_KEY = "env";
 
 export interface CredentialDatabaseContext {
   readonly database: DatabaseService;
@@ -43,16 +42,31 @@ const credentialTypeFor = (provider: PlaygroundProvider): string =>
 const normalizeProviderUserKey = (value: string | undefined): string =>
   value?.trim().toLowerCase() || DEFAULT_PROVIDER_USER_KEY;
 
-const normalizePrimaryUsername = (value: string | undefined): string | null => {
-  const username = value?.trim();
-  const providerUserKey = normalizeProviderUserKey(value);
-  return username && providerUserKey !== DEFAULT_PROVIDER_USER_KEY && providerUserKey !== ENV_PROVIDER_USER_KEY
+const providerJudge = (provider: PlaygroundProvider): JUDGES =>
+  provider === JUDGES.Codeforces ? JUDGES.Codeforces : JUDGES.Qoj;
+
+const qojUsernameFromCookieJar = (cookieJar: string | undefined): string | null => {
+  if (cookieJar === undefined) {
+    return null;
+  }
+
+  const cookie = cookieJar
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("uoj_username="));
+  const value = cookie?.slice("uoj_username=".length).trim();
+  return value ? decodeURIComponent(value) : null;
+};
+
+const trackedTeamUsername = (input: SaveCredentialsInput): string | null => {
+  const username = input.provider === JUDGES.Qoj
+    ? input.providerUserKey?.trim() || qojUsernameFromCookieJar(input.qoj?.cookieJar)
+    : input.providerUserKey?.trim();
+
+  return username && normalizeProviderUserKey(username) !== DEFAULT_PROVIDER_USER_KEY
     ? username
     : null;
 };
-
-const providerJudge = (provider: PlaygroundProvider): JUDGES =>
-  provider === JUDGES.Codeforces ? JUDGES.Codeforces : JUDGES.Qoj;
 
 export const getLatestCredential = (
   ctx: CredentialDatabaseContext,
@@ -92,14 +106,14 @@ export const saveEncryptedCredential = (
   encryptedPayload: string,
 ): CredentialStatus => {
   const now = new Date();
-  const primaryUsername = normalizePrimaryUsername(input.providerUserKey);
+  const teamUsername = trackedTeamUsername(input);
   const judge = providerJudge(input.provider);
 
   ctx.database.db
     .insert(providerCredentials)
     .values({
       provider: input.provider,
-      providerUserKey: normalizeProviderUserKey(input.providerUserKey),
+      providerUserKey: DEFAULT_PROVIDER_USER_KEY,
       credentialType: credentialTypeFor(input.provider),
       encryptedPayload,
       lastValidatedAt: now,
@@ -120,12 +134,12 @@ export const saveEncryptedCredential = (
     })
     .run();
 
-  if (primaryUsername !== null) {
+  if (teamUsername !== null) {
     ctx.database.db
       .insert(users)
       .values({
-        username: primaryUsername,
-        type: USER_TYPES.Primary,
+        username: teamUsername,
+        type: USER_TYPES.Team,
         judge,
         createdAt: now,
         updatedAt: now
@@ -133,7 +147,7 @@ export const saveEncryptedCredential = (
       .onConflictDoUpdate({
         target: [users.username, users.judge],
         set: {
-          type: USER_TYPES.Primary,
+          type: USER_TYPES.Team,
           judge,
           updatedAt: now
         }
@@ -154,16 +168,6 @@ export const clearCredentials = (
       and(
         eq(providerCredentials.provider, provider),
         eq(providerCredentials.credentialType, credentialTypeFor(provider))
-      )
-    )
-    .run();
-
-  ctx.database.db
-    .delete(users)
-    .where(
-      and(
-        eq(users.judge, providerJudge(provider)),
-        eq(users.type, USER_TYPES.Primary)
       )
     )
     .run();

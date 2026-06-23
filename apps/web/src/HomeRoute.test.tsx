@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConnectJudgesPage } from "./ConnectJudgesPage.js";
 import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { CodeforcesConnectJudgePage } from "./CodeforcesConnectJudgePage.js";
+import { AccountPage } from "./AccountPage.js";
 import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundPage } from "./PlaygroundPage.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
@@ -23,6 +24,12 @@ const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
     saved: false
   }
 })));
+const accountDataStatusMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ readonly hasSyncedContests: boolean; readonly syncedContestJudges: readonly ("codeforces" | "qoj")[] }>>(async () => ({
+    hasSyncedContests: false,
+    syncedContestJudges: []
+  }))
+);
 const syncObservers = vi.hoisted(() =>
   new Map<string, Array<{ readonly onData?: (event: any) => void; readonly onError?: (error: any) => void }>>()
 );
@@ -125,6 +132,11 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("./trpc", () => ({
   trpc: {
+    account: {
+      dataStatus: {
+        query: accountDataStatusMock
+      }
+    },
     credentials: {
       status: {
         query: credentialStatusMock
@@ -159,6 +171,23 @@ vi.mock("./trpc", () => ({
           qoj: {
             saved: false
           }
+        }))
+      }
+    },
+    team: {
+      roster: {
+        query: vi.fn(async () => ({
+          users: [],
+          updatedAt: null
+        }))
+      },
+      replace: {
+        mutate: vi.fn(async (input) => ({
+          users: input.users.map((user: { readonly username: string; readonly judge: "codeforces" | "qoj" }) => ({
+            ...user,
+            type: "team"
+          })),
+          updatedAt: new Date().toISOString()
         }))
       }
     },
@@ -244,13 +273,17 @@ describe("HomeRoute", () => {
         saved: false
       }
     });
+    accountDataStatusMock.mockResolvedValue({
+      hasSyncedContests: false,
+      syncedContestJudges: []
+    });
   });
 
   it("renders the home shell without sync progress while idle", async () => {
     renderWithQuery(<ProtectedLayout />);
 
     await waitFor(() => expect(screen.getByText("ICPC Trainer")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole("button", { name: /codeforces/i })).toBeInTheDocument());
+    expect(screen.getByText("Judges")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sync/i })).toBeInTheDocument();
     expect(screen.queryByText("Judge sync")).not.toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
@@ -264,7 +297,7 @@ describe("HomeRoute", () => {
 
     renderWithQuery(<ProtectedLayout />);
 
-    await waitFor(() => expect(screen.getAllByText("Codeforces")).toHaveLength(2));
+    await waitFor(() => expect(screen.getByText("Codeforces")).toBeInTheDocument());
     expect(screen.getByText("User submission sync")).toBeInTheDocument();
     expect(screen.getByText("1 user left")).toBeInTheDocument();
     expect(screen.queryByText("Contest sync")).not.toBeInTheDocument();
@@ -299,6 +332,23 @@ describe("HomeRoute", () => {
     await waitFor(() => expect(trpc.judges.startSync.mutate).toHaveBeenCalledTimes(2));
     expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" });
     expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "qoj" });
+  });
+
+  it("warns instead of syncing local judges missing authentication", async () => {
+    accountDataStatusMock.mockResolvedValue({
+      hasSyncedContests: true,
+      syncedContestJudges: ["codeforces", "qoj"]
+    });
+
+    renderWithQuery(<ProtectedLayout />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
+
+    await waitFor(() =>
+      expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
+    );
+    expect(trpc.judges.startSync.mutate).not.toHaveBeenCalledWith({ provider: "qoj" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("QOJ authentication is not connected");
   });
 
   it("shows a toast when sync emits an error", async () => {
@@ -402,7 +452,7 @@ describe("HomeRoute", () => {
     expect(screen.getByText("Contest 8 failed")).toBeInTheDocument();
   });
 
-  it("refreshes credential status after clearing connected judges", async () => {
+  it("refreshes credential status after clearing connected judges from account", async () => {
     credentialStatusMock
       .mockResolvedValueOnce({
         codeforces: {
@@ -429,32 +479,19 @@ describe("HomeRoute", () => {
       }
     }));
 
-    renderWithQuery(<ProtectedLayout />);
+    renderWithQuery(<AccountPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /codeforces \+ qoj/i }));
-    fireEvent.click(screen.getByText("Clear connected judges"));
+    fireEvent.click(await screen.findByRole("button", { name: /clear all connected judges/i }));
 
     await waitFor(() => expect(trpc.credentials.clear.mutate).toHaveBeenCalledWith("codeforces"));
     expect(trpc.credentials.clear.mutate).toHaveBeenCalledWith("qoj");
     await waitFor(() => expect(credentialStatusMock).toHaveBeenCalledTimes(2));
-    expect(navigateMock).toHaveBeenCalledWith({ to: "/connect-judges" });
   });
 
-  it("renders the protected-route placeholder when no judge is connected", async () => {
-    credentialStatusMock.mockResolvedValue({
-      codeforces: {
-        saved: false
-      },
-      qoj: {
-        saved: false
-      }
-    });
-
+  it("renders home even when no judge is connected", () => {
     renderWithQuery(<HomeRoute />);
 
-    await waitFor(() => expect(credentialStatusMock).toHaveBeenCalled());
     expect(navigateMock).not.toHaveBeenCalledWith({ to: "/connect-judges" });
-    expect(screen.queryByText("ICPC Trainer")).not.toBeInTheDocument();
   });
 
   it("navigates from connect judges to the selected provider page", () => {
@@ -482,7 +519,7 @@ describe("HomeRoute", () => {
         })
       )
     );
-    expect(navigateMock).toHaveBeenCalledWith({ to: "/" });
+    expect(navigateMock).toHaveBeenCalledWith({ to: "/judges" });
   });
 
   it("shows a toast with a clearer message when Codeforces connect cannot reach the server", async () => {

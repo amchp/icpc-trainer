@@ -24,17 +24,6 @@ import { judgeLabel, type JudgeProvider } from "./judgeConfig.js";
 import { trpc } from "./trpc.js";
 import { useToaster } from "./Toaster.js";
 
-const formatUpdatedAt = (value: string | null): string => {
-  if (value === null) {
-    return "never";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-};
-
 const toJudge = (value: JudgeProvider | JUDGES): JUDGES =>
   value === JUDGES.Qoj ? JUDGES.Qoj : JUDGES.Codeforces;
 
@@ -130,17 +119,14 @@ export function TeamPage(): React.JSX.Element {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <section className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        </div>
-        <div className="text-sm text-zinc-500">
-          {roster.users.length} team users · updated {formatUpdatedAt(roster.updatedAt)}
         </div>
       </section>
 
       <form
-        className="grid gap-4 border-y border-zinc-800 py-5 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end"
+        className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end"
         onSubmit={(event) => {
           event.preventDefault();
           void addUser();
@@ -183,11 +169,8 @@ export function TeamPage(): React.JSX.Element {
             Add user
           </Button>
         </form>
-        <p className="mt-3 text-xs text-zinc-500">
-          Team users are saved for the next manual sync.
-        </p>
 
-        <div className="mt-6 overflow-hidden border-y border-zinc-800">
+        <div className="mt-6 overflow-hidden">
           {query.isLoading ? (
             <Skeleton className="my-4 h-32" />
           ) : roster.users.length > 0 ? (

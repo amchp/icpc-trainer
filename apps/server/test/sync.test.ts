@@ -117,7 +117,7 @@ describe("createJudgeSyncService", () => {
     }
   });
 
-  it("completes without Codeforces calls when there are no primary or friend users", async () => {
+  it("completes without Codeforces calls when there are no team users", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -416,7 +416,7 @@ describe("createJudgeSyncService", () => {
     await withDatabase(async (database) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -501,7 +501,7 @@ describe("createJudgeSyncService", () => {
     await withDatabase(async (database) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -600,7 +600,7 @@ describe("createJudgeSyncService", () => {
     const events = await withDatabase(async (database) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -911,7 +911,7 @@ describe("createJudgeSyncService", () => {
     await withDatabase(async (database) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -943,7 +943,7 @@ describe("createJudgeSyncService", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1040,7 +1040,7 @@ describe("createJudgeSyncService", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1119,7 +1119,7 @@ describe("createJudgeSyncService", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1183,7 +1183,7 @@ describe("createJudgeSyncService", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1312,7 +1312,7 @@ describe("createJudgeSyncService", () => {
     const events = await withDatabase(async (database) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Primary,
+        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp

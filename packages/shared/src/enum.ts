@@ -4,7 +4,6 @@ export enum JUDGES {
 }
 
 export enum USER_TYPES {
-  Primary = "primary",
   User = "user",
   Team = "team",
   Friend = "friend",

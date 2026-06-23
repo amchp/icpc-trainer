@@ -3,7 +3,7 @@ import {
   SUBMISSION_STATUSES,
   USER_TYPES
 } from "@icpc-trainer/shared";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -98,7 +98,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         .innerJoin(contests, eq(contests.id, problems.contestId))
         .where(and(
           eq(contests.synced, true),
-          inArray(users.type, [USER_TYPES.Primary, USER_TYPES.Team])
+          eq(users.type, USER_TYPES.Team)
         ))
         .groupBy(submissions.problemId)
         .all();

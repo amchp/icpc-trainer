@@ -24,21 +24,21 @@ _Avoid_: Task
 A user's attempt at a **Problem** on a **Judge**. A **User** may have many **Submissions** for the same **Problem**.
 _Avoid_: Attempt, run
 
-**Primary User**:
-The main person whose judge activity the app tracks.
-_Avoid_: Owner, account
-
-**Teammate**:
-A user who practices as part of the tracked team. Teammates affect team upsolving status.
-_Avoid_: Friend
+**Team User**:
+A judge user whose submissions ICPC Trainer tracks for team practice and upsolving. Team Users are the only users whose submissions affect sync and upsolving status.
+_Avoid_: Primary user, account user, teammate
 
 **Friend**:
-A non-primary user whose judge activity is also tracked for comparison or shared practice.
+A user category not currently used for sync or upsolving.
 _Avoid_: Contact, peer
 
 **Judge Credential**:
-A saved secret or authentication artifact that lets ICPC Trainer access judge data for a **Primary User** on a **Judge**.
-_Avoid_: Auth secret, account secret
+Saved authentication material that lets ICPC Trainer access a **Judge**. Judge Credentials are stored separately from **Team Users**.
+_Avoid_: Account, primary user
+
+**Judges Page**:
+The app page where a user manages **Judge Credentials**.
+_Avoid_: Account, primary user
 
 **Synced Contest**:
 A **Contest** whose judge metadata and problems have been imported into the app.
@@ -53,14 +53,14 @@ The backend-owned state of an active judge synchronization run, including whethe
 _Avoid_: Frontend sync state, sync progress cache
 
 **Upsolving**:
-Reviewing **Problems** from **Synced Contests** using **Primary User** plus **Teammate** **Submission** status and difficulty metrics.
+Reviewing **Problems** from **Synced Contests** using **Team User** **Submission** status and difficulty metrics.
 _Avoid_: Gym view, contest split
 
 ## Example Dialogue
 
 Dev: "Should sync fetch submissions for every Codeforces user?"
 
-Domain expert: "Only for the Primary User and Friends. Teams and generic users are outside this sync."
+Domain expert: "Only for Team Users. Friends and generic users are outside this sync."
 
 Dev: "If a Submission references a missing Problem, do we create the Problem immediately?"
 

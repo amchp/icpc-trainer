@@ -8,7 +8,7 @@ import {
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag, schema } from "@icpc-trainer/db";
 import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Data, Effect } from "effect";
 
 import type { Judge, JudgeContest, JudgeError, JudgeSubmission } from "../judges.js";
@@ -298,7 +298,7 @@ export const getSyncUsers = (
       .from(users)
       .where(and(
         eq(users.judge, judge),
-        inArray(users.type, [USER_TYPES.Primary, USER_TYPES.Team, USER_TYPES.Friend])
+        eq(users.type, USER_TYPES.Team)
       ))
       .all()
   );
