@@ -35,6 +35,13 @@ export function AppHeader(): React.JSX.Element {
           <span className="truncate text-sm font-semibold">{APP_NAME}</span>
         </Link>
 
+        <Link
+          to="/upsolving"
+          className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 sm:inline-flex"
+        >
+          Upsolving
+        </Link>
+
         <Button
           type="button"
           variant="secondary"

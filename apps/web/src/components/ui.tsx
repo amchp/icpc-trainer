@@ -113,7 +113,23 @@ export function DropdownContent({
   return (
     <div
       className={cn(
-        "absolute right-0 top-11 z-20 w-64 rounded-md border border-zinc-800 bg-zinc-950 p-2 shadow-xl",
+        "absolute right-0 top-11 z-20 min-w-56 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 p-1 shadow-[0_16px_48px_rgba(0,0,0,0.4)]",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function DropdownTrigger({
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-9 min-w-52 items-center justify-between gap-3 whitespace-nowrap rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-100 transition-colors hover:border-zinc-700 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}
@@ -129,7 +145,7 @@ export function DropdownItem({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+        "flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm text-zinc-300 outline-none transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:bg-zinc-900 focus-visible:text-zinc-100",
         className,
       )}
       {...props}

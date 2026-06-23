@@ -244,6 +244,7 @@ describe("createJudgeSyncService", () => {
       database.db.insert(problems).values({
         judgeId: "100566A",
         judge: JUDGES.Codeforces,
+        name: "A. Matching Names",
         link: "https://codeforces.com/gym/100566/problem/A",
         contestId: contest.id,
         solves: 1,
@@ -329,6 +330,7 @@ describe("createJudgeSyncService", () => {
       database.db.insert(problems).values({
         judgeId: "11785",
         judge: JUDGES.Qoj,
+        name: "Archery Tournament",
         link: "https://qoj.ac/contest/1113/problem/11785",
         contestId: contest.id,
         solves: 1,
@@ -418,6 +420,7 @@ describe("createJudgeSyncService", () => {
       database.db.insert(problems).values({
         judgeId: "11785",
         judge: JUDGES.Qoj,
+        name: "Archery Tournament",
         link: "https://qoj.ac/contest/1113/problem/11785",
         contestId: contest.id,
         solves: 1,
@@ -568,8 +571,8 @@ describe("createJudgeSyncService", () => {
       const problemRows = database.db.select().from(problems).all();
       expect(problemRows).toHaveLength(2);
       expect(problemRows).toEqual([
-        expect.objectContaining({ judgeId: "100566A", solvePercentage: 100, rating: 700 }),
-        expect.objectContaining({ judgeId: "100566B", solvePercentage: 100, rating: 700 })
+        expect.objectContaining({ judgeId: "100566A", name: "A. Matching Names", solvePercentage: 100, rating: 700 }),
+        expect.objectContaining({ judgeId: "100566B", name: "B. Replicating Processes", solvePercentage: 100, rating: 700 })
       ]);
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
       expect(database.db.select().from(contests).get()).toMatchObject({
@@ -632,7 +635,7 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("keeps problems unrated when contest stars are unknown", async () => {
+  it("uses the Codeforces three-star fallback when contest stars are unknown", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -671,7 +674,7 @@ describe("createJudgeSyncService", () => {
         .select({ solvePercentage: problems.solvePercentage, rating: problems.rating })
         .from(problems)
         .all()).toEqual([
-        { solvePercentage: 100, rating: 0 }
+        { solvePercentage: 100, rating: 1100 }
       ]);
     });
   });

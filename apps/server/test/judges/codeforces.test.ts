@@ -254,6 +254,47 @@ describe("makeCodeforcesJudge", () => {
     });
   });
 
+  it("uses a contest-name fallback when Codeforces omits gym difficulty", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "OK",
+        result: {
+          contest: {
+            id: 104666,
+            name: "2019-2020 ICPC Central Europe Regional Contest (CERC 19)",
+            type: "ICPC",
+            phase: "FINISHED"
+          },
+          problems: [
+            {
+              contestId: 104666,
+              index: "A",
+              name: "ABB"
+            }
+          ],
+          rows: [
+            {
+              party: { participantType: "CONTESTANT" },
+              rank: 1,
+              points: 1,
+              penalty: 1,
+              problemResults: [{ points: 1 }]
+            }
+          ]
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const contest = await runWithCodeforcesAuth(makeCodeforcesJudge().getContest("104666"));
+
+    expect(contest).toMatchObject({
+      judgeId: "104666",
+      name: "2019-2020 ICPC Central Europe Regional Contest (CERC 19)",
+      stars: 4
+    });
+  });
+
   it("calls contest.list once with gym=true and no pagination", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({

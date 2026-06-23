@@ -21,7 +21,8 @@ export const users = sqliteTable("users", {
   judge: text("judge", { enum: enumValues(JUDGES) }).notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("users_username_unique").on(table.username)
+  uniqueIndex("users_username_unique").on(table.username),
+  index("users_type_id_idx").on(table.type, table.id)
 ]);
 
 export const contests = sqliteTable("contests", {
@@ -37,6 +38,7 @@ export const contests = sqliteTable("contests", {
 }, (table) => [
   uniqueIndex("contests_judge_id_judge_unique").on(table.judgeId, table.judge),
   index("contests_judge_synced_idx").on(table.judge, table.synced),
+  index("contests_synced_updated_name_idx").on(table.synced, table.updatedAt, table.name),
   index("contests_name_idx").on(table.name)
 ]);
 
@@ -44,6 +46,7 @@ export const problems = sqliteTable("problems", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   judgeId: text("judge_id").notNull(),
   judge: text("judge", { enum: enumValues(JUDGES) }).notNull(),
+  name: text("name").notNull().default(""),
   link: text("link").notNull(),
   contestId: integer("contest_id").references(() => contests.id).notNull(),
   solves: integer("solves").notNull(),
@@ -52,6 +55,7 @@ export const problems = sqliteTable("problems", {
   ...timestamps
 }, (table) => [
   uniqueIndex("problems_judge_id_judge_unique").on(table.judgeId, table.judge),
+  index("problems_contest_id_idx").on(table.contestId),
   index("problems_solve_percentage_idx").on(table.solvePercentage),
   index("problems_rating_idx").on(table.rating),
   index("problems_judge_rating_idx").on(table.judge, table.rating)
@@ -68,6 +72,7 @@ export const submissions = sqliteTable("submissions", {
   ...timestamps
 }, (table) => [
   uniqueIndex("submissions_judge_id_judge_unique").on(table.judgeId, table.judge),
+  index("submissions_problem_user_status_idx").on(table.problemId, table.userId, table.status),
   index("submissions_user_judge_idx").on(table.userId, table.judge)
 ]);
 

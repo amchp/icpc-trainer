@@ -347,7 +347,9 @@ const toProblem = (
   resultStats?: QojResultStats
 ): Problem => ({
   judgeId: problem.id,
-  name: problem.name,
+  name: problem.name.startsWith(`${problem.letter}. `)
+    ? problem.name
+    : `${problem.letter}. ${problem.name}`,
   solves: resultStats?.solvesByLetter.get(problem.letter) ?? problem.solves,
   link: `${QOJ_BASE_URL}/contest/${encodeURIComponent(contestId)}/problem/${encodeURIComponent(
     problem.id

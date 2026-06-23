@@ -53,6 +53,7 @@ describe("DatabaseLive", () => {
       database.db.insert(schema.problems).values({
         judgeId: "566A",
         judge: JUDGES.Codeforces,
+        name: "A. Sample",
         link: "https://codeforces.com/gym/566/problem/A",
         contestId: contest.id,
         solves: 1,

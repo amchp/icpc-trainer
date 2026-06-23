@@ -13,6 +13,7 @@ CREATE TABLE `contests` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `contests_judge_id_judge_unique` ON `contests` (`judge_id`,`judge`);--> statement-breakpoint
 CREATE INDEX `contests_judge_synced_idx` ON `contests` (`judge`,`synced`);--> statement-breakpoint
+CREATE INDEX `contests_synced_updated_name_idx` ON `contests` (`synced`,`updated_at`,`name`);--> statement-breakpoint
 CREATE INDEX `contests_name_idx` ON `contests` (`name`);--> statement-breakpoint
 CREATE TABLE `health_checks` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE `problems` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`judge_id` text NOT NULL,
 	`judge` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`link` text NOT NULL,
 	`contest_id` integer NOT NULL,
 	`solves` integer NOT NULL,
@@ -34,6 +36,7 @@ CREATE TABLE `problems` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `problems_judge_id_judge_unique` ON `problems` (`judge_id`,`judge`);--> statement-breakpoint
+CREATE INDEX `problems_contest_id_idx` ON `problems` (`contest_id`);--> statement-breakpoint
 CREATE TABLE `provider_credentials` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`provider` text NOT NULL,
@@ -61,6 +64,7 @@ CREATE TABLE `submissions` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `submissions_judge_id_judge_unique` ON `submissions` (`judge_id`,`judge`);--> statement-breakpoint
+CREATE INDEX `submissions_problem_user_status_idx` ON `submissions` (`problem_id`,`user_id`,`status`);--> statement-breakpoint
 CREATE INDEX `submissions_user_judge_idx` ON `submissions` (`user_id`,`judge`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -71,4 +75,5 @@ CREATE TABLE `users` (
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `users_username_unique` ON `users` (`username`);
+CREATE UNIQUE INDEX `users_username_unique` ON `users` (`username`);--> statement-breakpoint
+CREATE INDEX `users_type_id_idx` ON `users` (`type`,`id`);

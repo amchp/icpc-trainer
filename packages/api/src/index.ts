@@ -10,6 +10,12 @@ import {
   type SaveCredentialsInput
 } from "./credentials.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
+import {
+  createUpsolvingRouter,
+  type UpsolvingOverview,
+  type UpsolvingProblemRow,
+  type UpsolvingProblemStatus
+} from "./upsolving.js";
 
 export const judgeSyncInputSchema = z.object({
   provider: z.enum(["codeforces", "qoj"])
@@ -179,7 +185,8 @@ export const appRouter = t.router({
   }),
   credentials: createCredentialsRouter(t),
   judges: createJudgesRouter(),
-  playground: createPlaygroundRouter(t)
+  playground: createPlaygroundRouter(t),
+  upsolving: createUpsolvingRouter(t)
 });
 
 export type AppRouter = typeof appRouter;
@@ -210,3 +217,9 @@ export type {
   PlaygroundProvider,
   PlaygroundResult
 } from "./playground.js";
+
+export type {
+  UpsolvingOverview,
+  UpsolvingProblemRow,
+  UpsolvingProblemStatus
+} from "./upsolving.js";

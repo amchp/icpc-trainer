@@ -21,6 +21,7 @@ import {
   JudgeCredentialError
 } from "./judges.js";
 import { createCodeforcesJudgeSync } from "./sync/sync_codeforces.js";
+import { estimateContestStarsFromName } from "./sync/problemRating.js";
 import { notImplementedJudgeSync } from "./sync/sync.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
@@ -279,6 +280,14 @@ const toProblem = (
   link: `${CODEFORCES_GYM_URL}/${problem.contestId}/problem/${problem.index}`
 });
 
+const isContestDifficulty = (value: number | undefined): value is number =>
+  value !== undefined && Number.isInteger(value) && value >= 1 && value <= 5;
+
+const contestStars = (contest: CodeforcesContest): number =>
+  isContestDifficulty(contest.difficulty)
+    ? contest.difficulty
+    : estimateContestStarsFromName(contest.name) || 3;
+
 const toContest = (standings: CodeforcesStandings): JudgeContest => {
   const rows = standings.rows;
 
@@ -287,7 +296,7 @@ const toContest = (standings: CodeforcesStandings): JudgeContest => {
     name: standings.contest.name,
     participants: rows.length,
     problems: standings.problems.map((problem, index) => toProblem(problem, index, rows)),
-    stars: standings.contest.difficulty ?? 0
+    stars: contestStars(standings.contest)
   };
 };
 

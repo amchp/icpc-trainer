@@ -166,19 +166,19 @@ describe("QOJ judge HTML fixtures", () => {
     expect(contest.problems.slice(0, 3)).toEqual([
       {
         judgeId: "11785",
-        name: "Archery Tournament",
+        name: "A. Archery Tournament",
         solves: 71,
         link: "https://qoj.ac/contest/1113/problem/11785"
       },
       {
         judgeId: "11786",
-        name: "Box",
+        name: "B. Box",
         solves: 235,
         link: "https://qoj.ac/contest/1113/problem/11786"
       },
       {
         judgeId: "11787",
-        name: "Connections",
+        name: "C. Connections",
         solves: 128,
         link: "https://qoj.ac/contest/1113/problem/11787"
       }

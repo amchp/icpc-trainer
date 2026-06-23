@@ -28,6 +28,10 @@ _Avoid_: Attempt, run
 The main person whose judge activity the app tracks.
 _Avoid_: Owner, account
 
+**Teammate**:
+A user who practices as part of the tracked team. Teammates affect team upsolving status.
+_Avoid_: Friend
+
 **Friend**:
 A non-primary user whose judge activity is also tracked for comparison or shared practice.
 _Avoid_: Contact, peer
@@ -47,6 +51,10 @@ _Avoid_: Pending contest
 **Judge Sync State**:
 The backend-owned state of an active judge synchronization run, including whether it is running and its latest progress events.
 _Avoid_: Frontend sync state, sync progress cache
+
+**Upsolving**:
+Reviewing **Problems** from **Synced Contests** using **Primary User** plus **Teammate** **Submission** status and difficulty metrics.
+_Avoid_: Gym view, contest split
 
 ## Example Dialogue
 

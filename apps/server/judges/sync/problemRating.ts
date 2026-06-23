@@ -70,3 +70,15 @@ export const estimateProblemRating = ({
 
   return roundToNearestHundred(boundedRating);
 };
+
+export const estimateContestStarsFromName = (name: string): number => {
+  if (/\bworld\s+finals\b/i.test(name)) {
+    return 5;
+  }
+
+  if (/\b(?:icpc|cerc|regional)\b/i.test(name)) {
+    return 4;
+  }
+
+  return 0;
+};

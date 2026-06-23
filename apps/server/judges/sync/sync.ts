@@ -479,6 +479,7 @@ export const upsertContestProblems = (
       .values({
         judgeId: problem.judgeId,
         judge,
+        name: problem.name,
         link: problem.link,
         contestId,
         solves: problem.solves,
@@ -490,6 +491,7 @@ export const upsertContestProblems = (
       .onConflictDoUpdate({
         target: [problems.judgeId, problems.judge],
         set: {
+          name: problem.name,
           link: problem.link,
           contestId,
           solves: problem.solves,

@@ -438,7 +438,7 @@ describe("HomeRoute", () => {
     expect(navigateMock).toHaveBeenCalledWith({ to: "/connect-judges" });
   });
 
-  it("redirects to connect judges when no judge is connected", async () => {
+  it("renders the protected-route placeholder when no judge is connected", async () => {
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: false
@@ -450,7 +450,9 @@ describe("HomeRoute", () => {
 
     renderWithQuery(<HomeRoute />);
 
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: "/connect-judges" }));
+    await waitFor(() => expect(credentialStatusMock).toHaveBeenCalled());
+    expect(navigateMock).not.toHaveBeenCalledWith({ to: "/connect-judges" });
+    expect(screen.queryByText("ICPC Trainer")).not.toBeInTheDocument();
   });
 
   it("navigates from connect judges to the selected provider page", () => {

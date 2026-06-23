@@ -101,6 +101,15 @@
             "name"
           ],
           "isUnique": false
+        },
+        "contests_synced_updated_name_idx": {
+          "name": "contests_synced_updated_name_idx",
+          "columns": [
+            "synced",
+            "updated_at",
+            "name"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -162,6 +171,13 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "link": {
           "name": "link",
@@ -242,6 +258,13 @@
           "columns": [
             "judge",
             "rating"
+          ],
+          "isUnique": false
+        },
+        "problems_contest_id_idx": {
+          "name": "problems_contest_id_idx",
+          "columns": [
+            "contest_id"
           ],
           "isUnique": false
         }
@@ -424,6 +447,15 @@
             "judge"
           ],
           "isUnique": false
+        },
+        "submissions_problem_user_status_idx": {
+          "name": "submissions_problem_user_status_idx",
+          "columns": [
+            "problem_id",
+            "user_id",
+            "status"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -511,6 +543,14 @@
             "username"
           ],
           "isUnique": true
+        },
+        "users_type_id_idx": {
+          "name": "users_type_id_idx",
+          "columns": [
+            "type",
+            "id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},

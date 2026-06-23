@@ -4,7 +4,6 @@ import type {
   PlaygroundResult
 } from "@icpc-trainer/api";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Braces, Loader2, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
@@ -24,7 +23,6 @@ const isPlaygroundFailure = (value: unknown): value is Extract<PlaygroundResult,
   typeof value === "object" && value !== null && "ok" in value && value.ok === false;
 
 export function PlaygroundPanel(): React.JSX.Element {
-  const navigate = useNavigate();
   const {
     connectedJudges,
     hasConnectedJudge,
@@ -34,15 +32,6 @@ export function PlaygroundPanel(): React.JSX.Element {
   const [operation, setOperation] = useState<PlaygroundOperation>("contest");
   const [contestId, setContestId] = useState("");
   const [userHandle, setUserHandle] = useState("");
-
-  useEffect(() => {
-    if (status === "ready" && !hasConnectedJudge) {
-      void navigate({ to: "/connect-judges" });
-    }
-    if (status === "error") {
-      void navigate({ to: "/connect-judges" });
-    }
-  }, [hasConnectedJudge, navigate, status]);
 
   useEffect(() => {
     if (status !== "ready" || connectedJudges.length === 0) {
