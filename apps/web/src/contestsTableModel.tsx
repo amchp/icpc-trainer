@@ -1,6 +1,6 @@
 import type { UpsolvingContestRow } from "@icpc-trainer/api";
 import { type ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
 
 import { Button } from "./components/ui.js";
 import { JudgeDisplay, judgeDisplayLabels, judgeSearchText } from "./JudgeDisplay.js";
@@ -50,7 +50,6 @@ export const createContestColumns = ({
           className="whitespace-normal break-words font-medium text-blue-300 hover:text-blue-200 hover:underline"
         >
           {row.original.name}
-          <ExternalLink className="mb-0.5 ml-1 inline size-3.5" aria-hidden="true" />
         </a>
       </div>
     )

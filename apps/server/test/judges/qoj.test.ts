@@ -16,6 +16,7 @@ const qojCookieJar = "uoj_username=qoj-user; uojsessid=session";
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
 const routes = new Map<string, string>([
+  ["/contests", fixture("contests-page.html")],
   ["/contest/1113", fixture("result-link.html")],
   ["/results/QOJ1113", fixture("result-standings.html")],
   ["/contest/cloudflare", fixture("blocked-cloudflare.html")],
@@ -311,6 +312,23 @@ describe("QOJ judge HTML fixtures", () => {
         judgeId: "1450"
       })
     ]);
+  });
+
+  it("parses the public QOJ contest catalog when no user handle is provided", async () => {
+    const judge = makeQojJudge(baseUrl);
+
+    await expect(runWithQojAuth(judge.getContests())).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          judgeId: "3876",
+          name: "The 4th Al-Khwarizmi International Informatics Olympiad (KHIMIO 2026). Day 2"
+        }),
+        expect.objectContaining({
+          judgeId: "116",
+          name: "2017-2018 ICPC - North American Invitational Programming Contest 2017"
+        })
+      ])
+    );
   });
 
   it("rejects login-required profile HTML instead of treating it as a user", async () => {

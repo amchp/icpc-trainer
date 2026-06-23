@@ -80,7 +80,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         })
         .from(problems)
         .innerJoin(contests, eq(contests.id, problems.contestId))
-        .where(eq(contests.synced, true))
+        .where(eq(contests.simulated, true))
         .orderBy(desc(contests.updatedAt), asc(contests.name), asc(problems.rating), asc(problems.judgeId))
         .all();
 
@@ -97,7 +97,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         .innerJoin(problems, eq(problems.id, submissions.problemId))
         .innerJoin(contests, eq(contests.id, problems.contestId))
         .where(and(
-          eq(contests.synced, true),
+          eq(contests.simulated, true),
           eq(users.type, USER_TYPES.Team)
         ))
         .groupBy(submissions.problemId)
@@ -155,7 +155,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         })
         .from(contests)
         .leftJoin(problems, eq(problems.contestId, contests.id))
-        .where(eq(contests.synced, true))
+        .where(eq(contests.simulated, true))
         .groupBy(contests.id)
         .orderBy(desc(contests.updatedAt), asc(contests.name))
         .all();

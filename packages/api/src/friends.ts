@@ -16,64 +16,64 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 const usernameSchema = z.string().trim().min(1).max(64);
 const judgeSchema = z.nativeEnum(JUDGES);
 
-const replaceTeamInputSchema = z.object({
+const replaceFriendsInputSchema = z.object({
   users: z
     .array(z.object({
       username: usernameSchema,
       judge: judgeSchema
     }))
-    .max(20)
+    .max(100)
 });
 
-const addTeamUserInputSchema = z.object({
+const addFriendInputSchema = z.object({
   username: usernameSchema,
   judge: judgeSchema
 });
 
-export interface TeamUser {
+export interface FriendUser {
   readonly username: string;
   readonly judge: JUDGES;
-  readonly type: USER_TYPES.Team;
+  readonly type: USER_TYPES.Friend;
 }
 
-export interface TeamRoster {
-  readonly users: readonly TeamUser[];
+export interface FriendsRoster {
+  readonly users: readonly FriendUser[];
   readonly updatedAt: string | null;
 }
 
 const normalizedUsers = (
-  users: readonly { readonly username: string; readonly judge: JUDGES }[]
-): TeamUser[] => {
+  rows: readonly { readonly username: string; readonly judge: JUDGES }[]
+): FriendUser[] => {
   const seen = new Set<string>();
-  const result: TeamUser[] = [];
+  const result: FriendUser[] = [];
 
-  for (const user of users) {
-    const username = user.username.trim();
-    const key = `${user.judge}:${username.toLowerCase()}`;
-    if (seen.has(key)) {
+  for (const row of rows) {
+    const username = row.username.trim();
+    const key = `${row.judge}:${username.toLowerCase()}`;
+    if (username === "" || seen.has(key)) {
       continue;
     }
+
     seen.add(key);
     result.push({
       username,
-      judge: user.judge,
-      type: USER_TYPES.Team
+      judge: row.judge,
+      type: USER_TYPES.Friend
     });
   }
 
   return result;
 };
 
-const getRoster = (ctx: ApiContext): TeamRoster => {
+const getRoster = (ctx: ApiContext): FriendsRoster => {
   const rows = ctx.database.db
     .select({
       username: users.username,
       judge: users.judge,
-      type: users.type,
       updatedAt: users.updatedAt
     })
     .from(users)
-    .where(eq(users.type, USER_TYPES.Team))
+    .where(eq(users.type, USER_TYPES.Friend))
     .orderBy(users.judge, users.username)
     .all();
 
@@ -86,16 +86,16 @@ const getRoster = (ctx: ApiContext): TeamRoster => {
     users: rows.map((row) => ({
       username: row.username,
       judge: row.judge,
-      type: USER_TYPES.Team
+      type: USER_TYPES.Friend
     })),
     updatedAt: updatedAt?.toISOString() ?? null
   };
 };
 
-export const createTeamRouter = (t: TrpcInstance) =>
+export const createFriendsRouter = (t: TrpcInstance) =>
   t.router({
-    roster: t.procedure.query(({ ctx }): TeamRoster => getRoster(ctx)),
-    add: t.procedure.input(addTeamUserInputSchema).mutation(({ ctx, input }): TeamRoster => {
+    roster: t.procedure.query(({ ctx }): FriendsRoster => getRoster(ctx)),
+    add: t.procedure.input(addFriendInputSchema).mutation(({ ctx, input }): FriendsRoster => {
       const timestamp = new Date();
       const username = input.username.trim();
 
@@ -104,7 +104,7 @@ export const createTeamRouter = (t: TrpcInstance) =>
           .insert(users)
           .values({
             username,
-            type: USER_TYPES.Team,
+            type: USER_TYPES.Friend,
             judge: input.judge,
             createdAt: timestamp,
             updatedAt: timestamp
@@ -124,7 +124,7 @@ export const createTeamRouter = (t: TrpcInstance) =>
         throw new TRPCError({
           code: "CONFLICT",
           message: existingUser === undefined
-            ? `Could not add team user ${username}.`
+            ? `Could not add friend ${username}.`
             : `${username} is already saved as a ${existingUser.type} user.`,
           cause: error
         });
@@ -132,21 +132,21 @@ export const createTeamRouter = (t: TrpcInstance) =>
 
       return getRoster(ctx);
     }),
-    replace: t.procedure.input(replaceTeamInputSchema).mutation(({ ctx, input }): TeamRoster => {
+    replace: t.procedure.input(replaceFriendsInputSchema).mutation(({ ctx, input }): FriendsRoster => {
       const rosterUsers = normalizedUsers(input.users);
       const timestamp = new Date();
-      const existingTeamRows = ctx.database.db
+      const existingFriendRows = ctx.database.db
         .select({ id: users.id, username: users.username, judge: users.judge })
         .from(users)
-        .where(eq(users.type, USER_TYPES.Team))
+        .where(eq(users.type, USER_TYPES.Friend))
         .all();
       const existingByUser = new Map(
-        existingTeamRows.map((row) => [`${row.judge}:${row.username.toLowerCase()}`, row])
+        existingFriendRows.map((row) => [`${row.judge}:${row.username.toLowerCase()}`, row])
       );
       const nextUserKeys = new Set(
         rosterUsers.map((user) => `${user.judge}:${user.username.toLowerCase()}`)
       );
-      const staleIds = existingTeamRows
+      const staleIds = existingFriendRows
         .filter((row) => !nextUserKeys.has(`${row.judge}:${row.username.toLowerCase()}`))
         .map((row) => row.id);
 
@@ -173,7 +173,7 @@ export const createTeamRouter = (t: TrpcInstance) =>
               .insert(users)
               .values({
                 username: rosterUser.username,
-                type: USER_TYPES.Team,
+                type: USER_TYPES.Friend,
                 judge: rosterUser.judge,
                 createdAt: timestamp,
                 updatedAt: timestamp
@@ -193,7 +193,7 @@ export const createTeamRouter = (t: TrpcInstance) =>
             throw new TRPCError({
               code: "CONFLICT",
               message: existingUser === undefined
-                ? `Could not add team user ${rosterUser.username}.`
+                ? `Could not add friend ${rosterUser.username}.`
                 : `${rosterUser.username} is already saved as a ${existingUser.type} user.`,
               cause: error
             });

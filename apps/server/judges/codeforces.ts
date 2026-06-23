@@ -1,7 +1,7 @@
 
 import { getStoredCodeforcesCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
-import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
+import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -20,6 +20,12 @@ import {
   JudgeAPIError,
   JudgeCredentialError
 } from "./judges.js";
+import {
+  codeforcesContestParticipations,
+  emptyContestFinderRefresh,
+  upsertContestFinderCatalog,
+  upsertContestFinderParticipations
+} from "./contestFinder.js";
 import { createCodeforcesJudgeSync } from "./sync/sync_codeforces.js";
 import { estimateContestStarsFromName } from "./sync/problemRating.js";
 import { notImplementedJudgeSync } from "./sync/sync.js";
@@ -537,6 +543,96 @@ export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
         Effect.mapError((error) => toJudgeError(handle, "user", error))
       );
     },
+
+    refreshContestFinder: (input) => database === undefined
+      ? Effect.succeed(emptyContestFinderRefresh())
+      : Effect.gen(function* () {
+          const emit = input.emit ?? (() => Effect.void);
+          const stepsTotal = input.friends.length + 1;
+          let stepsDone = 0;
+
+          yield* emit({
+            type: "started",
+            provider: "codeforces",
+            stepsTotal,
+            stepsLeft: stepsTotal
+          });
+          yield* emit({
+            type: "catalog.syncing",
+            provider: "codeforces",
+            step: "catalog",
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          const catalog = yield* judge.getContests();
+          const contestsUpserted = yield* upsertContestFinderCatalog(
+            database,
+            "codeforces",
+            JUDGES.Codeforces,
+            catalog
+          ).pipe(
+            Effect.mapError((error) => new JudgeAPIError({ judgeId: "codeforces", cause: error }))
+          );
+          stepsDone += 1;
+          yield* emit({
+            type: "catalog.synced",
+            provider: "codeforces",
+            step: "catalog",
+            contestsUpserted,
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          const contestNames = new Map(catalog.map((contest) => [contest.judgeId, contest.name]));
+          let friendsProcessed = 0;
+
+          yield* emit({
+            type: "friends.syncing",
+            provider: "codeforces",
+            step: "friends",
+            friendsTotal: input.friends.length,
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          for (const friend of input.friends) {
+            yield* emit({
+              type: "friends.friendSyncing",
+              provider: "codeforces",
+              step: "friends",
+              userHandle: friend.username,
+              friendIndex: friendsProcessed + 1,
+              friendsTotal: input.friends.length,
+              stepsTotal,
+              stepsLeft: stepsTotal - stepsDone
+            });
+            const submissions = yield* judge.getSubmissions({ userHandle: friend.username });
+            yield* upsertContestFinderParticipations(
+              database,
+              "codeforces",
+              JUDGES.Codeforces,
+              codeforcesContestParticipations(friend, submissions, contestNames)
+            ).pipe(
+              Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
+            );
+            friendsProcessed += 1;
+            stepsDone += 1;
+            yield* emit({
+              type: "friends.friendSynced",
+              provider: "codeforces",
+              step: "friends",
+              userHandle: friend.username,
+              friendIndex: friendsProcessed,
+              friendsTotal: input.friends.length,
+              friendsProcessed: 1,
+              stepsTotal,
+              stepsLeft: stepsTotal - stepsDone
+            });
+          }
+
+          return {
+            contestsUpserted,
+            friendsProcessed
+          };
+        }),
 
     sync: database === undefined
       ? notImplementedJudgeSync

@@ -8,7 +8,7 @@ import { appRouter } from "../src/index.js";
 const { contests, problems, submissions, users } = schema;
 
 describe("upsolving router", () => {
-  it("returns all synced problem rows with team user status only", async () => {
+  it("returns all simulated problem rows with team user status only", async () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
@@ -42,33 +42,33 @@ describe("upsolving router", () => {
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
-          name: "Synced Contest",
+          name: "Simulated Contest",
           link: "https://codeforces.com/gym/100",
           participants: 50,
           stars: 2,
-          synced: true,
+          simulated: true,
           createdAt: timestamp,
           updatedAt: new Date("2026-01-02T00:00:00.000Z")
         },
         {
           judgeId: "200",
           judge: JUDGES.Qoj,
-          name: "Another Synced Contest",
+          name: "Another Simulated Contest",
           link: "https://qoj.ac/contest/200",
           participants: null,
           stars: null,
-          synced: true,
+          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           judgeId: "300",
           judge: JUDGES.Codeforces,
-          name: "Unsynced Contest",
+          name: "Unsimulated Contest",
           link: "https://codeforces.com/gym/300",
           participants: 10,
           stars: 1,
-          synced: false,
+          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -122,7 +122,7 @@ describe("upsolving router", () => {
         {
           judgeId: "300A",
           judge: JUDGES.Codeforces,
-          name: "Unsynced Problem",
+          name: "Unsimulated Problem",
           link: "https://codeforces.com/gym/300/problem/A",
           contestId: unsyncedContest.id,
           solves: 1,

@@ -71,7 +71,7 @@ export function UpsolvingProblemTable({
 
       {rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No synced contests yet. Run sync to load contests and problems.
+          No simulated contests yet. Run sync to load contests and problems.
         </div>
       ) : visibleRows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">

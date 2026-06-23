@@ -1,5 +1,5 @@
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const enumValues = <T extends Record<string, string>>(values: T): [T[keyof T], ...T[keyof T][]] =>
   Object.values(values) as [T[keyof T], ...T[keyof T][]];
@@ -33,12 +33,12 @@ export const contests = sqliteTable("contests", {
   link: text("link").notNull(),
   participants: integer("participants"),
   stars: integer("stars"),
-  synced: integer("synced", { mode: "boolean" }).notNull(),
+  simulated: integer("simulated", { mode: "boolean" }).notNull(),
   ...timestamps
 }, (table) => [
   uniqueIndex("contests_judge_id_judge_unique").on(table.judgeId, table.judge),
-  index("contests_judge_synced_idx").on(table.judge, table.synced),
-  index("contests_synced_updated_name_idx").on(table.synced, table.updatedAt, table.name),
+  index("contests_judge_synced_idx").on(table.judge, table.simulated),
+  index("contests_synced_updated_name_idx").on(table.simulated, table.updatedAt, table.name),
   index("contests_name_idx").on(table.name)
 ]);
 
@@ -76,6 +76,19 @@ export const submissions = sqliteTable("submissions", {
   index("submissions_user_judge_idx").on(table.userId, table.judge)
 ]);
 
+export const userContestStates = sqliteTable("user_contest_states", {
+  userId: integer("user_id").references(() => users.id).notNull(),
+  contestId: integer("contest_id").references(() => contests.id).notNull(),
+  submissionCount: integer("submission_count").notNull(),
+  acceptedCount: integer("accepted_count").notNull(),
+  lastSubmissionAt: integer("last_submission_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull()
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.contestId] }),
+  index("user_contest_states_contest_user_idx").on(table.contestId, table.userId),
+  index("user_contest_states_user_submission_idx").on(table.userId, table.submissionCount)
+]);
+
 export const providerCredentials = sqliteTable("provider_credentials", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   provider: text("provider").notNull(),
@@ -98,5 +111,6 @@ export const schema = {
   contests,
   problems,
   submissions,
+  userContestStates,
   providerCredentials
 };

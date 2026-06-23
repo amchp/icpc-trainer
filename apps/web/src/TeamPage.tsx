@@ -1,5 +1,5 @@
 import type { TeamRoster } from "@icpc-trainer/api";
-import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES } from "@icpc-trainer/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -83,27 +83,22 @@ export function TeamPage(): React.JSX.Element {
       return;
     }
 
-    const duplicate = roster.users.some(
-      (user) =>
-        user.username.toLowerCase() === nextUsername.toLowerCase() &&
-        user.judge === selectedJudge
-    );
-    if (duplicate) {
-      setDraftUsername("");
-      return;
-    }
-
-    const saved = await replaceRoster([
-      ...roster.users,
-      {
+    setSaving(true);
+    try {
+      const nextRoster = await trpc.team.add.mutate({
         username: nextUsername,
-        judge: selectedJudge,
-        type: USER_TYPES.Team
-      }
-    ]);
-    if (saved) {
+        judge: selectedJudge
+      });
+      queryClient.setQueryData(["team", "roster"], nextRoster);
       setDraftUsername("");
       requestAnimationFrame(() => inputRef.current?.focus());
+    } catch (error) {
+      toaster.error({
+        title: "User was not saved",
+        description: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      setSaving(false);
     }
   };
 

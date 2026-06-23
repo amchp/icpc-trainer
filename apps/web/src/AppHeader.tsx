@@ -51,6 +51,13 @@ export function AppHeader(): React.JSX.Element {
           </Link>
 
           <Link
+            to="/contest-finder"
+            className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
+          >
+            Contest Finder
+          </Link>
+
+          <Link
             to="/team"
             className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
           >
@@ -71,7 +78,7 @@ export function AppHeader(): React.JSX.Element {
               for (const judge of missingSyncJudges) {
                 toaster.warning({
                   title: `${judgeLabel(judge)} authentication is not connected`,
-                  description: `${judgeLabel(judge)} has synced contests locally. Reconnect it from Judges to sync new data.`
+                  description: `${judgeLabel(judge)} has simulated contests locally. Reconnect it from Judges to sync new data.`
                 });
               }
               startSync(syncTargetJudges);

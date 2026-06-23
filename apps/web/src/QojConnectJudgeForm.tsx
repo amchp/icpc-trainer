@@ -60,7 +60,7 @@ export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFo
     },
     onSubmit: async ({ value }) => {
       try {
-        const status = await trpc.credentials.save.mutate({
+        const status = await trpc.credentials.create.mutate({
           provider: "qoj",
           providerUserKey: value.handle,
           qoj: {

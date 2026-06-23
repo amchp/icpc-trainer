@@ -4,7 +4,8 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Judge, JudgeSubmission } from "../judges.js";
+import type { Judge, JudgePreviewContest, JudgeSubmission } from "../judges.js";
+import { upsertExistingContestParticipations } from "../contestParticipation.js";
 import {
   createJudgeSyncRunner,
   emptySummary,
@@ -25,6 +26,7 @@ const { contests } = schema;
 interface QojUserSyncData {
   readonly user: SyncUser;
   readonly submissions: ReadonlyArray<JudgeSubmission>;
+  readonly contests: ReadonlyArray<JudgePreviewContest>;
 }
 
 const getUserContestIds = (
@@ -32,16 +34,14 @@ const getUserContestIds = (
   provider: JudgeSyncInput["provider"],
   judge: Judge,
   user: SyncUser
-): Effect.Effect<ReadonlyArray<string>, SyncOperationError> =>
+): Effect.Effect<ReadonlyArray<JudgePreviewContest>, SyncOperationError> =>
   runJudgeOperation(database, {
     provider,
     phase: "contests",
     step: "contests",
     action: `contests for user ${user.username}`,
     userHandle: user.username
-  }, judge.getContests({ userHandle: user.username })).pipe(
-    Effect.map((contestList) => [...new Set(contestList.map((contest) => contest.judgeId))])
-  );
+  }, judge.getContests({ userHandle: user.username }));
 
 const getUserSubmissions = (
   database: DatabaseService,
@@ -70,7 +70,7 @@ const syncedQojContestIds = (
     .from(contests)
     .where(and(
       eq(contests.judge, JUDGES.Qoj),
-      eq(contests.synced, true),
+      eq(contests.simulated, true),
       inArray(contests.judgeId, contestIds)
     ))
     .all();
@@ -155,7 +155,9 @@ const runQojSyncProgram = (
         continue;
       }
 
-      for (const contestJudgeId of userContestsResult.right) {
+      const uniqueUserContests = [...new Map(userContestsResult.right.map((contest) => [contest.judgeId, contest])).values()];
+
+      for (const contestJudgeId of uniqueUserContests.map((contest) => contest.judgeId)) {
         contestsToSync.add(contestJudgeId);
       }
 
@@ -181,7 +183,7 @@ const runQojSyncProgram = (
       }
 
       fetched = userSubmissionsResult.right.length;
-      userSyncData.push({ user, submissions: userSubmissionsResult.right });
+      userSyncData.push({ user, submissions: userSubmissionsResult.right, contests: uniqueUserContests });
       completedSteps += 1;
       yield* emit({
         type: "submissions.userSynced",
@@ -280,6 +282,17 @@ const runQojSyncProgram = (
           userSubmissions: userData.submissions
         })
       );
+      const participationResult = yield* Effect.either(upsertExistingContestParticipations(
+        database,
+        provider,
+        judgeId,
+        userData.contests.map((contest) => ({
+          user,
+          contestJudgeId: contest.judgeId,
+          contestName: contest.name,
+          submissions: []
+        }))
+      ));
       let fetched = 0;
       let inserted = 0;
       let updated = 0;
@@ -301,6 +314,10 @@ const runQojSyncProgram = (
         summary.submissionsInserted += inserted;
         summary.submissionsUpdated += updated;
         summary.submissionsSkipped += skipped;
+      }
+      if (participationResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(participationResult.left, stepsTotal, stepsLeft()));
       }
 
       completedSteps += 1;

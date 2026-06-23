@@ -38,7 +38,7 @@ describe("DatabaseLive", () => {
         link: "https://codeforces.com/gym/566",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -154,6 +154,69 @@ describe("DatabaseLive", () => {
       {
         username: "juancs",
         judge: JUDGES.Qoj
+      }
+    ]);
+  });
+
+  it("stores one contest participation state per user and contest", async () => {
+    const layer = Layer.provideMerge(DatabaseLive({ filename: ":memory:" }), Layer.empty);
+    const timestamp = new Date("2026-01-01T00:00:00.000Z");
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+
+      database.db.insert(schema.users).values({
+        username: "friend",
+        type: USER_TYPES.Friend,
+        judge: JUDGES.Codeforces,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+      database.db.insert(schema.contests).values({
+        judgeId: "100",
+        judge: JUDGES.Codeforces,
+        name: "Candidate",
+        link: "https://codeforces.com/gym/100",
+        participants: null,
+        stars: null,
+        simulated: false,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+
+      const user = database.db.select().from(schema.users).get();
+      const contest = database.db.select().from(schema.contests).get();
+      if (user === undefined || contest === undefined) {
+        throw new Error("Expected seeded rows.");
+      }
+
+      database.db.insert(schema.userContestStates).values({
+        userId: user.id,
+        contestId: contest.id,
+        submissionCount: 1,
+        acceptedCount: 0,
+        lastSubmissionAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+
+      expect(() => {
+        database.db.insert(schema.userContestStates).values({
+          userId: user.id,
+          contestId: contest.id,
+          submissionCount: 2,
+          acceptedCount: 1,
+          lastSubmissionAt: timestamp,
+          updatedAt: timestamp
+        }).run();
+      }).toThrow();
+
+      return database.db.select().from(schema.userContestStates).all();
+    });
+
+    await expect(Effect.runPromise(program.pipe(Effect.provide(layer)))).resolves.toMatchObject([
+      {
+        submissionCount: 1,
+        acceptedCount: 0
       }
     ]);
   });

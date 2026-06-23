@@ -11,7 +11,7 @@ import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 
-const { contests, problems, submissions, users } = schema;
+const { contests, problems, submissions, userContestStates, users } = schema;
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -229,7 +229,7 @@ describe("createJudgeSyncService", () => {
         link: "https://codeforces.com/gym/100566",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -257,8 +257,18 @@ describe("createJudgeSyncService", () => {
       const secondEvents = await collect(createSyncService(database).sync({ provider: "codeforces" }));
 
       const rows = database.db.select().from(submissions).all();
+      const contestStates = database.db.select().from(userContestStates).all();
       expect(user.username).toBe("tourist");
       expect(rows).toHaveLength(1);
+      expect(contestStates).toEqual([
+        expect.objectContaining({
+          userId: user.id,
+          contestId: contest.id,
+          submissionCount: 1,
+          acceptedCount: 1,
+          lastSubmissionAt: new Date(1450000000 * 1000)
+        })
+      ]);
       expect(rows[0]).toMatchObject({
         judgeId: "49644212",
         judge: JUDGES.Codeforces,
@@ -276,7 +286,7 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("keeps the same external submission id for multiple synced users", async () => {
+  it("keeps the same external submission id for multiple simulated users", async () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const sharedSubmission = {
       judgeId: "49644212",
@@ -315,7 +325,7 @@ describe("createJudgeSyncService", () => {
         link: "https://codeforces.com/gym/100566",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -428,7 +438,7 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/1113",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -518,7 +528,7 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/1113",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -690,7 +700,7 @@ describe("createJudgeSyncService", () => {
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
       expect(database.db.select().from(contests).get()).toMatchObject({
         judgeId: "100566",
-        synced: true
+        simulated: true
       });
     });
   });
@@ -714,15 +724,21 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const events = await withDatabase(async (database) => {
-      return await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        contestRows: database.db.select().from(contests).all(),
+        contestStateRows: database.db.select().from(userContestStates).all(),
+        problemRows: database.db.select().from(problems).all()
+      };
     });
 
-    expect(events).not.toContainEqual(expect.objectContaining({
+    expect(result.events).not.toContainEqual(expect.objectContaining({
       type: "contests.contestSynced",
       contestJudgeId: "100566"
     }));
-    expect(events.at(-1)).toMatchObject({
+    expect(result.events.at(-1)).toMatchObject({
       type: "completed",
       summary: {
         submissionsInserted: 0,
@@ -731,6 +747,133 @@ describe("createJudgeSyncService", () => {
         errors: 0
       }
     });
+    expect(result.contestRows).toHaveLength(0);
+    expect(result.contestStateRows).toHaveLength(0);
+    expect(result.problemRows).toHaveLength(0);
+  });
+
+  it("records Codeforces participation for an existing unsimulated contest without promoting it", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 100566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "OK"
+          }
+        ]);
+      }
+
+      throw new Error("Contest details should not be requested for one missing problem.");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      database.db.insert(contests).values({
+        judgeId: "100566",
+        judge: JUDGES.Codeforces,
+        name: "Finder Candidate",
+        link: "https://codeforces.com/gym/100566",
+        participants: null,
+        stars: null,
+        simulated: false,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        contestRows: database.db.select().from(contests).all(),
+        contestStateRows: database.db.select().from(userContestStates).all(),
+        problemRows: database.db.select().from(problems).all()
+      };
+    });
+
+    expect(result.events).not.toContainEqual(expect.objectContaining({
+      type: "contests.contestSynced",
+      contestJudgeId: "100566"
+    }));
+    expect(result.contestRows).toEqual([
+      expect.objectContaining({
+        judgeId: "100566",
+        simulated: false
+      })
+    ]);
+    expect(result.contestStateRows).toEqual([
+      expect.objectContaining({
+        contestId: result.contestRows[0]?.id,
+        submissionCount: 1,
+        acceptedCount: 1
+      })
+    ]);
+    expect(result.problemRows).toHaveLength(0);
+  });
+
+  it("stores Codeforces Contest Finder rows with names from contest.list", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/contest.list") {
+        return codeforcesResponse([
+          {
+            id: 100566,
+            name: "ICPC Training Camp Invitational",
+            phase: "FINISHED",
+            type: "ICPC"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 100566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "OK"
+          }
+        ]);
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const contestRows = await withDatabase(async (database) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      const [friend] = database.db.insert(users).values({
+        username: "friend",
+        type: USER_TYPES.Friend,
+        judge: JUDGES.Codeforces,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).returning().all();
+
+      if (friend === undefined) {
+        throw new Error("Expected seeded friend.");
+      }
+
+      await Effect.runPromise(
+        makeCodeforcesJudge(database).refreshContestFinder({ friends: [friend] }).pipe(
+          Effect.provideService(DatabaseServiceTag, database)
+        )
+      );
+
+      return database.db.select().from(contests).all();
+    });
+
+    expect(contestRows).toEqual([
+      expect.objectContaining({
+        judgeId: "100566",
+        name: "ICPC Training Camp Invitational",
+        simulated: false
+      })
+    ]);
   });
 
   it("does not sync a contest when submissions only cover one unique missing problem", async () => {
@@ -892,7 +1035,7 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("does not retry unsynced contests unless current user submissions need them", async () => {
+  it("does not retry unsimulated contests unless current user submissions need them", async () => {
     const timestamp = new Date("2025-01-01T00:00:00.000Z");
     const getContest = vi.fn((contestId: string) => Effect.succeed({
       judgeId: contestId,
@@ -923,7 +1066,7 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/stale",
         participants: 0,
         stars: 0,
-        synced: false,
+        simulated: false,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -1032,6 +1175,16 @@ describe("createJudgeSyncService", () => {
       expect(events.findIndex((event) => event.type === "contests.contestSynced" && event.contestJudgeId === "111"))
         .toBeLessThan(importSubmissionsIndex);
       expect(database.db.select().from(submissions).all()).toHaveLength(3);
+      expect(database.db.select().from(userContestStates).all()).toEqual([
+        expect.objectContaining({
+          submissionCount: 1,
+          acceptedCount: 0
+        }),
+        expect.objectContaining({
+          submissionCount: 1,
+          acceptedCount: 0
+        })
+      ]);
     }, { saveCredentials: false });
   });
 
@@ -1099,7 +1252,7 @@ describe("createJudgeSyncService", () => {
         expect.objectContaining({
           judgeId: "111",
           judge: JUDGES.Qoj,
-          synced: true
+          simulated: true
         })
       ]);
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
@@ -1114,7 +1267,7 @@ describe("createJudgeSyncService", () => {
     }, { saveCredentials: false });
   });
 
-  it("skips already synced QOJ profile contests on later syncs", async () => {
+  it("skips already simulated QOJ profile contests on later syncs", async () => {
     await withDatabase(async (database) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
@@ -1172,13 +1325,13 @@ describe("createJudgeSyncService", () => {
         expect.objectContaining({
           judgeId: "111",
           judge: JUDGES.Qoj,
-          synced: true
+          simulated: true
         })
       ]);
     }, { saveCredentials: false });
   });
 
-  it("does not sync QOJ profile contests that are already synced", async () => {
+  it("does not sync QOJ profile contests that are already simulated", async () => {
     await withDatabase(async (database) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
@@ -1195,7 +1348,7 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/111",
         participants: 1,
         stars: 0,
-        synced: true,
+        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -1232,7 +1385,7 @@ describe("createJudgeSyncService", () => {
     }, { saveCredentials: false });
   });
 
-  it("emits an error when a synced contest does not include the pending problem", async () => {
+  it("emits an error when a simulated contest does not include the pending problem", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {

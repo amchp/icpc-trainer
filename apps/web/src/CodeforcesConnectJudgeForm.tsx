@@ -25,7 +25,7 @@ export function CodeforcesConnectJudgeForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        const status = await trpc.credentials.save.mutate({
+        const status = await trpc.credentials.create.mutate({
           provider: "codeforces",
           providerUserKey: value.handle,
           codeforces: {

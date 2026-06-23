@@ -2,7 +2,8 @@
 import { Context, Data, Effect } from "effect";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import type { DatabaseServiceTag } from "@icpc-trainer/db";
-import type { JudgeSyncEvent, JudgeSyncInput } from "@icpc-trainer/api";
+import type { ContestFinderRefreshEvent, JudgeSyncEvent, JudgeSyncInput } from "@icpc-trainer/api";
+import type { SyncUser } from "./sync/sync.js";
 
 export class JudgeNotFoundError extends Data.TaggedError("JudgeNotFoundError")<{
   readonly resource: "contest" | "user";
@@ -71,6 +72,16 @@ export interface GetSubmissionsOptions {
   readonly userHandle: string;
 }
 
+export interface RefreshContestFinderInput {
+  readonly friends: readonly SyncUser[];
+  readonly emit?: (event: ContestFinderRefreshEvent) => Effect.Effect<void>;
+}
+
+export interface RefreshContestFinderResult {
+  readonly contestsUpserted: number;
+  readonly friendsProcessed: number;
+}
+
 export type JudgeAuthenticationInput =
   | {
       readonly provider: "codeforces";
@@ -101,6 +112,9 @@ export interface Judge {
   readonly getSubmissions: (
     options?: GetSubmissionsOptions,
   ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, JudgeError, DatabaseServiceTag>;
+  readonly refreshContestFinder: (
+    input: RefreshContestFinderInput,
+  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, DatabaseServiceTag>;
 }
 
 export class JudgeTag extends Context.Tag("@icpc-trainer/server/Judge")<

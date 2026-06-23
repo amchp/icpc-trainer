@@ -24,12 +24,16 @@ _Avoid_: Task
 A user's attempt at a **Problem** on a **Judge**. A **User** may have many **Submissions** for the same **Problem**.
 _Avoid_: Attempt, run
 
+**Contest Participation**:
+Evidence that a **User** participated in a **Contest**, without requiring problem-level **Submission** detail.
+_Avoid_: Contest submission, partial submission
+
 **Team User**:
 A judge user whose submissions ICPC Trainer tracks for team practice and upsolving. Team Users are the only users whose submissions affect sync and upsolving status.
 _Avoid_: Primary user, account user, teammate
 
 **Friend**:
-A user category not currently used for sync or upsolving.
+A judge user whose **Contest Participation** ranks **Contest Finder** results. Friends do not affect **Upsolving** status.
 _Avoid_: Contact, peer
 
 **Judge Credential**:
@@ -40,11 +44,11 @@ _Avoid_: Account, primary user
 The app page where a user manages **Judge Credentials**.
 _Avoid_: Account, primary user
 
-**Synced Contest**:
+**Simulated Contest**:
 A **Contest** whose judge metadata and problems have been imported into the app.
 _Avoid_: Imported contest
 
-**Unsynced Contest**:
+**Unsimulated Contest**:
 A **Contest** known to the app but whose judge metadata and problems still need to be imported.
 _Avoid_: Pending contest
 
@@ -53,8 +57,12 @@ The backend-owned state of an active judge synchronization run, including whethe
 _Avoid_: Frontend sync state, sync progress cache
 
 **Upsolving**:
-Reviewing **Problems** from **Synced Contests** using **Team User** **Submission** status and difficulty metrics.
+Reviewing **Problems** from **Simulated Contests** using **Team User** **Submission** status and difficulty metrics.
 _Avoid_: Gym view, contest split
+
+**Contest Finder**:
+The app page that ranks **Unsimulated Contests** using **Friend** **Contest Participation**.
+_Avoid_: Gym finder
 
 ## Example Dialogue
 
@@ -65,3 +73,7 @@ Domain expert: "Only for Team Users. Friends and generic users are outside this 
 Dev: "If a Submission references a missing Problem, do we create the Problem immediately?"
 
 Domain expert: "No. Problems come from Contests. If enough missing Problems point to a Contest, sync that Contest, then retry the Submissions."
+
+Dev: "Can QOJ profile contests count even when profile problem submissions are ambiguous?"
+
+Domain expert: "Yes. Store Contest Participation for the Contest Finder, and only store Submissions when they match known Problems."

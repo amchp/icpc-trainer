@@ -25,7 +25,7 @@ export const createAccountRouter = (t: TrpcInstance) =>
       const rows = ctx.database.db
         .select({ judge: contests.judge })
         .from(contests)
-        .where(eq(contests.synced, true))
+        .where(eq(contests.simulated, true))
         .groupBy(contests.judge)
         .all();
 

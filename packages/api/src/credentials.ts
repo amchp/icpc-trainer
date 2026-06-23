@@ -6,6 +6,8 @@ import { z } from "zod";
 import { encryptCredential } from "./credentialCrypto.js";
 import {
   clearCredentials,
+  createEncryptedCredential,
+  getLatestCredential,
   getCredentialStatus,
   saveEncryptedCredential,
   type CredentialStatus,
@@ -25,6 +27,38 @@ const optionalTrimmedString = z.preprocess(
 const requiredTrimmedString = (message: string) => z.string().trim().min(1, message);
 
 const providerSchema = z.enum(["codeforces", "qoj"]);
+
+const credentialPayloadFor = (input: SaveCredentialsInput): string =>
+  input.provider === JUDGES.Codeforces
+    ? JSON.stringify(input.codeforces)
+    : JSON.stringify(input.qoj);
+
+const validateCredentials = async (ctx: ApiContext, input: SaveCredentialsInput): Promise<void> => {
+  try {
+    await ctx.judges.validateCredentials(input);
+  } catch (error) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: error instanceof Error ? error.message : String(error),
+      cause: error
+    });
+  }
+};
+
+const publishCredentialChange = (ctx: ApiContext, status: CredentialStatus): void => {
+  ctx.credentialEvents?.publish({
+    type: "changed",
+    status,
+    occurredAt: new Date().toISOString()
+  });
+};
+
+const duplicateCredentialError = (provider: SaveCredentialsInput["provider"], cause?: unknown): TRPCError =>
+  new TRPCError({
+    code: "CONFLICT",
+    message: `${provider} credentials already exist.`,
+    cause
+  });
 
 export const saveCredentialsInputSchema = z.discriminatedUnion("provider", [
   z.object({
@@ -59,27 +93,26 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
         yield* events;
       }
     }),
-    save: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
-      try {
-        await ctx.judges.validateCredentials(input);
-      } catch (error) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: error instanceof Error ? error.message : String(error),
-          cause: error
-        });
+    create: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
+      if (getLatestCredential(ctx, input.provider) !== null) {
+        throw duplicateCredentialError(input.provider);
       }
 
-      const payload = input.provider === JUDGES.Codeforces
-        ? JSON.stringify(input.codeforces)
-        : JSON.stringify(input.qoj);
+      await validateCredentials(ctx, input);
 
-      const status = saveEncryptedCredential(ctx, input, encryptCredential(payload));
-      ctx.credentialEvents?.publish({
-        type: "changed",
-        status,
-        occurredAt: new Date().toISOString()
-      });
+      try {
+        const status = createEncryptedCredential(ctx, input, encryptCredential(credentialPayloadFor(input)));
+        publishCredentialChange(ctx, status);
+        return status;
+      } catch (error) {
+        throw duplicateCredentialError(input.provider, error);
+      }
+    }),
+    save: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
+      await validateCredentials(ctx, input);
+
+      const status = saveEncryptedCredential(ctx, input, encryptCredential(credentialPayloadFor(input)));
+      publishCredentialChange(ctx, status);
       return status;
     }),
     clear: t.procedure.input(providerSchema).mutation(({ ctx, input }): CredentialStatus => {

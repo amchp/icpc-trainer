@@ -10,6 +10,7 @@ import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
+import { createContestFinderRefreshService } from "./contestFinderRefresh.js";
 import { createAsyncEventHub } from "./asyncEventHub.js";
 import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
 
@@ -36,16 +37,15 @@ export const startServer = (
       codeforces: config.codeforces,
       qoj: config.qoj
     });
+    const judgeRegistry = {
+      codeforces: makeCodeforcesJudge(database),
+      qoj: makeQojJudge(undefined, database)
+    };
     const judges = {
       ...createJudgePlayground(database),
       ...createJudgeCredentialValidation(database),
-      ...createJudgeSyncService(
-        {
-          codeforces: makeCodeforcesJudge(database),
-          qoj: makeQojJudge(undefined, database)
-        },
-        database
-      )
+      ...createJudgeSyncService(judgeRegistry, database),
+      ...createContestFinderRefreshService(database, judgeRegistry)
     };
     const credentialEvents = createAsyncEventHub<CredentialStatusEvent>();
 

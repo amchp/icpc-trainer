@@ -1,7 +1,7 @@
 
 import { getStoredQojCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
-import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
+import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect, Layer } from "effect";
 import { Impit } from "impit";
 
@@ -21,6 +21,12 @@ import {
   type JudgeUser,
   type Problem
 } from "./judges.js";
+import {
+  emptyContestFinderRefresh,
+  qojContestParticipations,
+  upsertContestFinderCatalog,
+  upsertContestFinderParticipations
+} from "./contestFinder.js";
 import { notImplementedJudgeSync } from "./sync/sync.js";
 import { createQojJudgeSync } from "./sync/sync_qoj.js";
 
@@ -271,17 +277,12 @@ const toPreviewContest = (judgeId: string, name: string): JudgePreviewContest =>
   name
 });
 
-const parseProfileContestList = (html: string): ReadonlyArray<JudgePreviewContest> => {
-  const virtualSection = matchFirst(
-    html,
-    /Virtual Participations[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/i
-  );
-  const source = virtualSection === "" ? html : virtualSection;
+const parseContestLinks = (html: string): ReadonlyArray<JudgePreviewContest> => {
   const contests = new Map<string, JudgePreviewContest>();
   const linkPattern = /<a\b[^>]*href=["'][^"']*\/contest\/(\d+)(?:[?#][^"']*)?["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = linkPattern.exec(source)) !== null) {
+  while ((match = linkPattern.exec(html)) !== null) {
     const [, judgeId, rawName] = match;
     const name = cleanHtml(rawName ?? "");
 
@@ -292,6 +293,18 @@ const parseProfileContestList = (html: string): ReadonlyArray<JudgePreviewContes
 
   return [...contests.values()];
 };
+
+const parseProfileContestList = (html: string): ReadonlyArray<JudgePreviewContest> => {
+  const virtualSection = matchFirst(
+    html,
+    /Virtual Participations[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/i
+  );
+
+  return parseContestLinks(virtualSection === "" ? html : virtualSection);
+};
+
+const parseContestCatalogList = (html: string): ReadonlyArray<JudgePreviewContest> =>
+  parseContestLinks(html);
 
 const parseContestName = (html: string): string => {
   const titleHeading = matchFirst(html, /<h1\b[^>]*>\s*<a\b[^>]*>([\s\S]*?)<\/a>\s*<\/h1>/i);
@@ -620,7 +633,9 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
     validateAuthentication: (input) => validateQojAuthentication(input, baseUrl),
 
     getContests: (options?: GetContestsOptions) =>
-      requestProfile(options).pipe(Effect.map(parseProfileContestList)),
+      options?.userHandle !== undefined && options.userHandle.trim() !== ""
+        ? requestProfile(options).pipe(Effect.map(parseProfileContestList))
+        : requestQoj("/contests").pipe(Effect.map(parseContestCatalogList)),
 
     getContest: (contestId) => {
       const normalizedContestId = normalizeContestId(contestId);
@@ -682,6 +697,95 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
 
       return requestProfile(options).pipe(Effect.map(parseProfileSubmissions));
     },
+
+    refreshContestFinder: (input) => database === undefined
+      ? Effect.succeed(emptyContestFinderRefresh())
+      : Effect.gen(function* () {
+          const emit = input.emit ?? (() => Effect.void);
+          const stepsTotal = input.friends.length + 1;
+          let stepsDone = 0;
+
+          yield* emit({
+            type: "started",
+            provider: "qoj",
+            stepsTotal,
+            stepsLeft: stepsTotal
+          });
+          yield* emit({
+            type: "catalog.syncing",
+            provider: "qoj",
+            step: "catalog",
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          const catalog = yield* judge.getContests();
+          const contestsUpserted = yield* upsertContestFinderCatalog(
+            database,
+            "qoj",
+            JUDGES.Qoj,
+            catalog
+          ).pipe(
+            Effect.mapError((error) => new JudgeAPIError({ judgeId: "qoj", cause: error }))
+          );
+          stepsDone += 1;
+          yield* emit({
+            type: "catalog.synced",
+            provider: "qoj",
+            step: "catalog",
+            contestsUpserted,
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          let friendsProcessed = 0;
+
+          yield* emit({
+            type: "friends.syncing",
+            provider: "qoj",
+            step: "friends",
+            friendsTotal: input.friends.length,
+            stepsTotal,
+            stepsLeft: stepsTotal - stepsDone
+          });
+          for (const friend of input.friends) {
+            yield* emit({
+              type: "friends.friendSyncing",
+              provider: "qoj",
+              step: "friends",
+              userHandle: friend.username,
+              friendIndex: friendsProcessed + 1,
+              friendsTotal: input.friends.length,
+              stepsTotal,
+              stepsLeft: stepsTotal - stepsDone
+            });
+            const contests = yield* judge.getContests({ userHandle: friend.username });
+            yield* upsertContestFinderParticipations(
+              database,
+              "qoj",
+              JUDGES.Qoj,
+              qojContestParticipations(friend, contests)
+            ).pipe(
+              Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
+            );
+            friendsProcessed += 1;
+            stepsDone += 1;
+            yield* emit({
+              type: "friends.friendSynced",
+              provider: "qoj",
+              step: "friends",
+              userHandle: friend.username,
+              friendIndex: friendsProcessed,
+              friendsTotal: input.friends.length,
+              friendsProcessed: 1,
+              stepsTotal,
+              stepsLeft: stepsTotal - stepsDone
+            });
+          }
+
+          return {
+            contestsUpserted,
+            friendsProcessed
+          };
+        }),
 
     sync: database === undefined
       ? notImplementedJudgeSync

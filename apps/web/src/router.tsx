@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 import { AccountRoute } from "./AccountRoute.js";
 import { CodeforcesConnectJudgeRoute } from "./CodeforcesConnectJudgeRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
+import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
 import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
@@ -83,6 +84,13 @@ const contestsRoute = createRoute({
   beforeLoad: requireSyncedContests
 });
 
+const contestFinderRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/contest-finder",
+  component: ContestFinderRoute,
+  beforeLoad: requireConnectedJudge
+});
+
 const teamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/team",
@@ -108,6 +116,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     accountRoute,
     judgesRoute,
+    contestFinderRoute,
     contestsRoute,
     teamRoute,
     upsolvingRoute

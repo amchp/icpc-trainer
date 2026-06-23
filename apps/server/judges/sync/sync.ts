@@ -13,6 +13,7 @@ import { Data, Effect } from "effect";
 
 import type { Judge, JudgeContest, JudgeError, JudgeSubmission } from "../judges.js";
 import { createAsyncEventHub, type AsyncEventHub } from "../../src/asyncEventHub.js";
+import { upsertExistingContestParticipations } from "../contestParticipation.js";
 import { estimateProblemRating, estimateSolvePercentage } from "./problemRating.js";
 
 const CODEFORCES_CONTEST_URL = "https://codeforces.com/gym";
@@ -431,7 +432,7 @@ export const upsertContest = (
       link: contestLink(judge, contest.judgeId),
       participants: contest.participants,
       stars: contest.stars,
-      synced: true,
+      simulated: true,
       createdAt: timestamp,
       updatedAt: timestamp
     })
@@ -442,7 +443,7 @@ export const upsertContest = (
         link: contestLink(judge, contest.judgeId),
         participants: contest.participants,
         stars: contest.stars,
-        synced: true,
+        simulated: true,
         updatedAt: timestamp
       }
     })
@@ -455,7 +456,7 @@ export const upsertContest = (
     .get();
 
   if (row === undefined) {
-    throw new Error(`Synced contest ${contest.judgeId} was not found after upsert.`);
+    throw new Error(`Simulated contest ${contest.judgeId} was not found after upsert.`);
   }
 
   return row.id;
@@ -553,6 +554,30 @@ export const syncUserSubmissions = (
       judge.getSubmissions({ userHandle: user.username })
     ));
     const existingSubmissions = yield* existingSubmissionsByJudgeId(database, judgeId, user, provider);
+    const submissionsByContest = new Map<string, JudgeSubmission[]>();
+
+    for (const submission of userSubmissions) {
+      if (submission.judgeContestId === undefined) {
+        continue;
+      }
+
+      const contestSubmissions = submissionsByContest.get(submission.judgeContestId) ?? [];
+      contestSubmissions.push(submission);
+      submissionsByContest.set(submission.judgeContestId, contestSubmissions);
+    }
+
+    if (submissionsByContest.size > 0) {
+      yield* upsertExistingContestParticipations(
+        database,
+        provider,
+        judgeId,
+        [...submissionsByContest.entries()].map(([contestJudgeId, contestSubmissions]) => ({
+          user,
+          contestJudgeId,
+          submissions: contestSubmissions
+        }))
+      );
+    }
 
     let inserted = 0;
     let updated = 0;

@@ -58,6 +58,64 @@ describe("credentials router", () => {
     expect(stored?.encryptedPayload).not.toContain("cf-secret");
   });
 
+  it("does not overwrite existing credentials through the create-only endpoint", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
+        }
+      });
+
+      yield* Effect.promise(() => caller.credentials.create({
+        provider: "codeforces",
+        providerUserKey: "tourist",
+        codeforces: {
+          apiKey: "first-key",
+          apiSecret: "first-secret"
+        }
+      }));
+
+      const before = getStoredCodeforcesCredentials({ database });
+
+      yield* Effect.promise(() =>
+        expect(caller.credentials.create({
+          provider: "codeforces",
+          providerUserKey: "tourist",
+          codeforces: {
+            apiKey: "second-key",
+            apiSecret: "second-secret"
+          }
+        })).rejects.toThrow("codeforces credentials already exist.")
+      );
+
+      return {
+        before,
+        after: getStoredCodeforcesCredentials({ database }),
+        stored: database.db.select().from(providerCredentials).all()
+      };
+    });
+
+    const result = await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+    );
+
+    expect(result.before).toEqual({
+      ok: true,
+      credentials: {
+        apiKey: "first-key",
+        apiSecret: "first-secret"
+      }
+    });
+    expect(result.after).toEqual(result.before);
+    expect(result.stored).toHaveLength(1);
+  });
+
   it("adds saved judge handles as team users without storing handles as credential keys", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 

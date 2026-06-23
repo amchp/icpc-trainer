@@ -8,7 +8,7 @@ import { appRouter } from "../src/index.js";
 const { contests } = schema;
 
 describe("account router", () => {
-  it("reports synced contest data by judge", async () => {
+  it("reports simulated contest data by judge", async () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
@@ -27,22 +27,22 @@ describe("account router", () => {
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
-          name: "Synced",
+          name: "Simulated",
           link: "https://codeforces.com/gym/100",
           participants: 1,
           stars: 1,
-          synced: true,
+          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           judgeId: "200",
           judge: JUDGES.Qoj,
-          name: "Unsynced",
+          name: "Unsimulated",
           link: "https://qoj.ac/contest/200",
           participants: 1,
           stars: 1,
-          synced: false,
+          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         }

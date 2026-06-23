@@ -12,6 +12,7 @@ import { PlaygroundPage } from "./PlaygroundPage.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
 import { SyncProvider } from "./SyncContext.js";
+import { TeamPage } from "./TeamPage.js";
 import { ToasterProvider } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -153,6 +154,16 @@ vi.mock("./trpc", () => ({
           return { unsubscribe: vi.fn() };
         })
       },
+      create: {
+        mutate: vi.fn(async () => ({
+          codeforces: {
+            saved: true
+          },
+          qoj: {
+            saved: true
+          }
+        }))
+      },
       save: {
         mutate: vi.fn(async () => ({
           codeforces: {
@@ -179,6 +190,17 @@ vi.mock("./trpc", () => ({
         query: vi.fn(async () => ({
           users: [],
           updatedAt: null
+        }))
+      },
+      add: {
+        mutate: vi.fn(async (input) => ({
+          users: [
+            {
+              ...input,
+              type: "team"
+            }
+          ],
+          updatedAt: new Date().toISOString()
         }))
       },
       replace: {
@@ -509,7 +531,7 @@ describe("HomeRoute", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter/i }));
 
     await waitFor(() =>
-      expect(trpc.credentials.save.mutate).toHaveBeenCalledWith(
+      expect(trpc.credentials.create.mutate).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: "qoj",
           providerUserKey: "qoj-user",
@@ -519,11 +541,12 @@ describe("HomeRoute", () => {
         })
       )
     );
+    expect(trpc.credentials.save.mutate).not.toHaveBeenCalled();
     expect(navigateMock).toHaveBeenCalledWith({ to: "/judges" });
   });
 
   it("shows a toast with a clearer message when Codeforces connect cannot reach the server", async () => {
-    vi.mocked(trpc.credentials.save.mutate).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    vi.mocked(trpc.credentials.create.mutate).mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     renderWithQuery(<CodeforcesConnectJudgePage />);
 
@@ -534,6 +557,25 @@ describe("HomeRoute", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not connect Codeforces");
     expect(screen.getByRole("alert")).toHaveTextContent("Could not reach the ICPC Trainer server");
+  });
+
+  it("shows the server conflict when adding a duplicate team user", async () => {
+    vi.mocked(trpc.team.add.mutate).mockRejectedValueOnce(
+      new Error("tourist is already saved as a team user.")
+    );
+
+    renderWithQuery(<TeamPage />);
+
+    fireEvent.change(await screen.findByLabelText("Handle"), { target: { value: "tourist" } });
+    fireEvent.click(screen.getByRole("button", { name: /add user/i }));
+
+    await waitFor(() =>
+      expect(trpc.team.add.mutate).toHaveBeenCalledWith({
+        username: "tourist",
+        judge: "codeforces"
+      })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("tourist is already saved as a team user.");
   });
 
   it("renders the playground without the shared navbar and with saved credentials only", async () => {

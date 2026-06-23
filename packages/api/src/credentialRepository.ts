@@ -158,6 +158,56 @@ export const saveEncryptedCredential = (
   return getCredentialStatus(ctx);
 };
 
+export const createEncryptedCredential = (
+  ctx: CredentialDatabaseContext,
+  input: SaveCredentialsInput,
+  encryptedPayload: string,
+): CredentialStatus => {
+  if (getLatestCredential(ctx, input.provider) !== null) {
+    throw new Error(`${input.provider} credentials already exist.`);
+  }
+
+  const now = new Date();
+  const teamUsername = trackedTeamUsername(input);
+  const judge = providerJudge(input.provider);
+
+  ctx.database.db
+    .insert(providerCredentials)
+    .values({
+      provider: input.provider,
+      providerUserKey: DEFAULT_PROVIDER_USER_KEY,
+      credentialType: credentialTypeFor(input.provider),
+      encryptedPayload,
+      lastValidatedAt: now,
+      createdAt: now,
+      updatedAt: now
+    })
+    .run();
+
+  if (teamUsername !== null) {
+    ctx.database.db
+      .insert(users)
+      .values({
+        username: teamUsername,
+        type: USER_TYPES.Team,
+        judge,
+        createdAt: now,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: [users.username, users.judge],
+        set: {
+          type: USER_TYPES.Team,
+          judge,
+          updatedAt: now
+        }
+      })
+      .run();
+  }
+
+  return getCredentialStatus(ctx);
+};
+
 export const clearCredentials = (
   ctx: CredentialDatabaseContext,
   provider: PlaygroundProvider,

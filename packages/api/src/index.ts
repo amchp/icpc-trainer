@@ -10,6 +10,11 @@ import {
   type CredentialStatus,
   type SaveCredentialsInput
 } from "./credentials.js";
+import {
+  createContestFinderRouter,
+  type ContestFinderRefreshService
+} from "./contestFinder.js";
+import { createFriendsRouter } from "./friends.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 import {
   createUpsolvingRouter,
@@ -145,7 +150,7 @@ export interface CredentialStatusEventService {
 
 export interface ApiContext {
   readonly database: DatabaseService;
-  readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService>;
+  readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService> & Partial<ContestFinderRefreshService>;
   readonly credentialEvents?: CredentialStatusEventService;
 }
 
@@ -190,6 +195,8 @@ export const appRouter = t.router({
     })
   }),
   credentials: createCredentialsRouter(t),
+  contestFinder: createContestFinderRouter(t),
+  friends: createFriendsRouter(t),
   judges: createJudgesRouter(),
   playground: createPlaygroundRouter(t),
   team: createTeamRouter(t),
@@ -213,6 +220,21 @@ export {
   getStoredQojCredentials,
   seedStoredCredentials
 } from "./storedCredentials.js";
+
+export type {
+  ContestFinderRefreshEvent,
+  ContestFinderRefreshInput,
+  ContestFinderRefreshObserveEvent,
+  ContestFinderOverview,
+  ContestFinderRefreshResult,
+  ContestFinderRefreshService,
+  ContestFinderRefreshWarning,
+  ContestFinderRow,
+} from "./contestFinder.js";
+
+export type {
+  FriendsRoster,
+} from "./friends.js";
 
 export type {
   SeedStoredCredentialsInput,
