@@ -4,7 +4,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Judge } from "../judges.js";
+import type { Judge, JudgeContest, JudgeSubmission } from "../judges.js";
 import {
   createJudgeSyncRunner,
   emptySummary,
@@ -12,15 +12,22 @@ import {
   getSyncUsers,
   providerJudge,
   runJudgeOperation,
-  syncContest,
   syncOperationErrorEvent,
   syncUserSubmissions,
+  upsertContest,
+  upsertContestProblems,
   type EmitSyncEvent,
   type SyncOperationError,
   type SyncUser
 } from "./sync.js";
 
 const { contests } = schema;
+const MIN_UNIQUE_SUBMITTED_PROBLEMS_FOR_CONTEST_SYNC = 2;
+
+interface QojUserSyncData {
+  readonly user: SyncUser;
+  readonly submissions: ReadonlyArray<JudgeSubmission>;
+}
 
 const getUserContestIds = (
   database: DatabaseService,
@@ -37,6 +44,20 @@ const getUserContestIds = (
   }, judge.getContests({ userHandle: user.username })).pipe(
     Effect.map((contestList) => [...new Set(contestList.map((contest) => contest.judgeId))])
   );
+
+const getUserSubmissions = (
+  database: DatabaseService,
+  provider: JudgeSyncInput["provider"],
+  judge: Judge,
+  user: SyncUser
+): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
+  runJudgeOperation(database, {
+    provider,
+    phase: "submissions",
+    step: "submissions",
+    action: `submissions for user ${user.username}`,
+    userHandle: user.username
+  }, judge.getSubmissions({ userHandle: user.username }));
 
 const syncedQojContestIds = (
   database: DatabaseService,
@@ -59,6 +80,42 @@ const syncedQojContestIds = (
   return new Set(rows.map((row) => row.judgeId));
 };
 
+const countSubmittedContestProblems = (
+  contest: JudgeContest,
+  submittedProblemIds: ReadonlySet<string>
+): number =>
+  new Set(
+    contest.problems
+      .map((problem) => problem.judgeId)
+      .filter((problemId) => submittedProblemIds.has(problemId))
+  ).size;
+
+const syncQojContestIfEligible = (
+  database: DatabaseService,
+  provider: JudgeSyncInput["provider"],
+  judgeId: ReturnType<typeof providerJudge>,
+  judge: Judge,
+  contestJudgeId: string,
+  submittedProblemIds: ReadonlySet<string>
+): Effect.Effect<number | undefined, SyncOperationError> =>
+  Effect.gen(function* () {
+    const contestContext = {
+      provider,
+      phase: "contests" as const,
+      step: "contests" as const,
+      action: `contest ${contestJudgeId}`,
+      contestJudgeId
+    };
+    const contest = yield* runJudgeOperation(database, contestContext, judge.getContest(contestJudgeId));
+
+    if (countSubmittedContestProblems(contest, submittedProblemIds) < MIN_UNIQUE_SUBMITTED_PROBLEMS_FOR_CONTEST_SYNC) {
+      return undefined;
+    }
+
+    const contestId = yield* upsertContest(database, judgeId, contest, contestContext);
+    return yield* upsertContestProblems(database, judgeId, contest, contestId, contestContext);
+  });
+
 const runQojSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
@@ -80,6 +137,8 @@ const runQojSyncProgram = (
 
     const syncUsers = syncUsersResult.right;
     const contestsToSync = new Set<string>();
+    const submittedProblemIds = new Set<string>();
+    const userSyncData: QojUserSyncData[] = [];
     let completedSteps = 0;
     let stepsTotal = syncUsers.length;
 
@@ -102,6 +161,18 @@ const runQojSyncProgram = (
 
       for (const contestJudgeId of userContestsResult.right) {
         contestsToSync.add(contestJudgeId);
+      }
+
+      const userSubmissionsResult = yield* Effect.either(getUserSubmissions(database, provider, judge, user));
+      if (userSubmissionsResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(userSubmissionsResult.left, stepsTotal, stepsLeft()));
+        continue;
+      }
+
+      userSyncData.push({ user, submissions: userSubmissionsResult.right });
+      for (const submission of userSubmissionsResult.right) {
+        submittedProblemIds.add(submission.judgeProblemId);
       }
     }
 
@@ -135,7 +206,9 @@ const runQojSyncProgram = (
         stepsLeft: stepsLeft()
       });
 
-      const contestSyncResult = yield* Effect.either(syncContest(database, provider, judgeId, judge, contestJudgeId));
+      const contestSyncResult = yield* Effect.either(
+        syncQojContestIfEligible(database, provider, judgeId, judge, contestJudgeId, submittedProblemIds)
+      );
       completedSteps += 1;
 
       if (contestSyncResult._tag === "Left") {
@@ -144,45 +217,49 @@ const runQojSyncProgram = (
         continue;
       }
 
-      summary.contestsSynced += 1;
-      yield* emit({
-        type: "contests.contestSynced",
-        step: "contests",
-        provider,
-        contestJudgeId,
-        problemsSynced: contestSyncResult.right,
-        stepsTotal,
-        stepsLeft: stepsLeft()
-      });
+      if (contestSyncResult.right !== undefined) {
+        summary.contestsSynced += 1;
+        yield* emit({
+          type: "contests.contestSynced",
+          step: "contests",
+          provider,
+          contestJudgeId,
+          problemsSynced: contestSyncResult.right,
+          stepsTotal,
+          stepsLeft: stepsLeft()
+        });
+      }
     }
 
     completedSteps = 0;
-    stepsTotal = syncUsers.length;
+    stepsTotal = userSyncData.length;
 
     yield* emit({
       type: "submissions.syncing",
       step: "submissions",
       provider,
-      usersTotal: syncUsers.length,
+      usersTotal: userSyncData.length,
       stepsTotal,
       stepsLeft: stepsLeft()
     });
 
-    for (const [index, user] of syncUsers.entries()) {
+    for (const [index, userData] of userSyncData.entries()) {
+      const { user } = userData;
       yield* emit({
         type: "submissions.userSyncing",
         step: "submissions",
         provider,
         userHandle: user.username,
         userIndex: index + 1,
-        usersTotal: syncUsers.length,
+        usersTotal: userSyncData.length,
         stepsTotal,
         stepsLeft: stepsLeft()
       });
 
       const userSyncResult = yield* Effect.either(
         syncUserSubmissions(database, provider, judgeId, judge, user, {
-          queueMissingSubmissions: false
+          queueMissingSubmissions: false,
+          userSubmissions: userData.submissions
         })
       );
       let fetched = 0;

@@ -67,7 +67,7 @@ const runCodeforcesSyncProgram = (
 
     const syncUsers = syncUsersResult.right;
     const pendingSubmissionsByContest = new Map<string, PendingSubmission[]>();
-    const contestsToSync = new Set<string>();
+    const missingProblemIdsByContest = new Map<string, Set<string>>();
     let completedSteps = 0;
     let stepsTotal = syncUsers.length;
 
@@ -135,7 +135,10 @@ const runCodeforcesSyncProgram = (
           const pendingSubmissions = pendingSubmissionsByContest.get(pending.submission.judgeContestId) ?? [];
           pendingSubmissions.push(pending);
           pendingSubmissionsByContest.set(pending.submission.judgeContestId, pendingSubmissions);
-          contestsToSync.add(pending.submission.judgeContestId);
+
+          const missingProblemIds = missingProblemIdsByContest.get(pending.submission.judgeContestId) ?? new Set<string>();
+          missingProblemIds.add(pending.submission.judgeProblemId);
+          missingProblemIdsByContest.set(pending.submission.judgeContestId, missingProblemIds);
         }
       }
 
@@ -155,7 +158,10 @@ const runCodeforcesSyncProgram = (
       });
     }
 
-    const contestIds = [...contestsToSync].sort((left, right) => Number(left) - Number(right));
+    const contestIds = [...missingProblemIdsByContest.entries()]
+      .filter(([, problemIds]) => problemIds.size >= 2)
+      .map(([contestJudgeId]) => contestJudgeId)
+      .sort((left, right) => Number(left) - Number(right));
     completedSteps = 0;
     stepsTotal = contestIds.length;
 

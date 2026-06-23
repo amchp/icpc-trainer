@@ -582,7 +582,7 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("syncs a contest when one missing problem from that contest is seen", async () => {
+  it("does not sync a contest when one missing problem from that contest is seen", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -597,6 +597,96 @@ describe("createJudgeSyncService", () => {
         ]);
       }
 
+      throw new Error("Contest details should not be requested for one missing problem.");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const events = await withDatabase(async (database) => {
+      return await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    });
+
+    expect(events).not.toContainEqual(expect.objectContaining({
+      type: "contests.contestSynced",
+      contestJudgeId: "100566"
+    }));
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 0,
+        submissionsSkipped: 1,
+        contestsSynced: 0,
+        errors: 0
+      }
+    });
+  });
+
+  it("does not sync a contest when submissions only cover one unique missing problem", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 100566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 100566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "WRONG_ANSWER"
+          }
+        ]);
+      }
+
+      throw new Error("Contest details should not be requested for duplicate missing problems.");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const events = await withDatabase(async (database) => {
+      return await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    });
+
+    expect(events).not.toContainEqual(expect.objectContaining({
+      type: "contests.contestSynced",
+      contestJudgeId: "100566"
+    }));
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 0,
+        submissionsSkipped: 2,
+        contestsSynced: 0,
+        errors: 0
+      }
+    });
+  });
+
+  it("syncs a contest when two unique missing problems from that contest are seen", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 100566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 100566, index: "A", name: "Matching Names" },
+            verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 100566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 100566, index: "B", name: "Replicating Processes" },
+            verdict: "WRONG_ANSWER"
+          }
+        ]);
+      }
+
       return codeforcesResponse({
         contest: {
           id: 100566,
@@ -606,10 +696,11 @@ describe("createJudgeSyncService", () => {
           difficulty: 2
         },
         problems: [
-          { contestId: 100566, index: "A", name: "Matching Names" }
+          { contestId: 100566, index: "A", name: "Matching Names" },
+          { contestId: 100566, index: "B", name: "Replicating Processes" }
         ],
         rows: [
-          { party: {}, rank: 1, points: 1, penalty: 0, problemResults: [{ points: 1 }] }
+          { party: {}, rank: 1, points: 2, penalty: 0, problemResults: [{ points: 1 }, { points: 1 }] }
         ]
       });
     });
@@ -622,12 +713,12 @@ describe("createJudgeSyncService", () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: "contests.contestSynced",
       contestJudgeId: "100566",
-      problemsSynced: 1
+      problemsSynced: 2
     }));
     expect(events.at(-1)).toMatchObject({
       type: "completed",
       summary: {
-        submissionsInserted: 1,
+        submissionsInserted: 2,
         submissionsSkipped: 0,
         contestsSynced: 1,
         errors: 0
@@ -646,6 +737,13 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 100566, index: "A", name: "Matching Names" },
             verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 100566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 100566, index: "B", name: "Replicating Processes" },
+            verdict: "WRONG_ANSWER"
           }
         ]);
       }
@@ -658,10 +756,11 @@ describe("createJudgeSyncService", () => {
           phase: "FINISHED"
         },
         problems: [
-          { contestId: 100566, index: "A", name: "Matching Names" }
+          { contestId: 100566, index: "A", name: "Matching Names" },
+          { contestId: 100566, index: "B", name: "Replicating Processes" }
         ],
         rows: [
-          { party: {}, rank: 1, points: 1, penalty: 0, problemResults: [{ points: 1 }] }
+          { party: {}, rank: 1, points: 2, penalty: 0, problemResults: [{ points: 1 }, { points: 1 }] }
         ]
       });
     });
@@ -674,6 +773,7 @@ describe("createJudgeSyncService", () => {
         .select({ solvePercentage: problems.solvePercentage, rating: problems.rating })
         .from(problems)
         .all()).toEqual([
+        { solvePercentage: 100, rating: 1100 },
         { solvePercentage: 100, rating: 1100 }
       ]);
     });
@@ -725,7 +825,7 @@ describe("createJudgeSyncService", () => {
     }, { saveCredentials: false });
   });
 
-  it("syncs QOJ profile contests before importing profile submissions", async () => {
+  it("syncs eligible QOJ profile contests before importing profile submissions", async () => {
     await withDatabase(async (database) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
@@ -746,14 +846,29 @@ describe("createJudgeSyncService", () => {
             judgeId: contestId,
             name: `QOJ Contest ${contestId}`,
             participants: 1,
-            problems: [
-              {
-                judgeId: `${contestId}-A`,
-                name: "A. Test",
-                link: `https://qoj.ac/contest/${contestId}/problem/A`,
-                solves: 1
-              }
-            ],
+            problems: contestId === "111"
+              ? [
+                  {
+                    judgeId: "111-A",
+                    name: "A. First",
+                    link: "https://qoj.ac/contest/111/problem/A",
+                    solves: 1
+                  },
+                  {
+                    judgeId: "111-B",
+                    name: "B. Second",
+                    link: "https://qoj.ac/contest/111/problem/B",
+                    solves: 1
+                  }
+                ]
+              : [
+                  {
+                    judgeId: `${contestId}-A`,
+                    name: "A. Test",
+                    link: `https://qoj.ac/contest/${contestId}/problem/A`,
+                    solves: 1
+                  }
+                ],
             stars: 0
           });
         },
@@ -768,10 +883,17 @@ describe("createJudgeSyncService", () => {
           },
           {
             judgeId: "second",
-            judgeProblemId: "222-A",
-            problemName: "A. Second",
+            judgeProblemId: "111-B",
+            problemName: "B. Second",
             verdict: SUBMISSION_STATUSES.AC,
             submittedAt: new Date("2025-02-01T00:10:00.000Z")
+          },
+          {
+            judgeId: "third",
+            judgeProblemId: "222-A",
+            problemName: "A. Third",
+            verdict: SUBMISSION_STATUSES.AC,
+            submittedAt: new Date("2025-02-01T00:20:00.000Z")
           }
         ])
       };
@@ -782,9 +904,86 @@ describe("createJudgeSyncService", () => {
         type: "error",
         contestJudgeId: "222"
       }));
+      expect(events).not.toContainEqual(expect.objectContaining({
+        type: "contests.contestSynced",
+        contestJudgeId: "222"
+      }));
       expect(events.findIndex((event) => event.type === "contests.contestSynced" && event.contestJudgeId === "111"))
         .toBeLessThan(events.findIndex((event) => event.type === "submissions.syncing"));
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
+    }, { saveCredentials: false });
+  });
+
+  it("does not sync a QOJ profile contest with only one unique submitted problem", async () => {
+    await withDatabase(async (database) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      database.db.insert(users).values({
+        username: "qoj-user",
+        type: USER_TYPES.Primary,
+        judge: JUDGES.Qoj,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+
+      const qojJudge: TestJudge = {
+        getContests: () => Effect.succeed([
+          { judgeId: "111", name: "QOJ Contest 111" }
+        ]),
+        getContest: (contestId) => Effect.succeed({
+          judgeId: contestId,
+          name: `QOJ Contest ${contestId}`,
+          participants: 1,
+          problems: [
+            {
+              judgeId: "111-A",
+              name: "A. First",
+              link: "https://qoj.ac/contest/111/problem/A",
+              solves: 1
+            },
+            {
+              judgeId: "111-B",
+              name: "B. Second",
+              link: "https://qoj.ac/contest/111/problem/B",
+              solves: 1
+            }
+          ],
+          stars: 0
+        }),
+        getUser: (handle) => Effect.succeed({ handle }),
+        getSubmissions: () => Effect.succeed([
+          {
+            judgeId: "first",
+            judgeProblemId: "111-A",
+            problemName: "A. First",
+            verdict: SUBMISSION_STATUSES.AC,
+            submittedAt: new Date("2025-02-01T00:00:00.000Z")
+          },
+          {
+            judgeId: "second",
+            judgeProblemId: "111-A",
+            problemName: "A. First",
+            verdict: SUBMISSION_STATUSES.WA,
+            submittedAt: new Date("2025-02-01T00:10:00.000Z")
+          }
+        ])
+      };
+
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+
+      expect(events).not.toContainEqual(expect.objectContaining({
+        type: "contests.contestSynced",
+        contestJudgeId: "111"
+      }));
+      expect(database.db.select().from(contests).all()).toHaveLength(0);
+      expect(database.db.select().from(submissions).all()).toHaveLength(0);
+      expect(events.at(-1)).toMatchObject({
+        type: "completed",
+        summary: {
+          contestsSynced: 0,
+          submissionsSkipped: 2,
+          errors: 0
+        }
+      });
     }, { saveCredentials: false });
   });
 
@@ -853,6 +1052,13 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 100566, index: "A", name: "Matching Names" },
             verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 100566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 100566, index: "C", name: "Third Problem" },
+            verdict: "WRONG_ANSWER"
           }
         ]);
       }
@@ -887,7 +1093,7 @@ describe("createJudgeSyncService", () => {
     expect(events.at(-1)).toMatchObject({
       type: "completed",
       summary: {
-        errors: 1
+        errors: 2
       }
     });
   });

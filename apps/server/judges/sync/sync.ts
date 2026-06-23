@@ -525,16 +525,23 @@ export const syncUserSubmissions = (
   judgeId: JUDGES,
   judge: Judge,
   user: SyncUser,
-  options: { readonly queueMissingSubmissions: boolean }
+  options: {
+    readonly queueMissingSubmissions: boolean;
+    readonly userSubmissions?: ReadonlyArray<JudgeSubmission>;
+  }
 ): Effect.Effect<UserSubmissionSyncResult, SyncOperationError> =>
   Effect.gen(function* () {
-    const userSubmissions = yield* runJudgeOperation(database, {
-      provider,
-      phase: "submissions",
-      step: "submissions",
-      action: `submissions for user ${user.username}`,
-      userHandle: user.username
-    }, judge.getSubmissions({ userHandle: user.username }));
+    const userSubmissions = options.userSubmissions ?? (yield* runJudgeOperation(
+      database,
+      {
+        provider,
+        phase: "submissions",
+        step: "submissions",
+        action: `submissions for user ${user.username}`,
+        userHandle: user.username
+      },
+      judge.getSubmissions({ userHandle: user.username })
+    ));
     const existingSubmissions = yield* existingSubmissionsByJudgeId(database, judgeId, user, provider);
 
     let inserted = 0;
