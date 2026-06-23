@@ -13,6 +13,16 @@ const rows: UpsolvingProblemRow[] = [
     problemLink: "https://codeforces.com/gym/100/problem/B",
     solvePercentage: 20,
     rating: 1400,
+    status: "upsolved"
+  },
+  {
+    contestName: "Regional Practice",
+    judge: "codeforces",
+    problemJudgeId: "100C",
+    problemName: "C. Attempted",
+    problemLink: "https://codeforces.com/gym/100/problem/C",
+    solvePercentage: 10,
+    rating: 1200,
     status: "attempted"
   },
   {
@@ -25,15 +35,29 @@ const rows: UpsolvingProblemRow[] = [
     rating: 800,
     status: "solved"
   },
+];
+
+const sourceRows: UpsolvingProblemRow[] = [
+  ...rows,
   {
-    contestName: "QOJ Selection",
+    contestName: "Regular Round",
+    judge: "codeforces",
+    problemJudgeId: "1800A",
+    problemName: "A. Regular",
+    problemLink: "https://codeforces.com/contest/1800/problem/A",
+    solvePercentage: 60,
+    rating: 1000,
+    status: "solved"
+  },
+  {
+    contestName: "QOJ Contest",
     judge: "qoj",
-    problemJudgeId: "200A",
-    problemName: "Selection Problem",
-    problemLink: "https://qoj.ac/contest/200/problem/1",
-    solvePercentage: 4,
-    rating: 1800,
-    status: "new"
+    problemJudgeId: "300A",
+    problemName: "QOJ Problem",
+    problemLink: "https://qoj.ac/contest/300/problem/1",
+    solvePercentage: 15,
+    rating: 1600,
+    status: "attempted"
   }
 ];
 
@@ -45,16 +69,13 @@ describe("UpsolvingProblemTable", () => {
   it("renders rows through TanStack Table sorted by rating", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /all statuses, 3 problems/i }));
-
     const bodyRows = screen.getAllByRole("row").slice(1);
     expect(bodyRows).toHaveLength(3);
     expect(within(bodyRows[0]!).getAllByRole("cell")[0]).toHaveTextContent("1");
     expect(within(bodyRows[0]!).getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "A. Selection Problem" })).toBeInTheDocument();
-    expect(screen.getAllByText("Regional Practice")).toHaveLength(2);
+    expect(screen.getAllByText("Regional Practice")).toHaveLength(3);
     expect(screen.queryByText("100A")).not.toBeInTheDocument();
     expect(screen.queryByText("Submissions")).not.toBeInTheDocument();
   });
@@ -63,12 +84,23 @@ describe("UpsolvingProblemTable", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
     fireEvent.change(screen.getByRole("searchbox", { name: /search problems/i }), {
-      target: { value: "qoj" }
+      target: { value: "100C" }
     });
 
-    expect(screen.getByRole("link", { name: "A. Selection Problem" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();
+  });
+
+  it("filters by the visible new status", () => {
+    render(<UpsolvingProblemTable rows={rows} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /new, 1 problem/i }));
+
+    expect(screen.getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
   });
 
   it("filters by status", () => {
@@ -79,8 +111,22 @@ describe("UpsolvingProblemTable", () => {
     expect(within(menu).getByRole("menuitemradio", { name: /attempted, 1 problem/i })).toBeInTheDocument();
     fireEvent.click(within(menu).getByRole("menuitemradio", { name: /attempted, 1 problem/i }));
 
-    expect(screen.getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "A. Selection Problem" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();
+  });
+
+  it("filters by selected judge sources", () => {
+    render(<UpsolvingProblemTable rows={sourceRows} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /filter by judge/i }));
+    const menu = screen.getByRole("menu", { name: /judge filter options/i });
+    expect(within(menu).getByRole("menuitemcheckbox", { name: /codeforces contest, 1 item/i })).toBeInTheDocument();
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /codeforces gym, 3 items/i }));
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /qoj, 1 item/i }));
+
+    expect(screen.getByRole("link", { name: "A. Regular" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "QOJ Problem" })).not.toBeInTheDocument();
   });
 });

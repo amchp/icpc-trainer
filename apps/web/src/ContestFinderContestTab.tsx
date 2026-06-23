@@ -1,40 +1,55 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 
 import {
   Card,
   Input,
   Label,
-  Select,
   Skeleton
 } from "./components/ui.js";
-import { type ContestFinderJudgeFilter } from "./contestFinderModel.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
+import {
+  emptyJudgeSourceCounts,
+  JudgeSourceFilterDropdown,
+  judgeSourceFor,
+  type JudgeSourceFilterId
+} from "./JudgeSourceFilter.js";
 
 const contestFinderGridTemplateColumns = "minmax(18rem, 1fr) 7rem 8rem";
 
 export function ContestFinderContestTab({
   contests,
-  totalCount,
+  allContests,
   searchQuery,
-  judgeFilter,
+  judgeSourceFilters,
   isLoading,
   error,
   onSearchQueryChange,
-  onJudgeFilterChange
+  onJudgeSourceFiltersChange
 }: {
   readonly contests: readonly ContestFinderRow[];
-  readonly totalCount: number;
+  readonly allContests: readonly ContestFinderRow[];
   readonly searchQuery: string;
-  readonly judgeFilter: ContestFinderJudgeFilter;
+  readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly isLoading: boolean;
   readonly error: Error | null;
   readonly onSearchQueryChange: (value: string) => void;
-  readonly onJudgeFilterChange: (value: ContestFinderJudgeFilter) => void;
+  readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const judgeSourceCounts = useMemo(
+    () =>
+      allContests.reduce<Record<JudgeSourceFilterId, number>>((counts, contest) => {
+        const source = judgeSourceFor(contest);
+        return {
+          ...counts,
+          [source]: counts[source] + 1
+        };
+      }, emptyJudgeSourceCounts()),
+    [allContests]
+  );
   const scrollMargin = tableContainerRef.current?.offsetTop ?? 0;
   const rowVirtualizer = useWindowVirtualizer({
     count: contests.length,
@@ -60,7 +75,7 @@ export function ContestFinderContestTab({
 
   return (
     <Card className="overflow-hidden">
-      <div className="grid gap-3 border-b border-zinc-800 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-center">
+      <div className="grid gap-3 border-b border-zinc-800 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <Label className="relative">
           <span className="sr-only">Search contests</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" aria-hidden="true" />
@@ -71,17 +86,11 @@ export function ContestFinderContestTab({
             className="pl-9"
           />
         </Label>
-        <Select
-          value={judgeFilter}
-          onChange={(event) => onJudgeFilterChange(event.target.value as ContestFinderJudgeFilter)}
-        >
-          <option value="all">All judges</option>
-          <option value="codeforces">Codeforces</option>
-          <option value="qoj">QOJ</option>
-        </Select>
-        <span className="text-sm text-zinc-500">
-          {contests.length} / {totalCount} contests
-        </span>
+        <JudgeSourceFilterDropdown
+          selectedSources={judgeSourceFilters}
+          counts={judgeSourceCounts}
+          onChange={onJudgeSourceFiltersChange}
+        />
       </div>
 
       {isLoading ? (

@@ -1,6 +1,6 @@
 import { schema } from "@icpc-trainer/db";
 import { USER_TYPES } from "@icpc-trainer/shared";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -117,6 +117,28 @@ export interface ContestFinderRefreshService {
 export const createContestFinderRouter = (t: TrpcInstance) =>
   t.router({
     overview: t.procedure.query(({ ctx }): ContestFinderOverview => {
+      const attemptedContestIds = new Set<number>();
+      const teamContestStateRows = ctx.database.db
+        .select({
+          contestId: userContestStates.contestId
+        })
+        .from(userContestStates)
+        .innerJoin(users, eq(users.id, userContestStates.userId))
+        .where(eq(users.type, USER_TYPES.Team))
+        .groupBy(userContestStates.contestId)
+        .all();
+      for (const row of teamContestStateRows) {
+        attemptedContestIds.add(row.contestId);
+      }
+
+      const attemptedContestIdList = [...attemptedContestIds];
+      const contestFinderFilter = attemptedContestIdList.length === 0
+        ? eq(contests.simulated, false)
+        : and(
+          eq(contests.simulated, false),
+          notInArray(contests.id, attemptedContestIdList)
+        );
+
       const contestRows = ctx.database.db
         .select({
           id: contests.id,
@@ -128,16 +150,16 @@ export const createContestFinderRouter = (t: TrpcInstance) =>
           stars: contests.stars,
           friendCount: sql<number>`count(${users.id})`
         })
-        .from(contests)
-        .leftJoin(userContestStates, eq(userContestStates.contestId, contests.id))
-        .leftJoin(
+        .from(userContestStates)
+        .innerJoin(contests, eq(contests.id, userContestStates.contestId))
+        .innerJoin(
           users,
           and(
             eq(users.id, userContestStates.userId),
             eq(users.type, USER_TYPES.Friend)
           )
         )
-        .where(eq(contests.simulated, false))
+        .where(contestFinderFilter)
         .groupBy(contests.id)
         .orderBy(desc(sql<number>`count(${users.id})`), contests.judge, contests.name)
         .all();
@@ -152,7 +174,7 @@ export const createContestFinderRouter = (t: TrpcInstance) =>
         .innerJoin(contests, eq(contests.id, userContestStates.contestId))
         .where(and(
           eq(users.type, USER_TYPES.Friend),
-          eq(contests.simulated, false)
+          contestFinderFilter
         ))
         .orderBy(users.username)
         .all();

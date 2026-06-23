@@ -8,6 +8,12 @@ import {
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { Card } from "./components/ui.js";
+import {
+  defaultJudgeSourceFilters,
+  emptyJudgeSourceCounts,
+  judgeSourceForLink,
+  type JudgeSourceFilterId
+} from "./JudgeSourceFilter.js";
 import { UpsolvingProblemTableFilters } from "./UpsolvingProblemTableFilters.js";
 import { UpsolvingProblemTableGrid } from "./UpsolvingProblemTableGrid.js";
 import {
@@ -24,7 +30,10 @@ export function UpsolvingProblemTable({
 }): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("new");
+  const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("all");
+  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
+    defaultJudgeSourceFilters
+  );
   const [sorting, setSorting] = useState<SortingState>([
     { id: "rating", desc: false }
   ]);
@@ -32,17 +41,30 @@ export function UpsolvingProblemTable({
     () => rows.map(toSearchableUpsolvingProblemRow),
     [rows]
   );
+  const judgeSourceCounts = useMemo(
+    () =>
+      tableRows.reduce<Record<JudgeSourceFilterId, number>>((counts, row) => {
+        const source = judgeSourceForLink(row.judge, row.problemLink);
+        return {
+          ...counts,
+          [source]: counts[source] + 1
+        };
+      }, emptyJudgeSourceCounts()),
+    [tableRows]
+  );
+  const selectedJudgeSources = useMemo(() => new Set(judgeSourceFilters), [judgeSourceFilters]);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const filteredRows = useMemo(
     () =>
       tableRows.filter((row) => {
+        const matchesJudgeSource = selectedJudgeSources.has(judgeSourceForLink(row.judge, row.problemLink));
         const matchesStatus = statusFilter === "all" || row.status === statusFilter;
         const matchesSearch =
           normalizedSearchQuery === "" || row.searchText.includes(normalizedSearchQuery);
 
-        return matchesStatus && matchesSearch;
+        return matchesJudgeSource && matchesStatus && matchesSearch;
       }),
-    [normalizedSearchQuery, statusFilter, tableRows]
+    [normalizedSearchQuery, selectedJudgeSources, statusFilter, tableRows]
   );
   const statusCounts = useMemo(() => statusCountsFor(tableRows), [tableRows]);
   const columns = useMemo(() => createUpsolvingProblemColumns(), []);
@@ -64,9 +86,12 @@ export function UpsolvingProblemTable({
       <UpsolvingProblemTableFilters
         searchQuery={searchQuery}
         statusFilter={statusFilter}
+        judgeSourceFilters={judgeSourceFilters}
+        judgeSourceCounts={judgeSourceCounts}
         statusCounts={statusCounts}
         onSearchQueryChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}
+        onJudgeSourceFiltersChange={setJudgeSourceFilters}
       />
 
       {rows.length === 0 ? (

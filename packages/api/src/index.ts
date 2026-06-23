@@ -39,10 +39,13 @@ export interface JudgeSyncSummary {
   readonly submissionsUpdated: number;
   readonly submissionsSkipped: number;
   readonly contestsSynced: number;
+  readonly regularContestsImported: number;
+  readonly regularProblemsImported: number;
+  readonly regularPendingSubmissionsRetried: number;
   readonly errors: number;
 }
 
-export type JudgeSyncStep = "submissions" | "contests";
+export type JudgeSyncStep = "submissions" | "contests" | "regularCatalog";
 
 interface JudgeSyncEventBase {
   readonly provider: JudgeSyncInput["provider"];
@@ -96,8 +99,29 @@ export type JudgeSyncEvent =
       readonly problemsSynced: number;
     })
   | (JudgeSyncEventBase & {
+      readonly type: "regularCatalog.contestsSyncing";
+      readonly step: "regularCatalog";
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "regularCatalog.contestsSynced";
+      readonly step: "regularCatalog";
+      readonly contestsTotal: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "regularCatalog.problemsSyncing";
+      readonly step: "regularCatalog";
+      readonly contestsTotal: number;
+    })
+  | (JudgeSyncEventBase & {
+      readonly type: "regularCatalog.problemsSynced";
+      readonly step: "regularCatalog";
+      readonly contestsImported: number;
+      readonly problemsImported: number;
+      readonly pendingSubmissionsRetried: number;
+    })
+  | (JudgeSyncEventBase & {
       readonly type: "error";
-      readonly phase: "submissions" | "contests" | "database" | "concurrency";
+      readonly phase: "submissions" | "contests" | "regularCatalog" | "database" | "concurrency";
       readonly step?: JudgeSyncStep;
       readonly message: string;
       readonly userHandle?: string;

@@ -3,7 +3,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
 
 import { Button } from "./components/ui.js";
-import { JudgeDisplay, judgeDisplayLabels, judgeSearchText } from "./JudgeDisplay.js";
+import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
 
 export type SearchableContestRow = UpsolvingContestRow & {
   readonly searchText: string;
@@ -11,13 +11,6 @@ export type SearchableContestRow = UpsolvingContestRow & {
 
 export const contestsTableGridTemplateColumns =
   "3.25rem minmax(0, 1fr) minmax(7rem, 8rem) minmax(7rem, 9rem) minmax(8rem, 10rem)";
-
-export type ContestJudgeFilter = "all" | UpsolvingContestRow["judge"];
-
-export const contestJudgeFilterLabels: Record<ContestJudgeFilter, string> = {
-  all: "All judges",
-  ...judgeDisplayLabels
-};
 
 const searchableText = (contest: UpsolvingContestRow): string =>
   [

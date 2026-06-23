@@ -1,0 +1,150 @@
+import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { DropdownContent, DropdownItem, DropdownTrigger } from "./components/ui.js";
+
+export type JudgeSourceFilterId = "codeforces-contest" | "codeforces-gym" | "qoj";
+
+export interface JudgeSourceClassifiable {
+  readonly judge: "codeforces" | "qoj";
+  readonly link: string;
+}
+
+export const judgeSourceFilterOptions: Array<{
+  readonly value: JudgeSourceFilterId;
+  readonly label: string;
+}> = [
+  { value: "codeforces-contest", label: "Codeforces Contest" },
+  { value: "codeforces-gym", label: "Codeforces Gym" },
+  { value: "qoj", label: "QOJ" }
+];
+
+export const defaultJudgeSourceFilters: readonly JudgeSourceFilterId[] =
+  judgeSourceFilterOptions.map((option) => option.value);
+
+export const emptyJudgeSourceCounts = (): Record<JudgeSourceFilterId, number> => ({
+  "codeforces-contest": 0,
+  "codeforces-gym": 0,
+  qoj: 0
+});
+
+export const judgeSourceFor = (row: JudgeSourceClassifiable): JudgeSourceFilterId => {
+  return judgeSourceForLink(row.judge, row.link);
+};
+
+export const judgeSourceForLink = (
+  judge: JudgeSourceClassifiable["judge"],
+  link: string
+): JudgeSourceFilterId => {
+  if (judge === "qoj") {
+    return "qoj";
+  }
+
+  return link.includes("/gym/") ? "codeforces-gym" : "codeforces-contest";
+};
+
+export function JudgeSourceFilterDropdown({
+  selectedSources,
+  counts,
+  onChange
+}: {
+  readonly selectedSources: readonly JudgeSourceFilterId[];
+  readonly counts: Record<JudgeSourceFilterId, number>;
+  readonly onChange: (value: readonly JudgeSourceFilterId[]) => void;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const selectedSet = new Set(selectedSources);
+  const selectedLabel = labelForSelection(selectedSources);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+
+      setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const toggleSource = (source: JudgeSourceFilterId): void => {
+    const next = selectedSet.has(source)
+      ? selectedSources.filter((selected) => selected !== source)
+      : [...selectedSources, source];
+
+    onChange(judgeSourceFilterOptions
+      .map((option) => option.value)
+      .filter((option) => next.includes(option)));
+  };
+
+  return (
+    <div ref={menuRef} className="relative">
+      <DropdownTrigger
+        aria-label="Filter by judge"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="min-w-56"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="min-w-0 flex-1 truncate text-left">{selectedLabel}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+      </DropdownTrigger>
+
+      {open && (
+        <DropdownContent role="menu" aria-label="Judge filter options">
+          {judgeSourceFilterOptions.map((option) => (
+            <DropdownItem
+              key={option.value}
+              role="menuitemcheckbox"
+              aria-checked={selectedSet.has(option.value)}
+              aria-label={`${option.label}, ${counts[option.value]} ${
+                counts[option.value] === 1 ? "item" : "items"
+              }`}
+              onClick={() => toggleSource(option.value)}
+            >
+              <span className="w-4 text-blue-300">
+                {selectedSet.has(option.value) && <Check className="size-3.5" aria-hidden="true" />}
+              </span>
+              <span className="flex-1">{option.label}</span>
+              <span className="tabular-nums text-zinc-500">{counts[option.value]}</span>
+            </DropdownItem>
+          ))}
+        </DropdownContent>
+      )}
+    </div>
+  );
+}
+
+const labelForSelection = (selectedSources: readonly JudgeSourceFilterId[]): string => {
+  if (selectedSources.length === judgeSourceFilterOptions.length) {
+    return "All judges";
+  }
+
+  if (selectedSources.length === 0) {
+    return "No judges";
+  }
+
+  if (selectedSources.length === 1) {
+    return judgeSourceFilterOptions.find((option) => option.value === selectedSources[0])?.label ?? "Judge";
+  }
+
+  return `${selectedSources.length} judges`;
+};

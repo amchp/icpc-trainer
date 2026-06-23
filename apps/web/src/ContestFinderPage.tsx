@@ -12,10 +12,14 @@ import {
 } from "./ContestFinderRefreshPanel.js";
 import {
   contestFinderSearchText,
-  type ContestFinderJudgeFilter,
   type ContestFinderTabId,
   sortContestFinderRows
 } from "./contestFinderModel.js";
+import {
+  defaultJudgeSourceFilters,
+  judgeSourceFor,
+  type JudgeSourceFilterId
+} from "./JudgeSourceFilter.js";
 import { judgeLabel } from "./judgeConfig.js";
 import { trpc } from "./trpc.js";
 import { useToaster } from "./Toaster.js";
@@ -152,7 +156,9 @@ export function ContestFinderPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ContestFinderTabId>("contest");
   const [searchQuery, setSearchQuery] = useState("");
-  const [judgeFilter, setJudgeFilter] = useState<ContestFinderJudgeFilter>("all");
+  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
+    defaultJudgeSourceFilters
+  );
   const [refreshStates, setRefreshStates] = useState<Record<ContestFinderRefreshProvider, ContestFinderRefreshState>>(
     emptyRefreshStates
   );
@@ -163,15 +169,16 @@ export function ContestFinderPage(): React.JSX.Element {
   });
   const contests = overviewQuery.data?.contests ?? [];
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const selectedJudgeSources = useMemo(() => new Set(judgeSourceFilters), [judgeSourceFilters]);
   const filteredContests = useMemo(
     () =>
       contests
         .filter((contest) =>
-          (judgeFilter === "all" || contest.judge === judgeFilter) &&
+          selectedJudgeSources.has(judgeSourceFor(contest)) &&
           (normalizedSearchQuery === "" || contestFinderSearchText(contest).includes(normalizedSearchQuery))
         )
         .sort(sortContestFinderRows),
-    [contests, judgeFilter, normalizedSearchQuery]
+    [contests, normalizedSearchQuery, selectedJudgeSources]
   );
 
   useEffect(() => {
@@ -265,13 +272,13 @@ export function ContestFinderPage(): React.JSX.Element {
       {activeTab === "contest" ? (
         <ContestFinderContestTab
           contests={filteredContests}
-          totalCount={contests.length}
+          allContests={contests}
           searchQuery={searchQuery}
-          judgeFilter={judgeFilter}
+          judgeSourceFilters={judgeSourceFilters}
           isLoading={overviewQuery.isLoading}
           error={overviewQuery.error}
           onSearchQueryChange={setSearchQuery}
-          onJudgeFilterChange={setJudgeFilter}
+          onJudgeSourceFiltersChange={setJudgeSourceFilters}
         />
       ) : (
         <ContestFinderFriendsTab />

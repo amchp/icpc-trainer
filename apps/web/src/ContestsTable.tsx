@@ -11,7 +11,12 @@ import { Card } from "./components/ui.js";
 import { ContestsTableFilters } from "./ContestsTableFilters.js";
 import { ContestsTableGrid } from "./ContestsTableGrid.js";
 import {
-  type ContestJudgeFilter,
+  defaultJudgeSourceFilters,
+  emptyJudgeSourceCounts,
+  judgeSourceFor,
+  type JudgeSourceFilterId
+} from "./JudgeSourceFilter.js";
+import {
   createContestColumns,
   toSearchableContestRow
 } from "./contestsTableModel.js";
@@ -26,7 +31,9 @@ export function ContestsTable({
   readonly onRefetchContest: (contest: UpsolvingContestRow) => void;
 }): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
-  const [judgeFilter, setJudgeFilter] = useState<ContestJudgeFilter>("all");
+  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
+    defaultJudgeSourceFilters
+  );
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "missingCount", desc: false }
@@ -35,26 +42,29 @@ export function ContestsTable({
     () => contests.map(toSearchableContestRow),
     [contests]
   );
-  const judgeCounts = useMemo(
+  const judgeSourceCounts = useMemo(
     () =>
-      tableRows.reduce<Record<ContestJudgeFilter, number>>(
-        (counts, row) => ({
+      tableRows.reduce<Record<JudgeSourceFilterId, number>>(
+        (counts, row) => {
+          const source = judgeSourceFor(row);
+          return {
           ...counts,
-          all: counts.all + 1,
-          [row.judge]: counts[row.judge] + 1
-        }),
-        { all: 0, codeforces: 0, qoj: 0 }
+          [source]: counts[source] + 1
+          };
+        },
+        emptyJudgeSourceCounts()
       ),
     [tableRows]
   );
+  const selectedJudgeSources = useMemo(() => new Set(judgeSourceFilters), [judgeSourceFilters]);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const filteredRows = useMemo(
     () =>
       tableRows.filter((row) =>
-        (judgeFilter === "all" || row.judge === judgeFilter) &&
+        selectedJudgeSources.has(judgeSourceFor(row)) &&
         (normalizedSearchQuery === "" || row.searchText.includes(normalizedSearchQuery))
       ),
-    [judgeFilter, normalizedSearchQuery, tableRows]
+    [normalizedSearchQuery, selectedJudgeSources, tableRows]
   );
   const columns = useMemo(
     () => createContestColumns({ refreshingContestIds, onRefetchContest }),
@@ -77,10 +87,10 @@ export function ContestsTable({
       <ContestsTableFilters
         searchQuery={searchQuery}
         contestCount={filteredRows.length}
-        judgeFilter={judgeFilter}
-        judgeCounts={judgeCounts}
+        judgeSourceFilters={judgeSourceFilters}
+        judgeSourceCounts={judgeSourceCounts}
         onSearchQueryChange={setSearchQuery}
-        onJudgeFilterChange={setJudgeFilter}
+        onJudgeSourceFiltersChange={setJudgeSourceFilters}
       />
 
       {contests.length === 0 ? (

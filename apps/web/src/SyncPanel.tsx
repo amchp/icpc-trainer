@@ -11,6 +11,11 @@ const activeStepConfigs: ReadonlyArray<{
   readonly unit: string;
 }> = [
   {
+    key: "regularCatalog",
+    title: "Regular catalog sync",
+    unit: "step"
+  },
+  {
     key: "contests",
     title: "Contest sync",
     unit: "contest"

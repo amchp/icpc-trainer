@@ -3,6 +3,7 @@ import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { DropdownContent, DropdownItem, DropdownTrigger, Input } from "./components/ui.js";
+import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSourceFilter.js";
 import {
   statusLabels,
   type UpsolvingStatusFilter
@@ -11,15 +12,21 @@ import {
 export function UpsolvingProblemTableFilters({
   searchQuery,
   statusFilter,
+  judgeSourceFilters,
+  judgeSourceCounts,
   statusCounts,
   onSearchQueryChange,
-  onStatusFilterChange
+  onStatusFilterChange,
+  onJudgeSourceFiltersChange
 }: {
   readonly searchQuery: string;
   readonly statusFilter: UpsolvingStatusFilter;
+  readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
+  readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
   readonly statusCounts: Record<UpsolvingStatusFilter, number>;
   readonly onSearchQueryChange: (value: string) => void;
   readonly onStatusFilterChange: (value: UpsolvingStatusFilter) => void;
+  readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between">
@@ -35,6 +42,11 @@ export function UpsolvingProblemTableFilters({
         />
       </label>
       <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end">
+        <JudgeSourceFilterDropdown
+          selectedSources={judgeSourceFilters}
+          counts={judgeSourceCounts}
+          onChange={onJudgeSourceFiltersChange}
+        />
         <StatusFilterDropdown
           value={statusFilter}
           counts={statusCounts}
@@ -50,7 +62,7 @@ const statusFilterOptions: Array<{
   readonly label: string;
 }> = [
   { value: "all", label: "All statuses" },
-  { value: "new", label: statusLabels.new },
+  { value: "upsolved", label: statusLabels.upsolved },
   { value: "attempted", label: statusLabels.attempted },
   { value: "solved", label: statusLabels.solved }
 ];

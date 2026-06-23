@@ -11,7 +11,7 @@ import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 
-const { contests, problems, submissions, userContestStates, users } = schema;
+const { contests, problems, problemTags, submissions, userContestStates, users } = schema;
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -763,6 +763,20 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 100566, index: "A", name: "Matching Names" },
             verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 566, index: "A", name: "Regular Match" },
+            verdict: "WRONG_ANSWER"
+          },
+          {
+            id: 49644214,
+            contestId: 568,
+            creationTimeSeconds: 1450000600,
+            problem: { contestId: 568, index: "A", name: "Skipped Challenge" },
+            verdict: "OK"
           }
         ]);
       }
@@ -824,6 +838,18 @@ describe("createJudgeSyncService", () => {
             name: "ICPC Training Camp Invitational",
             phase: "FINISHED",
             type: "ICPC"
+          },
+          {
+            id: 566,
+            name: "Codeforces Round 566 (Div. 2)",
+            phase: "FINISHED",
+            type: "CF"
+          },
+          {
+            id: 568,
+            name: "Communication Challenge",
+            phase: "FINISHED",
+            type: "CF"
           }
         ]);
       }
@@ -836,6 +862,20 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 100566, index: "A", name: "Matching Names" },
             verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 566, index: "A", name: "Regular Match" },
+            verdict: "WRONG_ANSWER"
+          },
+          {
+            id: 49644214,
+            contestId: 568,
+            creationTimeSeconds: 1450000600,
+            problem: { contestId: 568, index: "A", name: "Skipped Challenge" },
+            verdict: "OK"
           }
         ]);
       }
@@ -844,7 +884,7 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const contestRows = await withDatabase(async (database) => {
+    const result = await withDatabase(async (database) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       const [friend] = database.db.insert(users).values({
         username: "friend",
@@ -864,16 +904,43 @@ describe("createJudgeSyncService", () => {
         )
       );
 
-      return database.db.select().from(contests).all();
+      return {
+        contestRows: database.db.select().from(contests).all(),
+        contestStateRows: database.db.select().from(userContestStates).all()
+      };
     });
 
-    expect(contestRows).toEqual([
+    expect(result.contestRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        judgeId: "566",
+        name: "Codeforces Round 566 (Div. 2)",
+        simulated: false
+      }),
       expect.objectContaining({
         judgeId: "100566",
         name: "ICPC Training Camp Invitational",
         simulated: false
       })
-    ]);
+    ]));
+    expect(result.contestRows.map((contest) => contest.judgeId)).not.toContain("568");
+    const contestIdByJudgeId = new Map(result.contestRows.map((contest) => [contest.judgeId, contest.id]));
+    expect(result.contestStateRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        contestId: contestIdByJudgeId.get("100566"),
+        submissionCount: 1,
+        acceptedCount: 1
+      }),
+      expect.objectContaining({
+        contestId: contestIdByJudgeId.get("566"),
+        submissionCount: 1,
+        acceptedCount: 0
+      })
+    ]));
+    expect(result.contestStateRows).toHaveLength(2);
+    expect(fetchMock.mock.calls
+      .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
+      .map((call) => new URL(String(call[0])).searchParams.get("gym"))
+    ).toEqual(["true", null]);
   });
 
   it("does not sync a contest when submissions only cover one unique missing problem", async () => {
@@ -1033,6 +1100,352 @@ describe("createJudgeSyncService", () => {
         { solvePercentage: 100, rating: 1100 }
       ]);
     });
+  });
+
+  it("imports regular Codeforces catalog data after existing Gym sync and retries matching regular pending submissions", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 566, index: "A", name: "Regular First" },
+            verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 566, index: "B", name: "Regular Second" },
+            verdict: "WRONG_ANSWER"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/contest.list") {
+        expect(url.searchParams.has("gym")).toBe(false);
+        return codeforcesResponse([
+          {
+            id: 566,
+            name: "Codeforces Round 566 (Div. 2)",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 567,
+            name: "Codeforces Round 567 (Div. 3)",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 568,
+            name: "Huawei Challenge",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 569,
+            name: "Codeforces Global Round 1",
+            type: "CF",
+            phase: "FINISHED"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/problemset.problems") {
+        return codeforcesResponse({
+          problems: [
+            {
+              contestId: 566,
+              index: "A",
+              name: "Regular First",
+              rating: 1200,
+              tags: ["dp", "math"]
+            },
+            {
+              contestId: 566,
+              index: "B",
+              name: "Regular Second",
+              tags: ["greedy"]
+            },
+            {
+              contestId: 567,
+              index: "A",
+              name: "Other Contest",
+              rating: 900,
+              tags: ["implementation"]
+            },
+            {
+              contestId: 568,
+              index: "A",
+              name: "Skipped Challenge",
+              rating: 800,
+              tags: ["weird"]
+            },
+            {
+              contestId: 569,
+              index: "A",
+              name: "Skipped Global",
+              rating: 1000,
+              tags: ["weird"]
+            }
+          ],
+          problemStatistics: [
+            { contestId: 566, index: "A", solvedCount: 100 },
+            { contestId: 566, index: "B", solvedCount: 25 },
+            { contestId: 567, index: "A", solvedCount: 50 },
+            { contestId: 568, index: "A", solvedCount: 40 },
+            { contestId: 569, index: "A", solvedCount: 30 }
+          ]
+        });
+      }
+
+      if (url.pathname === "/api/contest.standings") {
+        throw new Error("Regular Codeforces contests must not call contest.standings.");
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+
+      const contestRows = database.db.select().from(contests).all();
+      const problemRows = database.db.select().from(problems).all();
+      const submissionRows = database.db.select().from(submissions).all();
+      const tagRows = database.db.select().from(problemTags).all();
+
+      expect(events.findIndex((event) => event.type === "contests.syncing"))
+        .toBeLessThan(events.findIndex((event) => event.type === "regularCatalog.contestsSyncing"));
+      expect(events).toContainEqual(expect.objectContaining({
+        type: "regularCatalog.contestsSynced",
+        contestsTotal: 2
+      }));
+      expect(events).toContainEqual(expect.objectContaining({
+        type: "regularCatalog.problemsSynced",
+        contestsImported: 2,
+        problemsImported: 3,
+        pendingSubmissionsRetried: 2
+      }));
+      expect(events.at(-1)).toMatchObject({
+        type: "completed",
+        summary: {
+          submissionsInserted: 2,
+          submissionsSkipped: 0,
+          contestsSynced: 0,
+          regularContestsImported: 2,
+          regularProblemsImported: 3,
+          regularPendingSubmissionsRetried: 2,
+          errors: 0
+        }
+      });
+      expect(contestRows).toEqual([
+        expect.objectContaining({
+          judgeId: "566",
+          name: "Codeforces Round 566 (Div. 2)",
+          link: "https://codeforces.com/contest/566",
+          stars: 4,
+          participants: null,
+          simulated: true
+        }),
+        expect.objectContaining({
+          judgeId: "567",
+          name: "Codeforces Round 567 (Div. 3)",
+          stars: 3,
+          simulated: true
+        })
+      ]);
+      expect(problemRows).toEqual([
+        expect.objectContaining({
+          judgeId: "566A",
+          name: "A. Regular First",
+          solves: 100,
+          solvePercentage: 100,
+          rating: 1200
+        }),
+        expect.objectContaining({
+          judgeId: "566B",
+          name: "B. Regular Second",
+          solves: 25,
+          solvePercentage: 25
+        }),
+        expect.objectContaining({
+          judgeId: "567A",
+          name: "A. Other Contest",
+          solves: 50,
+          solvePercentage: 100,
+          rating: 900
+        })
+      ]);
+      expect(submissionRows).toHaveLength(2);
+      expect(tagRows.map((row) => row.tag).sort()).toEqual(["dp", "greedy", "implementation", "math"]);
+      expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
+        "/api/user.status",
+        "/api/contest.list",
+        "/api/problemset.problems"
+      ]);
+    });
+  });
+
+  it("does not retry regular pending submissions when their contest was not imported", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 999,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 999, index: "A", name: "Missing Regular" },
+            verdict: "OK"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/contest.list") {
+        return codeforcesResponse([
+          {
+            id: 566,
+            name: "Codeforces Round 566 (Div. 2)",
+            type: "CF",
+            phase: "FINISHED"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/problemset.problems") {
+        return codeforcesResponse({
+          problems: [
+            {
+              contestId: 566,
+              index: "A",
+              name: "Regular First",
+              tags: []
+            }
+          ],
+          problemStatistics: [
+            { contestId: 566, index: "A", solvedCount: 100 }
+          ]
+        });
+      }
+
+      if (url.pathname === "/api/contest.standings") {
+        throw new Error("Regular Codeforces contests must not call contest.standings.");
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        submissions: database.db.select().from(submissions).all(),
+        contests: database.db.select().from(contests).all(),
+        problems: database.db.select().from(problems).all()
+      };
+    });
+
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: "regularCatalog.problemsSynced",
+      contestsImported: 1,
+      problemsImported: 1,
+      pendingSubmissionsRetried: 0
+    }));
+    expect(result.events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 0,
+        submissionsSkipped: 1,
+        regularPendingSubmissionsRetried: 0,
+        errors: 0
+      }
+    });
+    expect(result.submissions).toHaveLength(0);
+    expect(result.contests).toEqual([
+      expect.objectContaining({ judgeId: "566", simulated: true })
+    ]);
+    expect(result.problems).toEqual([
+      expect.objectContaining({ judgeId: "566A" })
+    ]);
+  });
+
+  it("does not error when a regular pending problem is missing from an imported catalog contest", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 243987789,
+            contestId: 569,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 569, index: "E", name: "Missing From Problemset" },
+            verdict: "OK"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/contest.list") {
+        return codeforcesResponse([
+          {
+            id: 569,
+            name: "Codeforces Round 569 (Div. 2)",
+            type: "CF",
+            phase: "FINISHED"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/problemset.problems") {
+        return codeforcesResponse({
+          problems: [
+            {
+              contestId: 569,
+              index: "A",
+              name: "Catalog First",
+              tags: []
+            }
+          ],
+          problemStatistics: [
+            { contestId: 569, index: "A", solvedCount: 100 }
+          ]
+        });
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        submissions: database.db.select().from(submissions).all(),
+        problems: database.db.select().from(problems).all()
+      };
+    });
+
+    expect(result.events).not.toContainEqual(expect.objectContaining({
+      type: "error",
+      judgeId: "243987789"
+    }));
+    expect(result.events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 0,
+        submissionsSkipped: 1,
+        regularPendingSubmissionsRetried: 0,
+        errors: 0
+      }
+    });
+    expect(result.submissions).toHaveLength(0);
+    expect(result.problems).toEqual([
+      expect.objectContaining({ judgeId: "569A" })
+    ]);
   });
 
   it("does not retry unsimulated contests unless current user submissions need them", async () => {

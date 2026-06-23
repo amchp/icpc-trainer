@@ -12,7 +12,7 @@ import type { ApiContext } from "./index.js";
 
 const { contests, problems, submissions, users } = schema;
 
-export type UpsolvingProblemStatus = "new" | "attempted" | "solved";
+export type UpsolvingProblemStatus = "new" | "upsolved" | "attempted" | "solved";
 
 export interface UpsolvingProblemRow {
   readonly contestName: string;
@@ -88,6 +88,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
 
       const submissionRows = ctx.database.db
         .select({
+          contestId: contests.id,
           problemId: submissions.problemId,
           submissionCount: sql<number>`count(*)`,
           acceptedCount: sql<number>`sum(case when ${submissions.status} = ${SUBMISSION_STATUSES.AC} then 1 else 0 end)`
@@ -100,10 +101,12 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
           eq(contests.simulated, true),
           eq(users.type, USER_TYPES.Team)
         ))
-        .groupBy(submissions.problemId)
+        .groupBy(contests.id, submissions.problemId)
         .all();
 
+      const contestIdsWithSubmissions = new Set<number>();
       for (const row of submissionRows) {
+        contestIdsWithSubmissions.add(row.contestId);
         submissionStateByProblemId.set(row.problemId, {
           submissionCount: row.submissionCount,
           hasAccepted: row.acceptedCount > 0
@@ -113,11 +116,13 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
       const rows = problemRows.map<UpsolvingProblemRow>((row) => {
         const submissionState = submissionStateByProblemId.get(row.problemId);
         const submissionCount = submissionState?.submissionCount ?? 0;
-        const status: UpsolvingProblemStatus = submissionState?.hasAccepted
+        const status: UpsolvingProblemStatus = submissionState?.hasAccepted === true
           ? "solved"
           : submissionCount > 0
             ? "attempted"
-            : "new";
+            : contestIdsWithSubmissions.has(row.contestId)
+              ? "upsolved"
+              : "new";
 
         return {
           contestName: row.contestName,
@@ -129,7 +134,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
           rating: row.rating,
           status
         };
-      });
+      }).filter((row) => row.status !== "new");
 
       const solvedCountByContestId = new Map<number, number>();
       for (const row of problemRows) {
@@ -162,21 +167,23 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
 
       return {
         rows,
-        contests: contestRows.map((row) => ({
-          id: row.id,
-          judge: row.judge,
-          judgeId: row.judgeId,
-          name: row.name,
-          link: row.link,
-          problemCount: row.problemCount,
-          solvedCount: solvedCountByContestId.get(row.id) ?? 0,
-          averageSolvePercentage: row.averageSolvePercentage === null
-            ? null
-            : Math.round(row.averageSolvePercentage),
-          updatedAt: row.updatedAt.toISOString()
-        })),
+        contests: contestRows
+          .filter((row) => contestIdsWithSubmissions.has(row.id))
+          .map((row) => ({
+            id: row.id,
+            judge: row.judge,
+            judgeId: row.judgeId,
+            name: row.name,
+            link: row.link,
+            problemCount: row.problemCount,
+            solvedCount: solvedCountByContestId.get(row.id) ?? 0,
+            averageSolvePercentage: row.averageSolvePercentage === null
+              ? null
+              : Math.round(row.averageSolvePercentage),
+            updatedAt: row.updatedAt.toISOString()
+          })),
         summary: {
-          contestCount: new Set(problemRows.map((row) => row.contestId)).size,
+          contestCount: contestIdsWithSubmissions.size,
           problemCount: rows.length,
           solvedCount: rows.filter((row) => row.status === "solved").length,
           attemptedCount: rows.filter((row) => row.status === "attempted").length

@@ -166,6 +166,138 @@ describe("makeCodeforcesJudge", () => {
         problemName: "B. Replicating Processes",
         verdict: SUBMISSION_STATUSES.TLE,
         submittedAt: new Date(1450000300 * 1000)
+      },
+      {
+        judgeId: "49644214",
+        judgeContestId: "566",
+        judgeProblemId: "566C",
+        problemName: "C. Regular Contest",
+        verdict: SUBMISSION_STATUSES.AC,
+        submittedAt: new Date(1450000600 * 1000)
+      },
+      {
+        judgeId: "49644215",
+        judgeContestId: "200001",
+        judgeProblemId: "200001A",
+        problemName: "A. Out of Range Gym",
+        verdict: SUBMISSION_STATUSES.AC,
+        submittedAt: new Date(1450000900 * 1000)
+      }
+    ]);
+  });
+
+  it("fetches regular Codeforces contests without the gym flag", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "OK",
+        result: [
+          {
+            id: 566,
+            name: "Codeforces Round 566 (Div. 2)",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 567,
+            name: "Huawei Challenge",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 568,
+            name: "Communication Challenge",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 569,
+            name: "Codeforces Global Round 1",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 570,
+            name: "Kotlin Heroes: Episode 1",
+            type: "CF",
+            phase: "FINISHED"
+          },
+          {
+            id: 100566,
+            name: "Testing Gym #100566",
+            type: "ICPC",
+            phase: "FINISHED"
+          }
+        ]
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const contests = await runWithCodeforcesAuth(makeCodeforcesJudge().getRegularContests?.() ?? Effect.succeed([]));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.list");
+    expect(url.searchParams.has("gym")).toBe(false);
+    expect(contests).toEqual([
+      {
+        judgeId: "566",
+        name: "Codeforces Round 566 (Div. 2)"
+      }
+    ]);
+  });
+
+  it("fetches regular Codeforces problem catalog entries with ratings and tags", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: "OK",
+        result: {
+          problems: [
+            {
+              contestId: 566,
+              index: "A",
+              name: "Regular First",
+              rating: 1200,
+              tags: ["dp", "math"]
+            },
+            {
+              contestId: 100566,
+              index: "A",
+              name: "Gym First",
+              tags: ["graphs"]
+            }
+          ],
+          problemStatistics: [
+            {
+              contestId: 566,
+              index: "A",
+              solvedCount: 1234
+            },
+            {
+              contestId: 100566,
+              index: "A",
+              solvedCount: 10
+            }
+          ]
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const problems = await runWithCodeforcesAuth(makeCodeforcesJudge().getRegularProblems?.() ?? Effect.succeed([]));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/problemset.problems");
+    expect(url.searchParams.has("apiKey")).toBe(false);
+    expect(url.searchParams.has("time")).toBe(false);
+    expect(url.searchParams.has("apiSig")).toBe(false);
+    expect(problems).toEqual([
+      {
+        judgeId: "566A",
+        judgeContestId: "566",
+        name: "A. Regular First",
+        link: "https://codeforces.com/contest/566/problem/A",
+        solves: 1234,
+        rating: 1200,
+        tags: ["dp", "math"]
       }
     ]);
   });
@@ -301,16 +433,22 @@ describe("makeCodeforcesJudge", () => {
         status: "OK",
         result: [
           {
-            id: 566,
-            name: "Testing Gym #566",
+            id: 100566,
+            name: "Testing Gym #100566",
             type: "ICPC",
             phase: "FINISHED"
           },
           {
-            id: 567,
-            name: "Testing Gym #567",
+            id: 100567,
+            name: "Testing Gym #100567",
             type: "CF",
             phase: "BEFORE"
+          },
+          {
+            id: 568,
+            name: "Communication Challenge",
+            type: "CF",
+            phase: "FINISHED"
           }
         ]
       })
@@ -324,14 +462,17 @@ describe("makeCodeforcesJudge", () => {
     expect(url.searchParams.get("gym")).toBe("true");
     expect(url.searchParams.has("from")).toBe(false);
     expect(url.searchParams.has("count")).toBe(false);
+    expect(url.searchParams.has("apiKey")).toBe(false);
+    expect(url.searchParams.has("time")).toBe(false);
+    expect(url.searchParams.has("apiSig")).toBe(false);
     expect(contests).toEqual([
       {
-        judgeId: "566",
-        name: "Testing Gym #566"
+        judgeId: "100566",
+        name: "Testing Gym #100566"
       },
       {
-        judgeId: "567",
-        name: "Testing Gym #567"
+        judgeId: "100567",
+        name: "Testing Gym #100567"
       }
     ]);
   });

@@ -13,6 +13,7 @@ import {
   type JudgeAuthenticationInput,
   JudgeNotFoundError,
   type JudgePreviewContest,
+  type JudgeRegularCatalogProblem,
   type JudgeSubmission,
   JudgeTag,
   JudgeUnavailableError,
@@ -32,9 +33,16 @@ import { notImplementedJudgeSync } from "./sync/sync.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
+const CODEFORCES_CONTEST_URL = "https://codeforces.com/contest";
 const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
 const CODEFORCES_PAGE_SIZE = 100_000;
+const DIV_ROUND_PATTERN = /\bdiv\.?\s*[1-4]\b/i;
+const WEIRD_REGULAR_CONTEST_PATTERN =
+  /\b(?:challenge|marathon|communication|huawei|huawai|april\s+fools|kotlin\s+heroes|experimental|testing\s+round)\b/i;
+
+export const isNormalRegularCodeforcesContestName = (name: string): boolean =>
+  DIV_ROUND_PATTERN.test(name) && !WEIRD_REGULAR_CONTEST_PATTERN.test(name);
 
 interface CodeforcesApiSuccess<T> {
   readonly status: "OK";
@@ -69,9 +77,22 @@ interface CodeforcesContest {
 }
 
 interface CodeforcesProblem {
-  readonly contestId: number;
+  readonly contestId?: number;
   readonly index: string;
   readonly name: string;
+  readonly rating?: number;
+  readonly tags?: readonly string[];
+}
+
+interface CodeforcesProblemStatistic {
+  readonly contestId: number;
+  readonly index: string;
+  readonly solvedCount: number;
+}
+
+interface CodeforcesProblemset {
+  readonly problems: ReadonlyArray<CodeforcesProblem>;
+  readonly problemStatistics: ReadonlyArray<CodeforcesProblemStatistic>;
 }
 
 interface CodeforcesProblemResult {
@@ -226,6 +247,53 @@ const requestCodeforcesWithAuth = <T>(
     }
   });
 
+const requestCodeforcesPublic = <T>(
+  method: string,
+  params: Record<string, CodeforcesRequestParam> = {}
+): Effect.Effect<T, CodeforcesApiError> =>
+  Effect.tryPromise({
+    try: async () => {
+      const url = new URL(`${CODEFORCES_API_URL}/${method}`);
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined) {
+          url.searchParams.set(key, String(value));
+        }
+      }
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
+      }
+
+      const payload = (await response.json()) as CodeforcesApiResponse<T>;
+      if (payload.status === "FAILED") {
+        return Promise.reject({ comment: payload.comment });
+      }
+
+      return payload.result;
+    },
+    catch: (cause): CodeforcesApiError => {
+      if (typeof cause === "object" && cause !== null && "comment" in cause) {
+        return cause as CodeforcesApiError;
+      }
+
+      const error = toError(cause);
+      if (error instanceof SyntaxError) {
+        return {
+          comment: "Codeforces API is unavailable. It returned an invalid response.",
+          cause: error,
+          unavailable: true
+        };
+      }
+
+      return {
+        comment: "Codeforces API is unavailable. The request could not reach Codeforces.",
+        cause: error,
+        unavailable: true
+      };
+    }
+  });
+
 const makeCodeforcesRequester = (): RequestCodeforces =>
   <T>(method: string, params?: Record<string, CodeforcesRequestParam>) =>
     Effect.gen(function* () {
@@ -306,18 +374,39 @@ const toPreviewContest = (contest: CodeforcesContest): JudgePreviewContest => ({
   name: contest.name
 });
 
+const mergePreviewContests = (
+  ...catalogs: ReadonlyArray<ReadonlyArray<JudgePreviewContest>>
+): readonly JudgePreviewContest[] => [
+  ...new Map(
+    catalogs.flatMap((catalog) => catalog).map((contest) => [contest.judgeId, contest])
+  ).values()
+];
+
 const toProblem = (
   problem: CodeforcesProblem,
   problemIndex: number,
   rows: ReadonlyArray<CodeforcesRanklistRow>
 ): Problem => ({
-  judgeId: `${problem.contestId}${problem.index}`,
+  judgeId: `${problem.contestId ?? ""}${problem.index}`,
   name: `${problem.index}. ${problem.name}`,
   solves: rows.reduce((total, row) => {
     const result = row.problemResults[problemIndex];
     return total + (result?.points !== undefined && result.points > 0 ? 1 : 0);
   }, 0),
-  link: `${CODEFORCES_GYM_URL}/${problem.contestId}/problem/${problem.index}`
+  link: `${CODEFORCES_GYM_URL}/${problem.contestId ?? ""}/problem/${problem.index}`
+});
+
+const toRegularCatalogProblem = (
+  problem: CodeforcesProblem & { readonly contestId: number },
+  solves: number
+): JudgeRegularCatalogProblem => ({
+  judgeId: `${problem.contestId}${problem.index}`,
+  judgeContestId: String(problem.contestId),
+  name: `${problem.index}. ${problem.name}`,
+  solves,
+  rating: problem.rating,
+  tags: problem.tags ?? [],
+  link: `${CODEFORCES_CONTEST_URL}/${problem.contestId}/problem/${problem.index}`
 });
 
 const isContestDifficulty = (value: number | undefined): value is number =>
@@ -378,7 +467,7 @@ const toSubmissionStatus = (verdict: string | undefined): SUBMISSION_STATUSES =>
 const toSubmission = (submission: CodeforcesSubmission): JudgeSubmission => ({
   judgeId: String(submission.id),
   judgeContestId: String(submission.contestId),
-  judgeProblemId: `${submission.problem.contestId}${submission.problem.index}`,
+  judgeProblemId: `${submission.contestId}${submission.problem.index}`,
   problemName: `${submission.problem.index}. ${submission.problem.name}`,
   verdict: toSubmissionStatus(submission.verdict),
   submittedAt: new Date(submission.creationTimeSeconds * 1000)
@@ -388,12 +477,22 @@ const isGymSubmission = (submission: CodeforcesSubmission): boolean =>
   submission.contestId >= CODEFORCES_GYM_CONTEST_ID_MIN &&
   submission.contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
 
-const getAllContests = (
-  requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError, DatabaseServiceTag> =>
-  requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list", {
+const isGymContestId = (contestId: number): boolean =>
+  contestId >= CODEFORCES_GYM_CONTEST_ID_MIN &&
+  contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
+
+const getAllContests = (): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError> =>
+  requestCodeforcesPublic<ReadonlyArray<CodeforcesContest>>("contest.list", {
     gym: true
   });
+
+const getRegularContests = (
+  requestCodeforces: RequestCodeforces
+): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError, DatabaseServiceTag> =>
+  requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list");
+
+const getProblemset = (): Effect.Effect<CodeforcesProblemset, CodeforcesApiError> =>
+  requestCodeforcesPublic<CodeforcesProblemset>("problemset.problems");
 
 const getAllStandingPages = (
   contestId: string,
@@ -498,8 +597,12 @@ export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
     validateAuthentication: validateCodeforcesAuthentication,
 
     getContests: () =>
-      getAllContests(requestCodeforces).pipe(
-        Effect.map((contests) => contests.map(toPreviewContest)),
+      getAllContests().pipe(
+        Effect.map((contests) =>
+          contests
+            .filter((contest) => isGymContestId(contest.id))
+            .map(toPreviewContest)
+        ),
         Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
       ),
 
@@ -539,10 +642,64 @@ export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
       const handle = options.userHandle.trim();
 
       return getAllSubmissions(handle, requestCodeforces).pipe(
-        Effect.map((submissions) => submissions.filter(isGymSubmission).map(toSubmission)),
+        Effect.map((submissions) =>
+          submissions
+            .filter((submission) => submission.contestId !== undefined && submission.problem.index !== undefined)
+            .map(toSubmission)
+        ),
         Effect.mapError((error) => toJudgeError(handle, "user", error))
       );
     },
+
+    getRegularContests: () =>
+      getRegularContests(requestCodeforces).pipe(
+        Effect.map((contests) =>
+          contests
+            .filter((contest) => !isGymSubmission({
+              id: 0,
+              contestId: contest.id,
+              creationTimeSeconds: 0,
+              problem: {
+                contestId: contest.id,
+                index: "",
+                name: contest.name
+              }
+            }) && isNormalRegularCodeforcesContestName(contest.name))
+            .map(toPreviewContest)
+        ),
+        Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
+      ),
+
+    getRegularProblems: () =>
+      getProblemset().pipe(
+        Effect.map((problemset) => {
+          const solvesByProblemId = new Map(
+            problemset.problemStatistics.map((statistic) => [
+              `${statistic.contestId}${statistic.index}`,
+              statistic.solvedCount
+            ])
+          );
+          const regularProblems = problemset.problems
+            .filter((problem): problem is CodeforcesProblem & { readonly contestId: number } =>
+              problem.contestId !== undefined &&
+              !isGymSubmission({
+                id: 0,
+                contestId: problem.contestId,
+                creationTimeSeconds: 0,
+                problem
+              })
+            )
+            .map((problem) =>
+              toRegularCatalogProblem(
+                problem,
+                solvesByProblemId.get(`${problem.contestId}${problem.index}`) ?? 0
+              )
+            );
+
+          return regularProblems;
+        }),
+        Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
+      ),
 
     refreshContestFinder: (input) => database === undefined
       ? Effect.succeed(emptyContestFinderRefresh())
@@ -564,7 +721,9 @@ export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
             stepsTotal,
             stepsLeft: stepsTotal - stepsDone
           });
-          const catalog = yield* judge.getContests();
+          const gymCatalog = yield* judge.getContests();
+          const regularCatalog = yield* (judge.getRegularContests?.() ?? Effect.succeed([]));
+          const catalog = mergePreviewContests(gymCatalog, regularCatalog);
           const contestsUpserted = yield* upsertContestFinderCatalog(
             database,
             "codeforces",

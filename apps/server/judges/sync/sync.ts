@@ -133,12 +133,12 @@ const createAsyncEventQueue = <T>(): AsyncEventQueue<T> => {
   };
 };
 
-export type SyncOperationPhase = "submissions" | "contests" | "database";
+export type SyncOperationPhase = "submissions" | "contests" | "regularCatalog" | "database";
 
 export interface SyncOperationContext {
   readonly provider: JudgeSyncInput["provider"];
   readonly phase: SyncOperationPhase;
-  readonly step?: "submissions" | "contests";
+  readonly step?: "submissions" | "contests" | "regularCatalog";
   readonly action: string;
   readonly userHandle?: string;
   readonly contestJudgeId?: string;
@@ -156,6 +156,9 @@ export const emptySummary = (): MutableJudgeSyncSummary => ({
   submissionsUpdated: 0,
   submissionsSkipped: 0,
   contestsSynced: 0,
+  regularContestsImported: 0,
+  regularProblemsImported: 0,
+  regularPendingSubmissionsRetried: 0,
   errors: 0
 });
 

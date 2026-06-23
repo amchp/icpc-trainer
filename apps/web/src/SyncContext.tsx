@@ -19,6 +19,7 @@ interface SyncStepProgress {
 interface SyncSteps {
   readonly submissions: SyncStepProgress;
   readonly contests: SyncStepProgress;
+  readonly regularCatalog: SyncStepProgress;
 }
 
 interface ProviderSyncProgress {
@@ -77,7 +78,8 @@ const syncStep = (
 
 const emptySteps = (): SyncSteps => ({
   submissions: emptyStep(),
-  contests: emptyStep()
+  contests: emptyStep(),
+  regularCatalog: emptyStep()
 });
 
 const emptySummary = (): JudgeSyncSummary => ({
@@ -87,6 +89,9 @@ const emptySummary = (): JudgeSyncSummary => ({
   submissionsUpdated: 0,
   submissionsSkipped: 0,
   contestsSynced: 0,
+  regularContestsImported: 0,
+  regularProblemsImported: 0,
+  regularPendingSubmissionsRetried: 0,
   errors: 0
 });
 
@@ -97,6 +102,9 @@ const addSummary = (left: JudgeSyncSummary, right: JudgeSyncSummary): JudgeSyncS
   submissionsUpdated: left.submissionsUpdated + right.submissionsUpdated,
   submissionsSkipped: left.submissionsSkipped + right.submissionsSkipped,
   contestsSynced: left.contestsSynced + right.contestsSynced,
+  regularContestsImported: left.regularContestsImported + right.regularContestsImported,
+  regularProblemsImported: left.regularProblemsImported + right.regularProblemsImported,
+  regularPendingSubmissionsRetried: left.regularPendingSubmissionsRetried + right.regularPendingSubmissionsRetried,
   errors: left.errors + right.errors
 });
 
@@ -132,7 +140,8 @@ const aggregateSteps = (providerSteps: ReadonlyMap<JudgeSyncInput["provider"], S
 
   return {
     submissions: aggregateStep(steps.map((step) => step.submissions)),
-    contests: aggregateStep(steps.map((step) => step.contests))
+    contests: aggregateStep(steps.map((step) => step.contests)),
+    regularCatalog: aggregateStep(steps.map((step) => step.regularCatalog))
   };
 };
 
@@ -171,9 +180,9 @@ const providerProgresses = (
     const steps = providerSteps.get(provider) ?? emptySteps();
     const events = providerEvents.get(provider) ?? [];
     const latestEvent = events.at(-1) ?? null;
-    const detailedStepsTotal = steps.submissions.total + steps.contests.total;
+    const detailedStepsTotal = steps.submissions.total + steps.contests.total + steps.regularCatalog.total;
     const detailedStepsLeft = Math.max(
-      detailedStepsTotal - steps.submissions.processed - steps.contests.processed,
+      detailedStepsTotal - steps.submissions.processed - steps.contests.processed - steps.regularCatalog.processed,
       0
     );
     const stepsTotal = latestEvent?.stepsTotal ?? detailedStepsTotal;
@@ -252,6 +261,34 @@ const applyEventToSteps = (current: SyncSteps, event: JudgeSyncEvent): SyncSteps
     };
   }
 
+  if (event.type === "regularCatalog.contestsSyncing") {
+    return {
+      ...current,
+      regularCatalog: syncStep("running", 0, 2, "contests")
+    };
+  }
+
+  if (event.type === "regularCatalog.contestsSynced") {
+    return {
+      ...current,
+      regularCatalog: syncStep("running", 1, 2, `${event.contestsTotal} contests`)
+    };
+  }
+
+  if (event.type === "regularCatalog.problemsSyncing") {
+    return {
+      ...current,
+      regularCatalog: syncStep("running", 1, 2, "problems")
+    };
+  }
+
+  if (event.type === "regularCatalog.problemsSynced") {
+    return {
+      ...current,
+      regularCatalog: syncStep("completed", 2, 2, `${event.problemsImported} problems`)
+    };
+  }
+
   if (event.type === "error") {
     if (event.step === "submissions") {
       return {
@@ -266,12 +303,20 @@ const applyEventToSteps = (current: SyncSteps, event: JudgeSyncEvent): SyncSteps
         contests: { ...current.contests, status: "error", current: event.contestJudgeId }
       };
     }
+
+    if (event.step === "regularCatalog") {
+      return {
+        ...current,
+        regularCatalog: { ...current.regularCatalog, status: "error" }
+      };
+    }
   }
 
   if (event.type === "completed") {
     return {
       submissions: syncStep("completed", current.submissions.total, current.submissions.total),
-      contests: syncStep("completed", current.contests.total, current.contests.total)
+      contests: syncStep("completed", current.contests.total, current.contests.total),
+      regularCatalog: syncStep("completed", current.regularCatalog.total, current.regularCatalog.total)
     };
   }
 
@@ -299,8 +344,11 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     setSteps(nextSteps);
     setProviders(providerProgresses(providerStepsRef.current, providerEventsRef.current, runningProvidersRef.current));
 
-    const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total;
-    const nextStepsLeft = nextStepsTotal - nextSteps.submissions.processed - nextSteps.contests.processed;
+    const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total + nextSteps.regularCatalog.total;
+    const nextStepsLeft = nextStepsTotal -
+      nextSteps.submissions.processed -
+      nextSteps.contests.processed -
+      nextSteps.regularCatalog.processed;
     setStepsTotal(nextStepsTotal);
     setStepsLeft(Math.max(nextStepsLeft, 0));
 

@@ -17,12 +17,14 @@ export const tableGridTemplateColumns =
 
 export const statusLabels: Record<UpsolvingProblemStatus, string> = {
   new: "New",
+  upsolved: "New",
   attempted: "Attempted",
   solved: "Solved"
 };
 
 const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
   new: "text-blue-300",
+  upsolved: "text-violet-300",
   attempted: "text-amber-300",
   solved: "text-emerald-300"
 };
@@ -67,6 +69,7 @@ export const statusCountsFor = (
   const counts: Record<UpsolvingStatusFilter, number> = {
     all: rows.length,
     new: 0,
+    upsolved: 0,
     attempted: 0,
     solved: 0
   };

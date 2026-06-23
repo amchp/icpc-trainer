@@ -90,7 +90,8 @@ describe("createJudgePlayground", () => {
       return yield* Effect.promise(() =>
         createJudgePlayground(database).run({
           provider: "codeforces",
-          operation: "contests"
+          operation: "user",
+          userHandle: "tourist"
         })
       );
     });
@@ -101,7 +102,7 @@ describe("createJudgePlayground", () => {
       ok: false,
       error: {
         tag: "JudgeCredentialError",
-        judgeId: "codeforces",
+        judgeId: "tourist",
         cause: "Connect Codeforces before using the playground."
       }
     });

@@ -64,6 +64,21 @@ export interface JudgeSubmission {
   readonly submittedAt: Date;
 }
 
+export interface JudgeRegularCatalogContest {
+  readonly judgeId: string;
+  readonly name: string;
+}
+
+export interface JudgeRegularCatalogProblem {
+  readonly judgeId: string;
+  readonly judgeContestId: string;
+  readonly name: string;
+  readonly link: string;
+  readonly solves: number;
+  readonly rating?: number;
+  readonly tags: readonly string[];
+}
+
 export interface GetContestsOptions {
   readonly userHandle?: string;
 }
@@ -112,6 +127,8 @@ export interface Judge {
   readonly getSubmissions: (
     options?: GetSubmissionsOptions,
   ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, JudgeError, DatabaseServiceTag>;
+  readonly getRegularContests?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, JudgeError, DatabaseServiceTag>;
+  readonly getRegularProblems?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, JudgeError, DatabaseServiceTag>;
   readonly refreshContestFinder: (
     input: RefreshContestFinderInput,
   ) => Effect.Effect<RefreshContestFinderResult, JudgeError, DatabaseServiceTag>;

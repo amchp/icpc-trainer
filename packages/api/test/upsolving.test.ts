@@ -193,8 +193,9 @@ describe("upsolving router", () => {
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
     );
 
-    expect(overview.rows).toHaveLength(3);
+    expect(overview.rows).toHaveLength(2);
     expect(overview.rows.map((row) => row.problemJudgeId)).not.toContain("300A");
+    expect(overview.rows.map((row) => row.problemJudgeId)).not.toContain("200A");
     expect(overview.rows).toEqual(expect.arrayContaining([
       expect.objectContaining({
         problemJudgeId: "100A",
@@ -203,11 +204,7 @@ describe("upsolving router", () => {
       }),
       expect.objectContaining({
         problemJudgeId: "100B",
-        status: "new"
-      }),
-      expect.objectContaining({
-        problemJudgeId: "200A",
-        status: "new"
+        status: "upsolved"
       })
     ]));
     expect(overview.rows[0]).not.toHaveProperty("submissionCount");
@@ -218,16 +215,12 @@ describe("upsolving router", () => {
         judgeId: "100",
         problemCount: 2,
         solvedCount: 1
-      }),
-      expect.objectContaining({
-        judgeId: "200",
-        problemCount: 1,
-        solvedCount: 0
       })
     ]));
+    expect(overview.contests.map((contest) => contest.judgeId)).not.toContain("200");
     expect(overview.summary).toEqual({
-      contestCount: 2,
-      problemCount: 3,
+      contestCount: 1,
+      problemCount: 2,
       solvedCount: 1,
       attemptedCount: 0
     });

@@ -43,9 +43,13 @@ export const codeforcesContestParticipations = (
   submissions: readonly JudgeSubmission[],
   contestNames: ReadonlyMap<string, string> = new Map()
 ): readonly ContestParticipationInput[] => {
+  const restrictToKnownContests = contestNames.size > 0;
   const byContest = new Map<string, JudgeSubmission[]>();
   for (const submission of submissions) {
     if (submission.judgeContestId === undefined) {
+      continue;
+    }
+    if (restrictToKnownContests && !contestNames.has(submission.judgeContestId)) {
       continue;
     }
     const entries = byContest.get(submission.judgeContestId) ?? [];

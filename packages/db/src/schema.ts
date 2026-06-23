@@ -61,6 +61,14 @@ export const problems = sqliteTable("problems", {
   index("problems_judge_rating_idx").on(table.judge, table.rating)
 ]);
 
+export const problemTags = sqliteTable("problem_tags", {
+  problemId: integer("problem_id").references(() => problems.id).notNull(),
+  tag: text("tag").notNull()
+}, (table) => [
+  primaryKey({ columns: [table.problemId, table.tag] }),
+  index("problem_tags_tag_idx").on(table.tag)
+]);
+
 export const submissions = sqliteTable("submissions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   judgeId: text("judge_id").notNull(),
@@ -110,6 +118,7 @@ export const schema = {
   users,
   contests,
   problems,
+  problemTags,
   submissions,
   userContestStates,
   providerCredentials

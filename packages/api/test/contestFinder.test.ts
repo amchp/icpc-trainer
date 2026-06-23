@@ -8,7 +8,7 @@ import { appRouter } from "../src/index.js";
 const { contests, userContestStates, users } = schema;
 
 describe("contest finder router", () => {
-  it("ranks unsimulated contests by friend participation from both judges", async () => {
+  it("ranks unattempted contests by friend participation from both judges", async () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
@@ -69,6 +69,17 @@ describe("contest finder router", () => {
           participants: null,
           stars: null,
           simulated: true,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          judgeId: "400",
+          judge: JUDGES.Codeforces,
+          name: "No Friend State",
+          link: "https://codeforces.com/gym/400",
+          participants: null,
+          stars: null,
+          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -140,13 +151,8 @@ describe("contest finder router", () => {
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
     );
 
-    expect(overview.contests.map((contest) => contest.judgeId)).toEqual(["100", "200"]);
+    expect(overview.contests.map((contest) => contest.judgeId)).toEqual(["200"]);
     expect(overview.contests).toEqual([
-      expect.objectContaining({
-        judgeId: "100",
-        friendCount: 1,
-        handles: ["cf-friend"]
-      }),
       expect.objectContaining({
         judgeId: "200",
         friendCount: 1,

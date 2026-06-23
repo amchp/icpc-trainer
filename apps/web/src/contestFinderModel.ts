@@ -4,7 +4,6 @@ import { JUDGES } from "@icpc-trainer/shared";
 import type { JudgeProvider } from "./judgeConfig.js";
 
 export type ContestFinderTabId = "contest" | "friends";
-export type ContestFinderJudgeFilter = "all" | ContestFinderRow["judge"];
 
 export const toJudge = (value: JudgeProvider | JUDGES): JUDGES =>
   value === JUDGES.Qoj ? JUDGES.Qoj : JUDGES.Codeforces;
