@@ -28,7 +28,7 @@ export function AppHeader(): React.JSX.Element {
   };
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur sm:px-8">
+    <header className="relative z-40 border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur sm:px-8">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4">
         <Link to="/" className="mr-auto flex min-w-0 items-center gap-2 text-zinc-100">
           <img src="/icpc_trainer.png" alt="" className="size-8 object-contain" />
@@ -42,6 +42,20 @@ export function AppHeader(): React.JSX.Element {
           Upsolving
         </Link>
 
+        <Link
+          to="/contests"
+          className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 sm:inline-flex"
+        >
+          Contests
+        </Link>
+
+        <Link
+          to="/team"
+          className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 sm:inline-flex"
+        >
+          Team
+        </Link>
+
         <Button
           type="button"
           variant="secondary"
@@ -51,7 +65,7 @@ export function AppHeader(): React.JSX.Element {
           }}
         >
           <RefreshCw className={syncStatus === "running" ? "size-4 animate-spin" : "size-4"} aria-hidden="true" />
-          Synced
+          Sync
         </Button>
 
         <div className="relative">
@@ -66,8 +80,8 @@ export function AppHeader(): React.JSX.Element {
           </Button>
 
           {open ? (
-            <DropdownContent>
-              <div className="px-2 py-2">
+            <DropdownContent className="z-50 w-max min-w-64 max-w-[calc(100vw-2.5rem)]">
+              <div className="w-full min-w-0 px-2 py-2">
                 <p className="text-xs font-medium uppercase text-zinc-500">Account</p>
                 <p className="mt-1 truncate text-sm text-zinc-200">{profileLabel}</p>
               </div>
@@ -84,11 +98,11 @@ export function AppHeader(): React.JSX.Element {
               {connectedJudges.length > 0 ? (
                 <>
                   <Separator className="my-1" />
-                  <div className="px-2 py-2">
+                  <div className="w-full min-w-0 px-2 py-2">
                     <p className="mb-1.5 text-xs font-medium uppercase text-zinc-500">Connected judges</p>
                     <div className="space-y-1">
                       {connectedJudges.map((judge) => (
-                        <p key={judge.id} className="text-sm text-zinc-300">
+                        <p key={judge.id} className="truncate text-sm text-zinc-300">
                           {judge.label}
                         </p>
                       ))}

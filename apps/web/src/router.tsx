@@ -2,10 +2,13 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 
 import { CodeforcesConnectJudgeRoute } from "./CodeforcesConnectJudgeRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
+import { ContestsRoute } from "./ContestsRoute.js";
 import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
+import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeRoute } from "./QojConnectJudgeRoute.js";
 import { connectedJudgesFromCredentialStatus } from "./judgeConfig.js";
+import { TeamRoute } from "./TeamRoute.js";
 import { trpc } from "./trpc.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
 
@@ -13,16 +16,18 @@ const rootRoute = createRootRoute({
   component: Outlet
 });
 
+const requireConnectedJudge = async (): Promise<void> => {
+  const credentialStatus = await trpc.credentials.status.query();
+  if (connectedJudgesFromCredentialStatus(credentialStatus).length === 0) {
+    throw redirect({ to: "/connect-judges" });
+  }
+};
+
 const protectedRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "protected",
-  component: Outlet,
-  beforeLoad: async () => {
-    const credentialStatus = await trpc.credentials.status.query();
-    if (connectedJudgesFromCredentialStatus(credentialStatus).length === 0) {
-      throw redirect({ to: "/connect-judges" });
-    }
-  }
+  component: ProtectedLayout,
+  beforeLoad: requireConnectedJudge
 });
 
 const indexRoute = createRoute({
@@ -50,9 +55,10 @@ const qojConnectJudgeRoute = createRoute({
 });
 
 const playgroundRoute = createRoute({
-  getParentRoute: () => protectedRoute,
+  getParentRoute: () => rootRoute,
   path: "/playground",
-  component: PlaygroundRoute
+  component: PlaygroundRoute,
+  beforeLoad: requireConnectedJudge
 });
 
 const upsolvingRoute = createRoute({
@@ -61,12 +67,26 @@ const upsolvingRoute = createRoute({
   component: UpsolvingRoute
 });
 
+const contestsRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/contests",
+  component: ContestsRoute
+});
+
+const teamRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/team",
+  component: TeamRoute
+});
+
 const routeTree = rootRoute.addChildren([
   protectedRoute.addChildren([
     indexRoute,
-    playgroundRoute,
+    contestsRoute,
+    teamRoute,
     upsolvingRoute
   ]),
+  playgroundRoute,
   connectJudgesRoute,
   codeforcesConnectJudgeRoute,
   qojConnectJudgeRoute

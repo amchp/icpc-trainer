@@ -110,6 +110,7 @@ interface CodeforcesApiError {
   readonly comment?: string;
   readonly cause?: unknown;
   readonly credential?: boolean;
+  readonly unavailable?: boolean;
 }
 
 const toError = (error: unknown): Error =>
@@ -148,12 +149,18 @@ const buildSignedUrl = (
 };
 
 const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiError => {
+  const unavailable = status >= 500;
+  const prefix = unavailable
+    ? `Codeforces API is unavailable (HTTP ${status})`
+    : `Codeforces API returned HTTP ${status}`;
+
   try {
     const payload = JSON.parse(body) as Partial<CodeforcesApiFailure>;
 
     if (typeof payload.comment === "string" && payload.comment.trim() !== "") {
       return {
-        comment: `Codeforces API returned HTTP ${status}: ${payload.comment.trim()}`
+        comment: `${prefix}: ${payload.comment.trim()}`,
+        unavailable
       };
     }
   } catch {
@@ -165,8 +172,9 @@ const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiEr
   return {
     comment:
       trimmedBody === ""
-        ? `Codeforces API returned HTTP ${status} with an empty response body.`
-        : `Codeforces API returned HTTP ${status}: ${trimmedBody.slice(0, 500)}`
+        ? `${prefix} with an empty response body.`
+        : `${prefix}: ${trimmedBody.slice(0, 500)}`,
+    unavailable
   };
 };
 
@@ -190,10 +198,26 @@ const requestCodeforcesWithAuth = <T>(
 
       return payload.result;
     },
-    catch: (cause): CodeforcesApiError =>
-      typeof cause === "object" && cause !== null && "comment" in cause
-        ? (cause as CodeforcesApiError)
-        : { cause: toError(cause) }
+    catch: (cause): CodeforcesApiError => {
+      if (typeof cause === "object" && cause !== null && "comment" in cause) {
+        return cause as CodeforcesApiError;
+      }
+
+      const error = toError(cause);
+      if (error instanceof SyntaxError) {
+        return {
+          comment: "Codeforces API is unavailable. It returned an invalid response.",
+          cause: error,
+          unavailable: true
+        };
+      }
+
+      return {
+        comment: "Codeforces API is unavailable. The request could not reach Codeforces.",
+        cause: error,
+        unavailable: true
+      };
+    }
   });
 
 const makeCodeforcesRequester = (): RequestCodeforces =>
@@ -241,6 +265,12 @@ const isCredentialError = (error: CodeforcesApiError): boolean =>
     error.comment ?? ""
   );
 
+const isUnavailableError = (error: CodeforcesApiError): boolean =>
+  error.unavailable === true ||
+  /Codeforces API is unavailable|temporarily unavailable|service unavailable|bad gateway|gateway timeout/i.test(
+    error.comment ?? ""
+  );
+
 const toJudgeError = (
   judgeId: string,
   resource: "contest" | "user",
@@ -252,6 +282,10 @@ const toJudgeError = (
 
   if (isCredentialError(error)) {
     return new JudgeCredentialError({ judgeId, cause: error.comment });
+  }
+
+  if (isUnavailableError(error)) {
+    return new JudgeUnavailableError({ judgeId, cause: error.comment ?? error.cause });
   }
 
   if (isJudgeApiError(error)) {

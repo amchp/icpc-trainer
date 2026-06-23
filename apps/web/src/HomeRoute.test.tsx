@@ -8,6 +8,7 @@ import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { CodeforcesConnectJudgePage } from "./CodeforcesConnectJudgePage.js";
 import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundPage } from "./PlaygroundPage.js";
+import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
 import { SyncProvider } from "./SyncContext.js";
 import { ToasterProvider } from "./Toaster.js";
@@ -118,6 +119,7 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
+  Outlet: () => <div data-testid="route-outlet" />,
   useNavigate: () => navigateMock
 }));
 
@@ -245,11 +247,11 @@ describe("HomeRoute", () => {
   });
 
   it("renders the home shell without sync progress while idle", async () => {
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
     await waitFor(() => expect(screen.getByText("ICPC Trainer")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole("button", { name: /codeforces/i })).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /synced/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sync/i })).toBeInTheDocument();
     expect(screen.queryByText("Judge sync")).not.toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
   });
@@ -260,7 +262,7 @@ describe("HomeRoute", () => {
       events: syncEvents("codeforces").slice(0, 3)
     });
 
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
     await waitFor(() => expect(screen.getAllByText("Codeforces")).toHaveLength(2));
     expect(screen.getByText("User submission sync")).toBeInTheDocument();
@@ -270,9 +272,9 @@ describe("HomeRoute", () => {
   });
 
   it("starts Codeforces sync from the navbar", async () => {
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     await waitFor(() =>
       expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
@@ -290,9 +292,9 @@ describe("HomeRoute", () => {
       }
     });
 
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     await waitFor(() => expect(trpc.judges.startSync.mutate).toHaveBeenCalledTimes(2));
     expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" });
@@ -346,9 +348,9 @@ describe("HomeRoute", () => {
       });
     });
 
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not sync codeforces");
     expect(screen.getByRole("alert")).toHaveTextContent("Contest 100566 failed");
@@ -389,9 +391,9 @@ describe("HomeRoute", () => {
       });
     });
 
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /synced/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(6));
     expect(screen.queryByText("Contest 1 failed")).not.toBeInTheDocument();
@@ -427,7 +429,7 @@ describe("HomeRoute", () => {
       }
     }));
 
-    renderWithQuery(<HomeRoute />);
+    renderWithQuery(<ProtectedLayout />);
 
     fireEvent.click(await screen.findByRole("button", { name: /codeforces \+ qoj/i }));
     fireEvent.click(screen.getByText("Clear connected judges"));
@@ -497,11 +499,11 @@ describe("HomeRoute", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Could not reach the ICPC Trainer server");
   });
 
-  it("renders the playground with the shared navbar and saved credentials only", async () => {
+  it("renders the playground without the shared navbar and with saved credentials only", async () => {
     renderWithQuery(<PlaygroundPage />);
 
-    await waitFor(() => expect(screen.getByText("ICPC Trainer")).toBeInTheDocument());
-    expect(screen.getByText("API playground")).toBeInTheDocument();
+    expect(await screen.findByText("API playground")).toBeInTheDocument();
+    expect(screen.queryByText("ICPC Trainer")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Provider")).toBeInTheDocument();
     expect(screen.queryByLabelText("apiKey")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("apiSecret")).not.toBeInTheDocument();

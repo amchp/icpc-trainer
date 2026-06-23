@@ -108,4 +108,53 @@ describe("DatabaseLive", () => {
       }
     ]);
   });
+
+  it("scopes user uniqueness to each judge", async () => {
+    const layer = Layer.provideMerge(DatabaseLive({ filename: ":memory:" }), Layer.empty);
+    const timestamp = new Date("2026-01-01T00:00:00.000Z");
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+
+      database.db.insert(schema.users).values([
+        {
+          username: "juancs",
+          type: USER_TYPES.Primary,
+          judge: JUDGES.Codeforces,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          username: "juancs",
+          type: USER_TYPES.Team,
+          judge: JUDGES.Qoj,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]).run();
+
+      expect(() => {
+        database.db.insert(schema.users).values({
+          username: "juancs",
+          type: USER_TYPES.Team,
+          judge: JUDGES.Codeforces,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }).run();
+      }).toThrow();
+
+      return database.db.select().from(schema.users).where(eq(schema.users.username, "juancs")).all();
+    });
+
+    await expect(Effect.runPromise(program.pipe(Effect.provide(layer)))).resolves.toMatchObject([
+      {
+        username: "juancs",
+        judge: JUDGES.Codeforces
+      },
+      {
+        username: "juancs",
+        judge: JUDGES.Qoj
+      }
+    ]);
+  });
 });

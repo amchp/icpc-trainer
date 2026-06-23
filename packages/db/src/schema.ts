@@ -21,7 +21,7 @@ export const users = sqliteTable("users", {
   judge: text("judge", { enum: enumValues(JUDGES) }).notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("users_username_unique").on(table.username),
+  uniqueIndex("users_username_judge_unique").on(table.username, table.judge),
   index("users_type_id_idx").on(table.type, table.id)
 ]);
 
@@ -71,7 +71,7 @@ export const submissions = sqliteTable("submissions", {
   submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("submissions_judge_id_judge_unique").on(table.judgeId, table.judge),
+  uniqueIndex("submissions_judge_id_judge_user_unique").on(table.judgeId, table.judge, table.userId),
   index("submissions_problem_user_status_idx").on(table.problemId, table.userId, table.status),
   index("submissions_user_judge_idx").on(table.userId, table.judge)
 ]);

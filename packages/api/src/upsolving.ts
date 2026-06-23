@@ -5,6 +5,8 @@ import {
 } from "@icpc-trainer/shared";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
 
@@ -23,14 +25,32 @@ export interface UpsolvingProblemRow {
   readonly status: UpsolvingProblemStatus;
 }
 
+export interface UpsolvingContestRow {
+  readonly id: number;
+  readonly judge: "codeforces" | "qoj";
+  readonly judgeId: string;
+  readonly name: string;
+  readonly link: string;
+  readonly problemCount: number;
+  readonly solvedCount: number;
+  readonly averageSolvePercentage: number | null;
+  readonly updatedAt: string;
+}
+
 export interface UpsolvingOverview {
   readonly rows: readonly UpsolvingProblemRow[];
+  readonly contests: readonly UpsolvingContestRow[];
   readonly summary: {
     readonly contestCount: number;
     readonly problemCount: number;
     readonly solvedCount: number;
     readonly attemptedCount: number;
   };
+}
+
+export interface RefetchContestInput {
+  readonly provider: "codeforces" | "qoj";
+  readonly contestJudgeId: string;
 }
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
@@ -111,8 +131,50 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         };
       });
 
+      const solvedCountByContestId = new Map<number, number>();
+      for (const row of problemRows) {
+        const submissionState = submissionStateByProblemId.get(row.problemId);
+        if (submissionState?.hasAccepted === true) {
+          solvedCountByContestId.set(
+            row.contestId,
+            (solvedCountByContestId.get(row.contestId) ?? 0) + 1
+          );
+        }
+      }
+
+      const contestRows = ctx.database.db
+        .select({
+          id: contests.id,
+          judge: contests.judge,
+          judgeId: contests.judgeId,
+          name: contests.name,
+          link: contests.link,
+          updatedAt: contests.updatedAt,
+          problemCount: sql<number>`count(${problems.id})`,
+          averageSolvePercentage: sql<number | null>`avg(${problems.solvePercentage})`
+        })
+        .from(contests)
+        .leftJoin(problems, eq(problems.contestId, contests.id))
+        .where(eq(contests.synced, true))
+        .groupBy(contests.id)
+        .orderBy(desc(contests.updatedAt), asc(contests.name))
+        .all();
+
       return {
         rows,
+        contests: contestRows.map((row) => ({
+          id: row.id,
+          judge: row.judge,
+          judgeId: row.judgeId,
+          name: row.name,
+          link: row.link,
+          problemCount: row.problemCount,
+          solvedCount: solvedCountByContestId.get(row.id) ?? 0,
+          averageSolvePercentage: row.averageSolvePercentage === null
+            ? null
+            : Math.round(row.averageSolvePercentage),
+          updatedAt: row.updatedAt.toISOString()
+        })),
         summary: {
           contestCount: new Set(problemRows.map((row) => row.contestId)).size,
           problemCount: rows.length,
@@ -120,5 +182,46 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
           attemptedCount: rows.filter((row) => row.status === "attempted").length
         }
       };
+    }),
+    refetchContest: t.procedure.input(z.object({
+      contestId: z.number().int().positive()
+    })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {
+      const contest = ctx.database.db
+        .select({
+          judge: contests.judge,
+          judgeId: contests.judgeId
+        })
+        .from(contests)
+        .where(eq(contests.id, input.contestId))
+        .get();
+
+      if (contest === undefined) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Contest ${input.contestId} was not found.`
+        });
+      }
+
+      if (ctx.judges.refetchContest === undefined) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Contest refetch is not configured."
+        });
+      }
+
+      try {
+        await ctx.judges.refetchContest({
+          provider: contest.judge,
+          contestJudgeId: contest.judgeId
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : String(error),
+          cause: error
+        });
+      }
+
+      return { ok: true };
     })
   });

@@ -1,0 +1,84 @@
+import type { UpsolvingContestRow } from "@icpc-trainer/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
+
+import { Card, Skeleton } from "./components/ui.js";
+import { ContestsTable } from "./ContestsTable.js";
+import { useConnectedJudges } from "./ConnectedJudgesContext.js";
+import { trpc } from "./trpc.js";
+import { useToaster } from "./Toaster.js";
+
+export function ContestsPage(): React.JSX.Element {
+  const { hasConnectedJudge, status } = useConnectedJudges();
+  const toaster = useToaster();
+  const queryClient = useQueryClient();
+  const [refreshingContestIds, setRefreshingContestIds] = useState<readonly number[]>([]);
+  const query = useQuery({
+    queryKey: ["upsolving", "overview"],
+    queryFn: () => trpc.upsolving.overview.query(),
+    enabled: status === "ready" && hasConnectedJudge
+  });
+
+  const refetchContest = useCallback(async (contest: UpsolvingContestRow): Promise<void> => {
+    setRefreshingContestIds((current) =>
+      current.includes(contest.id) ? current : [...current, contest.id]
+    );
+
+    try {
+      await trpc.upsolving.refetchContest.mutate({ contestId: contest.id });
+      await queryClient.invalidateQueries({ queryKey: ["upsolving", "overview"] });
+    } catch (error) {
+      toaster.error({
+        title: "Contest refresh failed",
+        description: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      setRefreshingContestIds((current) => current.filter((id) => id !== contest.id));
+    }
+  }, [queryClient, toaster]);
+
+  if (status !== "ready" || !hasConnectedJudge) {
+    return <main className="min-h-screen bg-zinc-950" />;
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+      <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Contests</h1>
+        </div>
+        {query.isFetching ? (
+          <span className="inline-flex items-center gap-2 text-sm text-zinc-500">
+            <Loader2 className="size-4 animate-spin text-blue-300" aria-hidden="true" />
+            Loading
+          </span>
+        ) : null}
+      </section>
+
+      {query.isLoading ? (
+        <Card className="p-5">
+          <Skeleton className="h-80" />
+        </Card>
+      ) : null}
+
+      {query.isError ? (
+        <Card className="flex items-start gap-3 p-5">
+          <AlertTriangle className="mt-0.5 size-4 text-red-300" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium text-red-200">Unable to load contests.</p>
+            <p className="mt-1 text-sm text-zinc-500">{query.error.message}</p>
+          </div>
+        </Card>
+      ) : null}
+
+      {query.data ? (
+        <ContestsTable
+          contests={query.data.contests}
+          refreshingContestIds={refreshingContestIds}
+          onRefetchContest={(contest) => void refetchContest(contest)}
+        />
+      ) : null}
+    </main>
+  );
+}

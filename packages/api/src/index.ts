@@ -12,10 +12,13 @@ import {
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 import {
   createUpsolvingRouter,
+  type RefetchContestInput,
+  type UpsolvingContestRow,
   type UpsolvingOverview,
   type UpsolvingProblemRow,
   type UpsolvingProblemStatus
 } from "./upsolving.js";
+import { createTeamRouter, type TeamRoster } from "./team.js";
 
 export const judgeSyncInputSchema = z.object({
   provider: z.enum(["codeforces", "qoj"])
@@ -115,6 +118,7 @@ export type JudgeSyncObserveEvent =
 export interface JudgeSyncService {
   readonly start: (input: JudgeSyncInput) => Promise<void>;
   readonly observe: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncObserveEvent>;
+  readonly refetchContest?: (input: RefetchContestInput) => Promise<void>;
 }
 
 export interface JudgeCredentialValidationService {
@@ -186,6 +190,7 @@ export const appRouter = t.router({
   credentials: createCredentialsRouter(t),
   judges: createJudgesRouter(),
   playground: createPlaygroundRouter(t),
+  team: createTeamRouter(t),
   upsolving: createUpsolvingRouter(t)
 });
 
@@ -219,7 +224,13 @@ export type {
 } from "./playground.js";
 
 export type {
+  RefetchContestInput,
+  UpsolvingContestRow,
   UpsolvingOverview,
   UpsolvingProblemRow,
   UpsolvingProblemStatus
 } from "./upsolving.js";
+
+export type {
+  TeamRoster
+} from "./team.js";

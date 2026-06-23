@@ -1,4 +1,5 @@
 import {
+  type RefetchContestInput,
   type JudgeSyncEvent,
   type JudgeSyncInput,
   type JudgeSyncObserveEvent,
@@ -202,6 +203,12 @@ const formatSyncJudgeError = (error: JudgeError): string => {
     case "JudgeAPIError":
       return `Judge API rejected the request for ${error.judgeId}.${suffix}`;
     case "JudgeUnavailableError":
+      if (error.judgeId === JUDGES.Codeforces || /Codeforces API is unavailable/i.test(detail ?? "")) {
+        if (detail !== undefined && /Codeforces API is unavailable/i.test(detail)) {
+          return detail;
+        }
+        return `Codeforces API is unavailable.${suffix}`;
+      }
       return `Judge is unavailable for ${error.judgeId}.${suffix}`;
   }
 };
@@ -291,7 +298,7 @@ export const getSyncUsers = (
       .from(users)
       .where(and(
         eq(users.judge, judge),
-        inArray(users.type, [USER_TYPES.Primary, USER_TYPES.Friend])
+        inArray(users.type, [USER_TYPES.Primary, USER_TYPES.Team, USER_TYPES.Friend])
       ))
       .all()
   );
@@ -362,7 +369,11 @@ export const insertSubmission = (
       submittedAt: submissions.submittedAt
     })
     .from(submissions)
-    .where(and(eq(submissions.judge, judge), eq(submissions.judgeId, submission.judgeId)))
+    .where(and(
+      eq(submissions.judge, judge),
+      eq(submissions.judgeId, submission.judgeId),
+      eq(submissions.userId, user.id)
+    ))
     .get();
 
   if (
@@ -388,10 +399,9 @@ export const insertSubmission = (
       updatedAt: timestamp
     })
     .onConflictDoUpdate({
-      target: [submissions.judgeId, submissions.judge],
+      target: [submissions.judgeId, submissions.judge, submissions.userId],
       set: {
         problemId: problem.id,
-        userId: user.id,
         status: submission.verdict,
         submittedAt: submission.submittedAt,
         updatedAt: timestamp
@@ -665,7 +675,8 @@ const failedSyncCompletedEvent = (provider: JudgeSyncInput["provider"]): JudgeSy
 };
 
 export const createJudgeSyncService = (
-  registry: JudgeSyncRegistry
+  registry: JudgeSyncRegistry,
+  database: DatabaseService
 ): JudgeSyncService & {
   readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
 } => {
@@ -715,6 +726,22 @@ export const createJudgeSyncService = (
         events
       };
       yield* eventsSubscription;
+    },
+    refetchContest: async (input: RefetchContestInput) => {
+      const judge = judgeFor(input.provider, registry);
+      if (judge === undefined) {
+        throw new Error(`${input.provider} sync is not implemented yet.`);
+      }
+
+      await Effect.runPromise(
+        syncContest(
+          database,
+          input.provider,
+          providerJudge(input.provider),
+          judge,
+          input.contestJudgeId
+        )
+      );
     },
     sync: (input) => {
       const judge = judgeFor(input.provider, registry);

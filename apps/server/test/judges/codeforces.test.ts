@@ -510,6 +510,38 @@ describe("makeCodeforcesJudge", () => {
     });
   });
 
+  it("maps Codeforces HTTP 5xx responses to unavailable errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      textResponse(
+        503,
+        JSON.stringify({
+          status: "FAILED",
+          comment: "Service unavailable."
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runWithCodeforcesAuth(Effect.flip(makeCodeforcesJudge().getContest("566")))
+    ).resolves.toMatchObject({
+      _tag: "JudgeUnavailableError",
+      cause: "Codeforces API is unavailable (HTTP 503): Service unavailable."
+    });
+  });
+
+  it("maps Codeforces network failures to unavailable errors", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runWithCodeforcesAuth(Effect.flip(makeCodeforcesJudge().getUser("tourist")))
+    ).resolves.toMatchObject({
+      _tag: "JudgeUnavailableError",
+      cause: "Codeforces API is unavailable. The request could not reach Codeforces."
+    });
+  });
+
   it("looks up Codeforces credentials when the API request is made", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({

@@ -39,10 +39,13 @@ export const startServer = (
     const judges = {
       ...createJudgePlayground(database),
       ...createJudgeCredentialValidation(database),
-      ...createJudgeSyncService({
-        codeforces: makeCodeforcesJudge(database),
-        qoj: makeQojJudge(undefined, database)
-      })
+      ...createJudgeSyncService(
+        {
+          codeforces: makeCodeforcesJudge(database),
+          qoj: makeQojJudge(undefined, database)
+        },
+        database
+      )
     };
     const credentialEvents = createAsyncEventHub<CredentialStatusEvent>();
 

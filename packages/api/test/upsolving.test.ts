@@ -213,6 +213,18 @@ describe("upsolving router", () => {
     expect(overview.rows[0]).not.toHaveProperty("submissionCount");
     expect(overview.rows[0]).not.toHaveProperty("contestId");
     expect(overview.rows[0]).not.toHaveProperty("problemId");
+    expect(overview.contests).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        judgeId: "100",
+        problemCount: 2,
+        solvedCount: 1
+      }),
+      expect.objectContaining({
+        judgeId: "200",
+        problemCount: 1,
+        solvedCount: 0
+      })
+    ]));
     expect(overview.summary).toEqual({
       contestCount: 2,
       problemCount: 3,

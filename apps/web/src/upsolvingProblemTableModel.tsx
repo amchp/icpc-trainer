@@ -2,6 +2,7 @@ import type { UpsolvingProblemRow, UpsolvingProblemStatus } from "@icpc-trainer/
 import { type ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
+import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
 import { cn } from "./lib.js";
 
 export type UpsolvingStatusFilter = "all" | UpsolvingProblemStatus;
@@ -24,16 +25,6 @@ const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
   new: "text-blue-300",
   attempted: "text-amber-300",
   solved: "text-emerald-300"
-};
-
-const judgeLabels: Record<UpsolvingProblemRow["judge"], string> = {
-  codeforces: "Codeforces",
-  qoj: "QOJ"
-};
-
-const judgeShortLabels: Record<UpsolvingProblemRow["judge"], string> = {
-  codeforces: "CF",
-  qoj: "QOJ"
 };
 
 const problemLetterPattern = /^[A-Z][0-9]?\.\s+/;
@@ -59,8 +50,7 @@ const searchableText = (row: UpsolvingProblemRow): string =>
     displayProblemName(row),
     row.problemJudgeId,
     row.contestName,
-    row.judge,
-    judgeLabels[row.judge]
+    judgeSearchText(row.judge)
   ].join(" ").toLowerCase();
 
 export const toSearchableUpsolvingProblemRow = (
@@ -112,9 +102,7 @@ export const createUpsolvingProblemColumns = (): Array<ColumnDef<SearchableUpsol
     accessorKey: "judge",
     header: "Judge",
     cell: ({ row }) => (
-      <span className="font-mono text-xs font-semibold text-zinc-200">
-        {judgeShortLabels[row.original.judge]}
-      </span>
+      <JudgeDisplay judge={row.original.judge} />
     )
   },
   {

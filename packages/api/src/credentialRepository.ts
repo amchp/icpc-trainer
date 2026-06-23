@@ -131,7 +131,7 @@ export const saveEncryptedCredential = (
         updatedAt: now
       })
       .onConflictDoUpdate({
-        target: users.username,
+        target: [users.username, users.judge],
         set: {
           type: USER_TYPES.Primary,
           judge,

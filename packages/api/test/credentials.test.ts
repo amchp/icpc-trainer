@@ -1,5 +1,5 @@
 import { DatabaseLive, DatabaseServiceTag, providerCredentials, users } from "@icpc-trainer/db";
-import { USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it } from "vitest";
@@ -93,6 +93,58 @@ describe("credentials router", () => {
       type: USER_TYPES.Primary,
       judge: "codeforces"
     });
+  });
+
+  it("allows the same primary username on different judges", async () => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const caller = appRouter.createCaller({
+        database,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
+        }
+      });
+
+      yield* Effect.promise(() => caller.credentials.save({
+        provider: "codeforces",
+        providerUserKey: "juancs",
+        codeforces: {
+          apiKey: "cf-key",
+          apiSecret: "cf-secret"
+        }
+      }));
+      yield* Effect.promise(() => caller.credentials.save({
+        provider: "qoj",
+        providerUserKey: "juancs",
+        qoj: {
+          cookieJar: "uoj_username=juancs; uojsessid=session"
+        }
+      }));
+
+      return database.db.select().from(users).where(eq(users.username, "juancs")).all();
+    });
+
+    const primaryUsers = await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+    );
+
+    expect(primaryUsers).toHaveLength(2);
+    expect(primaryUsers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        username: "juancs",
+        type: USER_TYPES.Primary,
+        judge: JUDGES.Codeforces
+      }),
+      expect.objectContaining({
+        username: "juancs",
+        type: USER_TYPES.Primary,
+        judge: JUDGES.Qoj
+      })
+    ]));
   });
 
   it("does not store credentials when judge validation fails", async () => {

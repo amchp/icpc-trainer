@@ -4,7 +4,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Judge, JudgeContest, JudgeSubmission } from "../judges.js";
+import type { Judge, JudgeSubmission } from "../judges.js";
 import {
   createJudgeSyncRunner,
   emptySummary,
@@ -12,17 +12,15 @@ import {
   getSyncUsers,
   providerJudge,
   runJudgeOperation,
+  syncContest,
   syncOperationErrorEvent,
   syncUserSubmissions,
-  upsertContest,
-  upsertContestProblems,
   type EmitSyncEvent,
   type SyncOperationError,
   type SyncUser
 } from "./sync.js";
 
 const { contests } = schema;
-const MIN_UNIQUE_SUBMITTED_PROBLEMS_FOR_CONTEST_SYNC = 2;
 
 interface QojUserSyncData {
   readonly user: SyncUser;
@@ -80,42 +78,6 @@ const syncedQojContestIds = (
   return new Set(rows.map((row) => row.judgeId));
 };
 
-const countSubmittedContestProblems = (
-  contest: JudgeContest,
-  submittedProblemIds: ReadonlySet<string>
-): number =>
-  new Set(
-    contest.problems
-      .map((problem) => problem.judgeId)
-      .filter((problemId) => submittedProblemIds.has(problemId))
-  ).size;
-
-const syncQojContestIfEligible = (
-  database: DatabaseService,
-  provider: JudgeSyncInput["provider"],
-  judgeId: ReturnType<typeof providerJudge>,
-  judge: Judge,
-  contestJudgeId: string,
-  submittedProblemIds: ReadonlySet<string>
-): Effect.Effect<number | undefined, SyncOperationError> =>
-  Effect.gen(function* () {
-    const contestContext = {
-      provider,
-      phase: "contests" as const,
-      step: "contests" as const,
-      action: `contest ${contestJudgeId}`,
-      contestJudgeId
-    };
-    const contest = yield* runJudgeOperation(database, contestContext, judge.getContest(contestJudgeId));
-
-    if (countSubmittedContestProblems(contest, submittedProblemIds) < MIN_UNIQUE_SUBMITTED_PROBLEMS_FOR_CONTEST_SYNC) {
-      return undefined;
-    }
-
-    const contestId = yield* upsertContest(database, judgeId, contest, contestContext);
-    return yield* upsertContestProblems(database, judgeId, contest, contestId, contestContext);
-  });
-
 const runQojSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
@@ -137,7 +99,6 @@ const runQojSyncProgram = (
 
     const syncUsers = syncUsersResult.right;
     const contestsToSync = new Set<string>();
-    const submittedProblemIds = new Set<string>();
     const userSyncData: QojUserSyncData[] = [];
     let completedSteps = 0;
     let stepsTotal = syncUsers.length;
@@ -151,11 +112,46 @@ const runQojSyncProgram = (
       stepsLeft: 0
     });
 
-    for (const user of syncUsers) {
+    yield* emit({
+      type: "submissions.syncing",
+      step: "submissions",
+      provider,
+      usersTotal: syncUsers.length,
+      stepsTotal,
+      stepsLeft: stepsLeft()
+    });
+
+    for (const [index, user] of syncUsers.entries()) {
+      yield* emit({
+        type: "submissions.userSyncing",
+        step: "submissions",
+        provider,
+        userHandle: user.username,
+        userIndex: index + 1,
+        usersTotal: syncUsers.length,
+        stepsTotal,
+        stepsLeft: stepsLeft()
+      });
+
+      let fetched = 0;
       const userContestsResult = yield* Effect.either(getUserContestIds(database, provider, judge, user));
       if (userContestsResult._tag === "Left") {
         summary.errors += 1;
         yield* emit(syncOperationErrorEvent(userContestsResult.left, stepsTotal, stepsLeft()));
+        completedSteps += 1;
+        yield* emit({
+          type: "submissions.userSynced",
+          step: "submissions",
+          provider,
+          userHandle: user.username,
+          fetched,
+          inserted: 0,
+          updated: 0,
+          skipped: 0,
+          missingProblems: 0,
+          stepsTotal,
+          stepsLeft: stepsLeft()
+        });
         continue;
       }
 
@@ -167,13 +163,39 @@ const runQojSyncProgram = (
       if (userSubmissionsResult._tag === "Left") {
         summary.errors += 1;
         yield* emit(syncOperationErrorEvent(userSubmissionsResult.left, stepsTotal, stepsLeft()));
+        completedSteps += 1;
+        yield* emit({
+          type: "submissions.userSynced",
+          step: "submissions",
+          provider,
+          userHandle: user.username,
+          fetched,
+          inserted: 0,
+          updated: 0,
+          skipped: 0,
+          missingProblems: 0,
+          stepsTotal,
+          stepsLeft: stepsLeft()
+        });
         continue;
       }
 
+      fetched = userSubmissionsResult.right.length;
       userSyncData.push({ user, submissions: userSubmissionsResult.right });
-      for (const submission of userSubmissionsResult.right) {
-        submittedProblemIds.add(submission.judgeProblemId);
-      }
+      completedSteps += 1;
+      yield* emit({
+        type: "submissions.userSynced",
+        step: "submissions",
+        provider,
+        userHandle: user.username,
+        fetched,
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        missingProblems: 0,
+        stepsTotal,
+        stepsLeft: stepsLeft()
+      });
     }
 
     const discoveredContestIds = [...contestsToSync].sort((left, right) => Number(left) - Number(right));
@@ -206,9 +228,7 @@ const runQojSyncProgram = (
         stepsLeft: stepsLeft()
       });
 
-      const contestSyncResult = yield* Effect.either(
-        syncQojContestIfEligible(database, provider, judgeId, judge, contestJudgeId, submittedProblemIds)
-      );
+      const contestSyncResult = yield* Effect.either(syncContest(database, provider, judgeId, judge, contestJudgeId));
       completedSteps += 1;
 
       if (contestSyncResult._tag === "Left") {
@@ -217,18 +237,16 @@ const runQojSyncProgram = (
         continue;
       }
 
-      if (contestSyncResult.right !== undefined) {
-        summary.contestsSynced += 1;
-        yield* emit({
-          type: "contests.contestSynced",
-          step: "contests",
-          provider,
-          contestJudgeId,
-          problemsSynced: contestSyncResult.right,
-          stepsTotal,
-          stepsLeft: stepsLeft()
-        });
-      }
+      summary.contestsSynced += 1;
+      yield* emit({
+        type: "contests.contestSynced",
+        step: "contests",
+        provider,
+        contestJudgeId,
+        problemsSynced: contestSyncResult.right,
+        stepsTotal,
+        stepsLeft: stepsLeft()
+      });
     }
 
     completedSteps = 0;
