@@ -10,9 +10,15 @@ import {
 import { DatabaseServiceTag, type DatabaseService } from "@icpc-trainer/db";
 import { Effect } from "effect";
 
-import { makeCodeforcesJudge } from "../judges/codeforces.js";
+import {
+  makeCodeforcesCredentialValidator,
+  makeCodeforcesPlaygroundClient
+} from "../judges/codeforces.js";
 import type { JudgeAuthenticationInput, JudgeError } from "../judges/judges.js";
-import { makeQojJudge } from "../judges/qoj.js";
+import {
+  makeQojCredentialValidator,
+  makeQojPlaygroundClient
+} from "../judges/qoj.js";
 
 const requiredInput = (value: string | undefined, label: string): string => {
   if (value === undefined || value.trim() === "") {
@@ -128,8 +134,8 @@ export const createJudgePlayground = (database: DatabaseService): JudgePlaygroun
   return {
     run: async (input) => {
       const judge = input.provider === "codeforces"
-        ? makeCodeforcesJudge()
-        : makeQojJudge();
+        ? makeCodeforcesPlaygroundClient()
+        : makeQojPlaygroundClient();
 
       if (input.operation === "contests") {
         return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
@@ -191,10 +197,10 @@ const toJudgeAuthenticationInput = (input: SaveCredentialsInput): JudgeAuthentic
 
 export const createJudgeCredentialValidation = (database: DatabaseService): JudgeCredentialValidationService => ({
   validateCredentials: async (input) => {
-    const judge = input.provider === "codeforces"
-      ? makeCodeforcesJudge()
-      : makeQojJudge();
-    const effect = judge.validateAuthentication(toJudgeAuthenticationInput(input));
+    const validator = input.provider === "codeforces"
+      ? makeCodeforcesCredentialValidator()
+      : makeQojCredentialValidator();
+    const effect = validator.validateAuthentication(toJudgeAuthenticationInput(input));
 
     await Effect.runPromise(
       Effect.provideService(effect, DatabaseServiceTag, database).pipe(

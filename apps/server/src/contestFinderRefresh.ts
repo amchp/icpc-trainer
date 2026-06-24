@@ -134,7 +134,7 @@ export const createContestFinderRefreshService = (
 
     try {
       const result = await Effect.runPromise(
-        judge.refreshContestFinder({
+        judge.findContest({
           friends,
           emit: (event) => Effect.sync(() => publish(provider, event))
         }).pipe(

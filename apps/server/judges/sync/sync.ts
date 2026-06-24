@@ -11,7 +11,7 @@ import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Data, Effect } from "effect";
 
-import type { Judge, JudgeContest, JudgeError, JudgeSubmission } from "../judges.js";
+import type { Judge, JudgeContest, JudgeError, JudgePlaygroundClient, JudgeSubmission } from "../judges.js";
 import { createAsyncEventHub, type AsyncEventHub } from "../../src/asyncEventHub.js";
 import { upsertExistingContestParticipations } from "../contestParticipation.js";
 import { estimateProblemRating, estimateSolvePercentage } from "./problemRating.js";
@@ -537,7 +537,7 @@ export const syncUserSubmissions = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
   judgeId: JUDGES,
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   user: SyncUser,
   options: {
     readonly queueMissingSubmissions: boolean;
@@ -626,7 +626,7 @@ export const syncContest = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
   judgeId: JUDGES,
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   contestJudgeId: string
 ): Effect.Effect<number, SyncOperationError> =>
   Effect.gen(function* () {
@@ -762,12 +762,8 @@ export const createJudgeSyncService = (
       }
 
       await Effect.runPromise(
-        syncContest(
-          database,
-          input.provider,
-          providerJudge(input.provider),
-          judge,
-          input.contestJudgeId
+        judge.refetchContest(input).pipe(
+          Effect.provideService(DatabaseServiceTag, database)
         )
       );
     },

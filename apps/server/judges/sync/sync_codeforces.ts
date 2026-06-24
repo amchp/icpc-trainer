@@ -4,7 +4,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Judge, JudgeRegularCatalogContest, JudgeRegularCatalogProblem } from "../judges.js";
+import type { JudgePlaygroundClient, JudgeRegularCatalogContest, JudgeRegularCatalogProblem } from "../judges.js";
 import { isNormalRegularCodeforcesContestName } from "../codeforces.js";
 import {
   createJudgeSyncRunner,
@@ -282,7 +282,7 @@ const retryPendingSubmission = (
 const runCodeforcesSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   emit: EmitSyncEvent
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
@@ -608,7 +608,7 @@ const runCodeforcesSyncProgram = (
 export async function* createCodeforcesJudgeSync(
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: Judge
+  judge: JudgePlaygroundClient
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
     runCodeforcesSyncProgram(database, input, judge, emit)

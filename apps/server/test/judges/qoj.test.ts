@@ -7,7 +7,10 @@ import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { makeQojJudge } from "../../judges/qoj.js";
+import {
+  makeQojCredentialValidator,
+  makeQojPlaygroundClient
+} from "../../judges/qoj.js";
 
 const fixturesDir = join(import.meta.dirname, "../fixtures/qoj");
 
@@ -151,7 +154,7 @@ describe("QOJ judge HTML fixtures", () => {
   };
 
   it("parses contest metadata and problems from copied QOJ contest HTML", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     const contest = await runWithQojAuth(judge.getContest("https://qoj.ac/contest/1113"));
 
@@ -188,7 +191,7 @@ describe("QOJ judge HTML fixtures", () => {
 
   it("rates QOJ World Finals contests as five stars", async () => {
     routes.set("/contest/2000", minimalContestHtml("2000", 1, "The 2024 ICPC World Finals"));
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     const contest = await runWithQojAuth(judge.getContest("2000"));
 
@@ -206,7 +209,7 @@ describe("QOJ judge HTML fixtures", () => {
     ["2005", "Random Training Contest"]
   ])("rates non-World-Finals QOJ contests as four stars: %s", async (contestId, name) => {
     routes.set(`/contest/${contestId}`, minimalContestHtml(contestId, 1, name));
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     const contest = await runWithQojAuth(judge.getContest(contestId));
 
@@ -218,7 +221,7 @@ describe("QOJ judge HTML fixtures", () => {
 
   it("keeps default QOJ stars when external results are unavailable", async () => {
     routes.set("/contest/2006", minimalContestHtml("2006", 5, "Normal QOJ Contest"));
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     const contest = await runWithQojAuth(judge.getContest("2006"));
 
@@ -227,13 +230,13 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("accepts an existing profile fixture", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
   });
 
   it("parses QOJ submissions with database-matchable problem ids", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getSubmissions({ userHandle: " juancs " }))).resolves.toContainEqual(
       {
@@ -247,7 +250,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("parses tried QOJ profile problems as non-accepted submissions", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getSubmissions({ userHandle: "juancs" }))).resolves.toContainEqual(
       {
@@ -261,7 +264,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("parses virtual contests from the QOJ profile page", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getContests({ userHandle: "juancs" }))).resolves.toEqual([
       expect.objectContaining({
@@ -315,7 +318,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("parses the public QOJ contest catalog when no user handle is provided", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getContests())).resolves.toEqual(
       expect.arrayContaining([
@@ -332,7 +335,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("rejects login-required profile HTML instead of treating it as a user", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(Effect.flip(judge.getUser("private")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
@@ -341,14 +344,14 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("sends QOJ cookie authentication when supplied", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getUser("empty"))).resolves.toEqual({ handle: "empty" });
     expect(lastCookieHeader).toBe(qojCookieJar);
   });
 
   it("validates QOJ credentials by loading the submitted profile page", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojCredentialValidator(baseUrl);
 
     await expect(runWithQojAuth(judge.validateAuthentication({
       provider: "qoj",
@@ -363,7 +366,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("rejects QOJ validation when the profile page requires login", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojCredentialValidator(baseUrl);
 
     await expect(runWithQojAuth(Effect.flip(judge.validateAuthentication({
       provider: "qoj",
@@ -378,7 +381,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("does not classify successful Cloudflare-looking HTML before parsing", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(judge.getUser("cloudflare"))).resolves.toEqual({
       handle: "cloudflare"
@@ -387,7 +390,7 @@ describe("QOJ judge HTML fixtures", () => {
 
   it("returns status and response text for blocked HTTP responses", async () => {
     routes.set("/user/profile/cloudflare-http", fixture("blocked-cloudflare.html"));
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(
       runWithQojAuth(Effect.flip(judge.getUser("cloudflare-http")))
@@ -398,7 +401,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("returns status and response text for current Cloudflare JavaScript challenge pages", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(Effect.flip(judge.getUser("cloudflare-js")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
@@ -407,7 +410,7 @@ describe("QOJ judge HTML fixtures", () => {
   });
 
   it("returns a credential error for HTTP login-required pages with details", async () => {
-    const judge = makeQojJudge(baseUrl);
+    const judge = makeQojPlaygroundClient(baseUrl);
 
     await expect(runWithQojAuth(Effect.flip(judge.getContest("login")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",

@@ -4,7 +4,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Judge, JudgePreviewContest, JudgeSubmission } from "../judges.js";
+import type { JudgePlaygroundClient, JudgePreviewContest, JudgeSubmission } from "../judges.js";
 import { upsertExistingContestParticipations } from "../contestParticipation.js";
 import {
   createJudgeSyncRunner,
@@ -32,7 +32,7 @@ interface QojUserSyncData {
 const getUserContestIds = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   user: SyncUser
 ): Effect.Effect<ReadonlyArray<JudgePreviewContest>, SyncOperationError> =>
   runJudgeOperation(database, {
@@ -46,7 +46,7 @@ const getUserContestIds = (
 const getUserSubmissions = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   user: SyncUser
 ): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
   runJudgeOperation(database, {
@@ -81,7 +81,7 @@ const syncedQojContestIds = (
 const runQojSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: Judge,
+  judge: JudgePlaygroundClient,
   emit: EmitSyncEvent
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
@@ -342,7 +342,7 @@ const runQojSyncProgram = (
 export async function* createQojJudgeSync(
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: Judge
+  judge: JudgePlaygroundClient
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
     runQojSyncProgram(database, input, judge, emit)

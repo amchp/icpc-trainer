@@ -2,7 +2,13 @@
 import { Context, Data, Effect } from "effect";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import type { DatabaseServiceTag } from "@icpc-trainer/db";
-import type { ContestFinderRefreshEvent, JudgeSyncEvent, JudgeSyncInput } from "@icpc-trainer/api";
+import type {
+  ContestFinderRefreshEvent,
+  JudgeSyncEvent,
+  JudgeSyncInput,
+  RefetchContestInput
+} from "@icpc-trainer/api";
+import type { SyncOperationError } from "./sync/sync.js";
 import type { SyncUser } from "./sync/sync.js";
 
 export class JudgeNotFoundError extends Data.TaggedError("JudgeNotFoundError")<{
@@ -116,9 +122,21 @@ export type JudgeAuthenticationInput =
 
 export interface Judge {
   readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+  readonly findContest: (
+    input: RefreshContestFinderInput,
+  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, DatabaseServiceTag>;
+  readonly refetchContest: (
+    input: RefetchContestInput,
+  ) => Effect.Effect<void, JudgeError | SyncOperationError, DatabaseServiceTag>;
+}
+
+export interface JudgeCredentialValidator {
   readonly validateAuthentication: (
     input: JudgeAuthenticationInput,
   ) => Effect.Effect<void, JudgeError, DatabaseServiceTag>;
+}
+
+export interface JudgePlaygroundClient {
   readonly getContests: (
     options?: GetContestsOptions,
   ) => Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;
@@ -129,9 +147,6 @@ export interface Judge {
   ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, JudgeError, DatabaseServiceTag>;
   readonly getRegularContests?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, JudgeError, DatabaseServiceTag>;
   readonly getRegularProblems?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, JudgeError, DatabaseServiceTag>;
-  readonly refreshContestFinder: (
-    input: RefreshContestFinderInput,
-  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, DatabaseServiceTag>;
 }
 
 export class JudgeTag extends Context.Tag("@icpc-trainer/server/Judge")<

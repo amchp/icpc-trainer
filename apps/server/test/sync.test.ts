@@ -6,7 +6,12 @@ import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
-import { JudgeAPIError, type Judge } from "../judges/judges.js";
+import {
+  JudgeAPIError,
+  type Judge,
+  type JudgePlaygroundClient,
+  type RefreshContestFinderResult
+} from "../judges/judges.js";
 import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
@@ -72,7 +77,7 @@ const withDatabase = async <A>(
 const codeforcesResponse = (result: unknown): Response =>
   jsonResponse({ status: "OK", result });
 
-type TestJudge = Omit<Judge, "sync">;
+type TestJudge = JudgePlaygroundClient;
 
 const withTestSync = (
   database: DatabaseService,
@@ -85,10 +90,14 @@ const withTestSync = (
 
   let syncedJudge: Judge;
   syncedJudge = {
-    ...judge,
     sync: (input) => provider === "codeforces"
-      ? createCodeforcesJudgeSync(database, input, syncedJudge)
-      : createQojJudgeSync(database, input, syncedJudge)
+      ? createCodeforcesJudgeSync(database, input, judge)
+      : createQojJudgeSync(database, input, judge),
+    findContest: () => Effect.succeed({
+      contestsUpserted: 0,
+      friendsProcessed: 0
+    } satisfies RefreshContestFinderResult),
+    refetchContest: () => Effect.void
   };
 
   return syncedJudge;
@@ -170,17 +179,11 @@ describe("createJudgeSyncService", () => {
         });
         yield completed;
       },
-      validateAuthentication: () => Effect.void,
-      getContests: () => Effect.succeed([]),
-      getContest: (contestId) => Effect.succeed({
-        judgeId: contestId,
-        name: `Contest ${contestId}`,
-        participants: 0,
-        problems: [],
-        stars: 0
+      findContest: () => Effect.succeed({
+        contestsUpserted: 0,
+        friendsProcessed: 0
       }),
-      getUser: (handle) => Effect.succeed({ handle }),
-      getSubmissions: () => Effect.succeed([])
+      refetchContest: () => Effect.void
     };
 
     const service = createJudgeSyncService({ codeforces: judge });
@@ -899,7 +902,7 @@ describe("createJudgeSyncService", () => {
       }
 
       await Effect.runPromise(
-        makeCodeforcesJudge(database).refreshContestFinder({ friends: [friend] }).pipe(
+        makeCodeforcesJudge(database).findContest({ friends: [friend] }).pipe(
           Effect.provideService(DatabaseServiceTag, database)
         )
       );

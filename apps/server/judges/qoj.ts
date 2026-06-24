@@ -9,9 +9,11 @@ import {
   type GetContestsOptions,
   type GetSubmissionsOptions,
   type Judge,
+  type JudgeCredentialValidator,
   type JudgeAuthenticationInput,
   type JudgeContest,
   type JudgeError,
+  type JudgePlaygroundClient,
   type JudgePreviewContest,
   type JudgeSubmission,
   JudgeAPIError,
@@ -27,8 +29,8 @@ import {
   upsertContestFinderCatalog,
   upsertContestFinderParticipations
 } from "./contestFinder.js";
-import { notImplementedJudgeSync } from "./sync/sync.js";
 import { createQojJudgeSync } from "./sync/sync_qoj.js";
+import { notImplementedJudgeSync, syncContest } from "./sync/sync.js";
 
 const QOJ_BASE_URL = "https://qoj.ac";
 const USER_AGENT = "icpc-trainer-v2-qoj-sync/1.0";
@@ -604,9 +606,8 @@ const validateQojAuthentication = (
   );
 };
 
-export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService): Judge => {
+export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL): JudgePlaygroundClient => {
   const requestQoj = createQojRequester(baseUrl);
-  let judge: Judge;
   const requestProfile = (
     options?: GetContestsOptions | GetSubmissionsOptions
   ): Effect.Effect<string, JudgeError, DatabaseServiceTag> =>
@@ -629,9 +630,7 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
       return yield* requestQoj(`/user/profile/${encodeURIComponent(handle)}`);
     });
 
-  judge = {
-    validateAuthentication: (input) => validateQojAuthentication(input, baseUrl),
-
+  return {
     getContests: (options?: GetContestsOptions) =>
       options?.userHandle !== undefined && options.userHandle.trim() !== ""
         ? requestProfile(options).pipe(Effect.map(parseProfileContestList))
@@ -697,8 +696,18 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
 
       return requestProfile(options).pipe(Effect.map(parseProfileSubmissions));
     },
+  };
+};
 
-    refreshContestFinder: (input) => database === undefined
+export const makeQojCredentialValidator = (baseUrl = QOJ_BASE_URL): JudgeCredentialValidator => ({
+  validateAuthentication: (input) => validateQojAuthentication(input, baseUrl)
+});
+
+export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService): Judge => {
+  const client = makeQojPlaygroundClient(baseUrl);
+
+  return {
+    findContest: (input) => database === undefined
       ? Effect.succeed(emptyContestFinderRefresh())
       : Effect.gen(function* () {
           const emit = input.emit ?? (() => Effect.void);
@@ -718,7 +727,7 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
             stepsTotal,
             stepsLeft: stepsTotal - stepsDone
           });
-          const catalog = yield* judge.getContests();
+          const catalog = yield* client.getContests();
           const contestsUpserted = yield* upsertContestFinderCatalog(
             database,
             "qoj",
@@ -757,7 +766,7 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
               stepsTotal,
               stepsLeft: stepsTotal - stepsDone
             });
-            const contests = yield* judge.getContests({ userHandle: friend.username });
+            const contests = yield* client.getContests({ userHandle: friend.username });
             yield* upsertContestFinderParticipations(
               database,
               "qoj",
@@ -787,12 +796,16 @@ export const makeQojJudge = (baseUrl = QOJ_BASE_URL, database?: DatabaseService)
           };
         }),
 
+    refetchContest: (input) => database === undefined
+      ? Effect.void
+      : syncContest(database, input.provider, JUDGES.Qoj, client, input.contestJudgeId).pipe(
+        Effect.asVoid
+      ),
+
     sync: database === undefined
       ? notImplementedJudgeSync
-      : (input) => createQojJudgeSync(database, input, judge)
+      : (input) => createQojJudgeSync(database, input, client)
   };
-
-  return judge;
 };
 
 const isMissingPage = (html: string): boolean =>
