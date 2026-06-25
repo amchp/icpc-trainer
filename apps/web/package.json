@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
     "dev:open": "vite --host 127.0.0.1 --port 5173 --open",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "typecheck": "tsc -b",
     "test": "vitest run",
