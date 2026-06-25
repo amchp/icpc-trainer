@@ -1,4 +1,8 @@
 node_modules
+.env
+.env.*
+!.env.example
+!.env.*.example
 dist
 dist-electron
 .local
@@ -6,4 +10,5 @@ dist-electron
 coverage
 test-results
 playwright-report
+apps/web/playwright/.clerk
 *.tsbuildinfo

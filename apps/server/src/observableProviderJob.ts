@@ -88,10 +88,14 @@ export const createObservableProviderJobRegistry = <Provider extends string, Eve
   const publishEvent = (job: ObservableProviderJob<State>, event: Event): void => {
     publishProviderJobState(job, reduce(job.latest, event));
   };
+  const jobFor = (provider: Provider): ObservableProviderJob<State> => {
+    jobs[provider] ??= createObservableProviderJob(initialState(provider));
+    return jobs[provider];
+  };
 
   return {
     start: (provider, initialRunningState, run, onError) => {
-      const job = jobs[provider];
+      const job = jobFor(provider);
       return startObservableProviderJob<State>(
         job,
         initialRunningState,
@@ -107,6 +111,6 @@ export const createObservableProviderJobRegistry = <Provider extends string, Eve
             }
       );
     },
-    observe: (provider) => observeProviderJob(jobs[provider])
+    observe: (provider) => observeProviderJob(jobFor(provider))
   };
 };

@@ -10,6 +10,7 @@ import {
   JudgeUnavailableError
 } from "../judges/judges.js";
 import { createJudgePlayground, formatJudgeError, toPlaygroundError } from "../src/playground.js";
+import { createTestAppUser } from "./testAppUser.js";
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -87,10 +88,12 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       return yield* Effect.promise(() =>
         createJudgePlayground(database).run({
           provider: "codeforces",
           operation: "user",
+          appUserId: appUser.id,
           userHandle: "tourist"
         })
       );
@@ -121,8 +124,10 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           ...createJudgePlayground(database),
           validateCredentials: async () => undefined
@@ -144,6 +149,7 @@ describe("createJudgePlayground", () => {
         createJudgePlayground(database).run({
           provider: "codeforces",
           operation: "user",
+          appUserId: appUser.id,
           userHandle: "tourist"
         })
       );
@@ -170,8 +176,10 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           ...createJudgePlayground(database),
           validateCredentials: async () => undefined
@@ -193,6 +201,7 @@ describe("createJudgePlayground", () => {
         createJudgePlayground(database).run({
           provider: "codeforces",
           operation: "user",
+          appUserId: appUser.id,
           userHandle: "tourist"
         })
       );

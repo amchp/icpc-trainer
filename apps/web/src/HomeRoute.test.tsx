@@ -232,6 +232,10 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigateMock
 }));
 
+vi.mock("@clerk/clerk-react", () => ({
+  UserButton: () => <button type="button" aria-label="User account" />
+}));
+
 vi.mock("./trpc", () => ({
   trpc: {
     account: {

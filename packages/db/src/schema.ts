@@ -1,4 +1,5 @@
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const enumValues = <T extends Record<string, string>>(values: T): [T[keyof T], ...T[keyof T][]] =>
@@ -14,15 +15,36 @@ export const healthChecks = sqliteTable("health_checks", {
   ...timestamps
 });
 
+export const appUsers = sqliteTable("app_users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  clerkUserId: text("clerk_user_id").notNull(),
+  primaryEmail: text("primary_email"),
+  displayName: text("display_name"),
+  imageUrl: text("image_url"),
+  ...timestamps
+}, (table) => [
+  uniqueIndex("app_users_clerk_user_id_unique").on(table.clerkUserId)
+]);
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull(),
-  type: text("type", { enum: enumValues(USER_TYPES) }).notNull(),
   judge: text("judge", { enum: enumValues(JUDGES) }).notNull(),
   ...timestamps
 }, (table) => [
-  uniqueIndex("users_username_judge_unique").on(table.username, table.judge),
-  index("users_type_id_idx").on(table.type, table.id)
+  uniqueIndex("users_username_judge_unique").on(sql`lower(${table.username})`, table.judge),
+  index("users_judge_id_idx").on(table.judge, table.id)
+]);
+
+export const appUserJudgeUsers = sqliteTable("app_user_judge_users", {
+  appUserId: integer("app_user_id").references(() => appUsers.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  role: text("role", { enum: enumValues(USER_TYPES) }).notNull(),
+  ...timestamps
+}, (table) => [
+  primaryKey({ columns: [table.appUserId, table.userId] }),
+  index("app_user_judge_users_app_role_idx").on(table.appUserId, table.role),
+  index("app_user_judge_users_user_idx").on(table.userId)
 ]);
 
 export const contests = sqliteTable("contests", {
@@ -33,12 +55,11 @@ export const contests = sqliteTable("contests", {
   link: text("link").notNull(),
   participants: integer("participants"),
   stars: integer("stars"),
-  simulated: integer("simulated", { mode: "boolean" }).notNull(),
   ...timestamps
 }, (table) => [
   uniqueIndex("contests_judge_id_judge_unique").on(table.judgeId, table.judge),
-  index("contests_judge_synced_idx").on(table.judge, table.simulated),
-  index("contests_synced_updated_name_idx").on(table.simulated, table.updatedAt, table.name),
+  index("contests_judge_idx").on(table.judge),
+  index("contests_updated_name_idx").on(table.updatedAt, table.name),
   index("contests_name_idx").on(table.name)
 ]);
 
@@ -89,16 +110,20 @@ export const userContestStates = sqliteTable("user_contest_states", {
   contestId: integer("contest_id").references(() => contests.id).notNull(),
   submissionCount: integer("submission_count").notNull(),
   acceptedCount: integer("accepted_count").notNull(),
+  distinctProblemCount: integer("distinct_problem_count").notNull().default(0),
+  simulated: integer("simulated", { mode: "boolean" }).notNull().default(false),
   lastSubmissionAt: integer("last_submission_at", { mode: "timestamp_ms" }),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull()
 }, (table) => [
   primaryKey({ columns: [table.userId, table.contestId] }),
-  index("user_contest_states_contest_user_idx").on(table.contestId, table.userId),
+  index("user_contest_states_contest_simulated_idx").on(table.contestId, table.simulated),
+  index("user_contest_states_user_simulated_idx").on(table.userId, table.simulated),
   index("user_contest_states_user_submission_idx").on(table.userId, table.submissionCount)
 ]);
 
 export const providerCredentials = sqliteTable("provider_credentials", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  appUserId: integer("app_user_id").references(() => appUsers.id).notNull(),
   provider: text("provider").notNull(),
   providerUserKey: text("provider_user_key").notNull(),
   credentialType: text("credential_type").notNull(),
@@ -107,6 +132,7 @@ export const providerCredentials = sqliteTable("provider_credentials", {
   ...timestamps
 }, (table) => [
   uniqueIndex("provider_credentials_provider_user_type_unique").on(
+    table.appUserId,
     table.provider,
     table.providerUserKey,
     table.credentialType
@@ -115,7 +141,9 @@ export const providerCredentials = sqliteTable("provider_credentials", {
 
 export const schema = {
   healthChecks,
+  appUsers,
   users,
+  appUserJudgeUsers,
   contests,
   problems,
   problemTags,

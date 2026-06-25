@@ -1,4 +1,5 @@
 import {
+  AppUserIdTag,
   clearStoredCredentials,
   type JudgeCredentialValidationService,
   type JudgePlaygroundService,
@@ -107,7 +108,7 @@ export const toPlaygroundError = (error: JudgeError): PlaygroundError => {
 
 const toPlaygroundResult = async <T>(
   database: DatabaseService,
-  input: PlaygroundInput,
+  input: PlaygroundInput & { readonly appUserId: number },
   effect: Effect.Effect<T, JudgeError, never>
 ): Promise<PlaygroundResult> =>
   Effect.runPromise(
@@ -115,7 +116,7 @@ const toPlaygroundResult = async <T>(
       Effect.match({
         onFailure: (error) => {
           if (error._tag === "JudgeCredentialError") {
-            clearStoredCredentials({ database }, input.provider);
+            clearStoredCredentials({ database, appUserId: input.appUserId }, input.provider);
           }
 
           return { ok: false as const, error: toPlaygroundError(error) };
@@ -127,16 +128,19 @@ const toPlaygroundResult = async <T>(
 
 const runPlaygroundEffect = async <T>(
   database: DatabaseService,
-  input: PlaygroundInput,
-  effect: Effect.Effect<T, JudgeError, DatabaseServiceTag>,
+  input: PlaygroundInput & { readonly appUserId: number },
+  effect: Effect.Effect<T, JudgeError, DatabaseServiceTag | AppUserIdTag>,
 ): Promise<PlaygroundResult> => {
-  const provided = Effect.provideService(effect, DatabaseServiceTag, database);
+  const provided = effect.pipe(
+    Effect.provideService(DatabaseServiceTag, database),
+    Effect.provideService(AppUserIdTag, input.appUserId)
+  );
   return await toPlaygroundResult(database, input, provided);
 };
 
 const runCodeforcesPlayground = async (
   database: DatabaseService,
-  input: PlaygroundInput
+  input: PlaygroundInput & { readonly appUserId: number }
 ): Promise<PlaygroundResult> => {
   if (input.operation === "contests") {
     return await runPlaygroundEffect(database, input, getCodeforcesContests({ userHandle: input.userHandle }));
@@ -167,7 +171,7 @@ const runCodeforcesPlayground = async (
 
 const runQojPlayground = async (
   database: DatabaseService,
-  input: PlaygroundInput
+  input: PlaygroundInput & { readonly appUserId: number }
 ): Promise<PlaygroundResult> => {
   const judge = makeQojPlaygroundClient();
 

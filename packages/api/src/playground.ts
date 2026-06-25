@@ -8,6 +8,7 @@ import {
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import { judgeProviderSchema } from "./judgeProvider.js";
 
 const optionalTrimmedString = z.preprocess(
@@ -23,11 +24,14 @@ export const playgroundInputSchema = z.object({
 });
 
 export type PlaygroundInput = z.infer<typeof playgroundInputSchema>;
+export type AppScopedPlaygroundInput = PlaygroundInput & {
+  readonly appUserId: number;
+};
 export type PlaygroundProvider = PlaygroundInput["provider"];
 export type { PlaygroundOperation };
 
 export interface JudgePlaygroundService {
-  readonly run: (input: PlaygroundInput) => Promise<PlaygroundResult>;
+  readonly run: (input: AppScopedPlaygroundInput) => Promise<PlaygroundResult>;
 }
 
 export type PlaygroundResult =
@@ -59,8 +63,9 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 export const createPlaygroundRouter = (t: TrpcInstance) =>
   t.router({
     run: t.procedure.input(playgroundInputSchema).mutation(async ({ ctx, input }) => {
+      const appUser = requireAppUser(ctx.appUser);
       try {
-        return await ctx.judges.run(input);
+        return await ctx.judges.run({ ...input, appUserId: appUser.id });
       } catch (error) {
         throw new TRPCError({
           code: "BAD_REQUEST",

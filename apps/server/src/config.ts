@@ -2,22 +2,20 @@ import { resolveDatabasePath } from "@icpc-trainer/db";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { loadEnvFile } from "node:process";
 
 export interface ServerConfig {
   readonly host: string;
   readonly port: number;
   readonly databasePath: string;
-  readonly codeforces: CodeforcesAuthConfig;
-  readonly qoj: QojAuthConfig;
+  readonly clerk: ClerkAuthConfig;
 }
 
-export interface CodeforcesAuthConfig {
-  readonly apiKey?: string;
-  readonly apiSecret?: string;
-}
-
-export interface QojAuthConfig {
-  readonly cookieJar?: string;
+export interface ClerkAuthConfig {
+  readonly secretKey?: string;
+  readonly publishableKey?: string;
+  readonly jwtKey?: string;
+  readonly authorizedParties: readonly string[];
 }
 
 const parsePort = (value: string | undefined): number => {
@@ -31,6 +29,18 @@ const parsePort = (value: string | undefined): number => {
 const readOptional = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim();
   return trimmed === undefined || trimmed === "" ? undefined : trimmed;
+};
+
+const loadLocalEnvFiles = (): void => {
+  for (const file of ["../../.env.local", "../../.env", ".env.local", ".env"]) {
+    try {
+      if (existsSync(file)) {
+        loadEnvFile(file);
+      }
+    } catch {
+      // Ignore malformed local env files here; required values still fail through config consumers.
+    }
+  }
 };
 
 const ensureCredentialKey = (env: NodeJS.ProcessEnv, databasePath: string): void => {
@@ -49,23 +59,11 @@ const ensureCredentialKey = (env: NodeJS.ProcessEnv, databasePath: string): void
   env.ICPC_TRAINER_CREDENTIAL_KEY = readFileSync(keyPath, "utf8").trim();
 };
 
-const buildQojCookieJar = (env: NodeJS.ProcessEnv): string | undefined => {
-  const cookieEntries = [
-    ["uoj_remember_token", env.ICPC_TRAINER_QOJ_COOKIE_UOJ_REMEMBER_TOKEN],
-    ["uoj_remember_token_checksum", env.ICPC_TRAINER_QOJ_COOKIE_UOJ_REMEMBER_TOKEN_CHECKSUM],
-    ["uoj_username", env.ICPC_TRAINER_QOJ_COOKIE_UOJ_USERNAME],
-    ["uoj_username_checksum", env.ICPC_TRAINER_QOJ_COOKIE_UOJ_USERNAME_CHECKSUM],
-    ["uojsessid", env.ICPC_TRAINER_QOJ_COOKIE_UOJSESSID]
-  ]
-    .map(([key, value]) => [key, readOptional(value)] as const)
-    .filter((entry): entry is readonly [string, string] => entry[1] !== undefined);
-
-  return cookieEntries.length === 0
-    ? undefined
-    : cookieEntries.map(([key, value]) => `${key}=${value}`).join("; ");
-};
-
 export const loadServerConfig = (env: NodeJS.ProcessEnv = process.env): ServerConfig => {
+  if (env === process.env) {
+    loadLocalEnvFiles();
+  }
+
   const databasePath = resolveDatabasePath(env.ICPC_TRAINER_SQLITE_PATH ?? env.ICPC_TRAINER_DATABASE_URL);
   if (env === process.env) {
     ensureCredentialKey(env, databasePath);
@@ -75,12 +73,14 @@ export const loadServerConfig = (env: NodeJS.ProcessEnv = process.env): ServerCo
     host: env.ICPC_TRAINER_HOST?.trim() || "127.0.0.1",
     port: parsePort(env.ICPC_TRAINER_PORT),
     databasePath,
-    codeforces: {
-      apiKey: readOptional(env.ICPC_TRAINER_CODEFORCES_API_KEY),
-      apiSecret: readOptional(env.ICPC_TRAINER_CODEFORCES_API_SECRET)
-    },
-    qoj: {
-      cookieJar: buildQojCookieJar(env)
+    clerk: {
+      secretKey: readOptional(env.CLERK_SECRET_KEY),
+      publishableKey: readOptional(env.CLERK_PUBLISHABLE_KEY),
+      jwtKey: readOptional(env.CLERK_JWT_KEY),
+      authorizedParties: readOptional(env.CLERK_ALLOWED_ORIGINS)
+        ?.split(",")
+        .map((origin) => origin.trim())
+        .filter((origin) => origin !== "") ?? []
     }
   };
 };

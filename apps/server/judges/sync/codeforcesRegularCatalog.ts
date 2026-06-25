@@ -124,7 +124,6 @@ export const upsertCodeforcesRegularCatalog = (
                 link,
                 participants: existingContest?.participants ?? null,
                 stars,
-                simulated: true,
                 createdAt: timestamp,
                 updatedAt: timestamp
               })
@@ -135,7 +134,6 @@ export const upsertCodeforcesRegularCatalog = (
                   link,
                   participants: existingContest?.participants ?? null,
                   stars,
-                  simulated: true,
                   updatedAt: timestamp
                 }
               })

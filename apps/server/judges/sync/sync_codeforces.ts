@@ -1,4 +1,6 @@
 import {
+  AppUserIdTag,
+  type AppScopedJudgeSyncInput,
   type JudgeSyncEvent,
   type JudgeSyncInput,
   JudgeSyncStep,
@@ -51,12 +53,12 @@ const CODEFORCES_GYM_CONTEST_URL = "https://codeforces.com/gym";
 const CODEFORCES_REGULAR_CONTEST_URL = "https://codeforces.com/contest";
 
 export interface CodeforcesSyncOperations {
-  readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, unknown, DatabaseServiceTag>;
+  readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, unknown, DatabaseServiceTag | AppUserIdTag>;
   readonly getSubmissions: (
     options?: { readonly userHandle: string }
-  ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, unknown, DatabaseServiceTag>;
-  readonly getRegularContests: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, unknown, DatabaseServiceTag>;
-  readonly getRegularProblems: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, unknown, DatabaseServiceTag>;
+  ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, unknown, DatabaseServiceTag | AppUserIdTag>;
+  readonly getRegularContests: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, unknown, DatabaseServiceTag | AppUserIdTag>;
+  readonly getRegularProblems: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, unknown, DatabaseServiceTag | AppUserIdTag>;
 }
 
 const isGymContestJudgeId = (contestJudgeId: string): boolean => {
@@ -104,7 +106,7 @@ const getUserSubmissions = (
   provider: JudgeSyncInput["provider"],
   operations: CodeforcesSyncOperations,
   userHandle: string
-): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
+): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError, AppUserIdTag> =>
   runJudgeOperation(database, {
     provider,
     phase: SYNC_OPERATION_PHASES.Submissions,
@@ -135,7 +137,7 @@ export const syncCodeforcesContest = (
   provider: JudgeSyncInput["provider"],
   contestJudgeId: string,
   operations: CodeforcesSyncOperations
-): Effect.Effect<number, SyncOperationError> =>
+): Effect.Effect<number, SyncOperationError, AppUserIdTag> =>
   Effect.gen(function* () {
     const contest = yield* runJudgeOperation(database, {
       provider,
@@ -150,15 +152,15 @@ export const syncCodeforcesContest = (
 
 const runCodeforcesSyncProgram = (
   database: DatabaseService,
-  input: JudgeSyncInput,
+  input: AppScopedJudgeSyncInput,
   operations: CodeforcesSyncOperations,
   emit: EmitSyncEvent
-): Effect.Effect<void> =>
+): Effect.Effect<void, never, AppUserIdTag> =>
   Effect.gen(function* () {
     const provider = input.provider;
     const judgeId = JUDGES.Codeforces;
     const summary = emptySummary();
-    const syncUsersResult = yield* Effect.either(getSyncUsers(database, judgeId, provider));
+    const syncUsersResult = yield* Effect.either(getSyncUsers(database, input.appUserId, judgeId, provider));
 
     if (syncUsersResult._tag === "Left") {
       summary.errors += 1;
@@ -474,10 +476,12 @@ const runCodeforcesSyncProgram = (
 
 export async function* createCodeforcesJudgeSync(
   database: DatabaseService,
-  input: JudgeSyncInput,
+  input: AppScopedJudgeSyncInput,
   operations: CodeforcesSyncOperations
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
-    runCodeforcesSyncProgram(database, input, operations, emit)
+    runCodeforcesSyncProgram(database, input, operations, emit).pipe(
+      Effect.provideService(AppUserIdTag, input.appUserId)
+    )
   );
 }

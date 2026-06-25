@@ -6,14 +6,13 @@ import { z } from "zod";
 import { encryptCredential } from "./credentialCrypto.js";
 import {
   clearCredentials,
-  createEncryptedCredential,
-  getLatestCredential,
   getCredentialStatus,
   saveEncryptedCredential,
   type CredentialStatus,
   type SaveCredentialsInput
 } from "./credentialRepository.js";
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import { judgeProviderSchema } from "./judgeProvider.js";
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
@@ -45,19 +44,14 @@ const validateCredentials = async (ctx: ApiContext, input: SaveCredentialsInput)
 };
 
 const publishCredentialChange = (ctx: ApiContext, status: CredentialStatus): void => {
+  const appUser = requireAppUser(ctx.appUser);
   ctx.credentialEvents?.publish({
     type: "changed",
+    appUserId: appUser.id,
     status,
     occurredAt: new Date().toISOString()
   });
 };
-
-const duplicateCredentialError = (provider: SaveCredentialsInput["provider"], cause?: unknown): TRPCError =>
-  new TRPCError({
-    code: "CONFLICT",
-    message: `${provider} credentials already exist.`,
-    cause
-  });
 
 export const saveCredentialsInputSchema = z.discriminatedUnion("provider", [
   z.object({
@@ -79,45 +73,48 @@ export const saveCredentialsInputSchema = z.discriminatedUnion("provider", [
 
 export const createCredentialsRouter = (t: TrpcInstance) =>
   t.router({
-    status: t.procedure.query(({ ctx }): CredentialStatus => getCredentialStatus(ctx)),
+    status: t.procedure.query(({ ctx }): CredentialStatus =>
+      getCredentialStatus({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id })
+    ),
     events: t.procedure.subscription(async function* ({ ctx }) {
+      const appUser = requireAppUser(ctx.appUser);
       const events = ctx.credentialEvents?.subscribe();
       yield {
         type: "snapshot" as const,
-        status: getCredentialStatus(ctx),
+        appUserId: appUser.id,
+        status: getCredentialStatus({ database: ctx.database, appUserId: appUser.id }),
         occurredAt: new Date().toISOString()
       };
 
       if (events !== undefined) {
-        yield* events;
+        for await (const event of events) {
+          if (event.appUserId === appUser.id) {
+            yield event;
+          }
+        }
       }
     }),
     create: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
-      if (getLatestCredential(ctx, input.provider) !== null) {
-        throw duplicateCredentialError(input.provider);
-      }
-
+      const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
       await validateCredentials(ctx, input);
 
-      try {
-        const status = createEncryptedCredential(ctx, input, encryptCredential(credentialPayloadFor(input)));
-        publishCredentialChange(ctx, status);
-        return status;
-      } catch (error) {
-        throw duplicateCredentialError(input.provider, error);
-      }
+      const status = saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
+      publishCredentialChange(ctx, status);
+      return status;
     }),
     save: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
+      const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
       await validateCredentials(ctx, input);
 
-      const status = saveEncryptedCredential(ctx, input, encryptCredential(credentialPayloadFor(input)));
+      const status = saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
       publishCredentialChange(ctx, status);
       return status;
     }),
     clear: t.procedure.input(judgeProviderSchema).mutation(({ ctx, input }): CredentialStatus => {
-      const status = clearCredentials(ctx, input);
+      const status = clearCredentials({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id }, input);
       ctx.credentialEvents?.publish({
         type: "changed",
+        appUserId: requireAppUser(ctx.appUser).id,
         status,
         occurredAt: new Date().toISOString()
       });

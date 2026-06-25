@@ -1,4 +1,4 @@
-import { DatabaseLive, DatabaseServiceTag, providerCredentials, users } from "@icpc-trainer/db";
+import { appUserJudgeUsers, DatabaseLive, DatabaseServiceTag, providerCredentials, users } from "@icpc-trainer/db";
 import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
@@ -8,9 +8,9 @@ import {
   appRouter,
   getStoredCodeforcesCredentials,
   getStoredQojCredentials,
-  seedStoredCredentials,
   type CredentialStatusEvent
 } from "../src/index.js";
+import { createTestAppUser } from "./testAppUser.js";
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -29,8 +29,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -58,14 +60,16 @@ describe("credentials router", () => {
     expect(stored?.encryptedPayload).not.toContain("cf-secret");
   });
 
-  it("does not overwrite existing credentials through the create-only endpoint", async () => {
+  it("upserts existing credentials through the create endpoint and attaches the entered handle", async () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -81,23 +85,23 @@ describe("credentials router", () => {
         }
       }));
 
-      const before = getStoredCodeforcesCredentials({ database });
+      const before = getStoredCodeforcesCredentials({ database, appUserId: appUser.id });
 
-      yield* Effect.promise(() =>
-        expect(caller.credentials.create({
-          provider: "codeforces",
-          providerUserKey: "tourist",
-          codeforces: {
-            apiKey: "second-key",
-            apiSecret: "second-secret"
-          }
-        })).rejects.toThrow("codeforces credentials already exist.")
-      );
+      yield* Effect.promise(() => caller.credentials.create({
+        provider: "codeforces",
+        providerUserKey: "teammate",
+        codeforces: {
+          apiKey: "second-key",
+          apiSecret: "second-secret"
+        }
+      }));
 
       return {
         before,
-        after: getStoredCodeforcesCredentials({ database }),
-        stored: database.db.select().from(providerCredentials).all()
+        after: getStoredCodeforcesCredentials({ database, appUserId: appUser.id }),
+        stored: database.db.select().from(providerCredentials).all(),
+        handles: database.db.select().from(users).all(),
+        roles: database.db.select().from(appUserJudgeUsers).all()
       };
     });
 
@@ -112,8 +116,16 @@ describe("credentials router", () => {
         apiSecret: "first-secret"
       }
     });
-    expect(result.after).toEqual(result.before);
+    expect(result.after).toEqual({
+      ok: true,
+      credentials: {
+        apiKey: "second-key",
+        apiSecret: "second-secret"
+      }
+    });
     expect(result.stored).toHaveLength(1);
+    expect(result.handles.map((user) => user.username).sort()).toEqual(["teammate", "tourist"]);
+    expect(result.roles).toHaveLength(2);
   });
 
   it("adds saved judge handles as team users without storing handles as credential keys", async () => {
@@ -122,8 +134,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -141,7 +155,8 @@ describe("credentials router", () => {
 
       const stored = database.db.select().from(providerCredentials).get();
       const user = database.db.select().from(users).where(eq(users.username, "tourist")).get();
-      return { stored, user };
+      const role = database.db.select().from(appUserJudgeUsers).get();
+      return { stored, user, role };
     });
 
     const result = await Effect.runPromise(
@@ -154,9 +169,9 @@ describe("credentials router", () => {
     });
     expect(result.user).toMatchObject({
       username: "tourist",
-      type: USER_TYPES.Team,
       judge: "codeforces"
     });
+    expect(result.role).toMatchObject({ role: USER_TYPES.Team });
   });
 
   it("allows the same team username on different judges when saving credentials", async () => {
@@ -165,8 +180,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -189,26 +206,29 @@ describe("credentials router", () => {
         }
       }));
 
-      return database.db.select().from(users).where(eq(users.username, "juancs")).all();
+      return {
+        users: database.db.select().from(users).where(eq(users.username, "juancs")).all(),
+        roles: database.db.select().from(appUserJudgeUsers).all()
+      };
     });
 
-    const teamUsers = await Effect.runPromise(
+    const result = await Effect.runPromise(
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
     );
 
-    expect(teamUsers).toHaveLength(2);
-    expect(teamUsers).toEqual(expect.arrayContaining([
+    expect(result.users).toHaveLength(2);
+    expect(result.users).toEqual(expect.arrayContaining([
       expect.objectContaining({
         username: "juancs",
-        type: USER_TYPES.Team,
         judge: JUDGES.Codeforces
       }),
       expect.objectContaining({
         username: "juancs",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj
       })
     ]));
+    expect(result.roles).toHaveLength(2);
+    expect(result.roles.every((role) => role.role === USER_TYPES.Team)).toBe(true);
   });
 
   it("does not store credentials when judge validation fails", async () => {
@@ -217,8 +237,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => {
@@ -254,8 +276,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -271,42 +295,9 @@ describe("credentials router", () => {
       }));
       yield* Effect.promise(() => caller.credentials.clear("qoj"));
 
-      return database.db.select().from(users).where(eq(users.username, "qoj-user")).get() ?? null;
-    });
-
-    const teamUser = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
-    );
-
-    expect(teamUser).toMatchObject({
-      username: "qoj-user",
-      type: USER_TYPES.Team,
-      judge: JUDGES.Qoj
-    });
-  });
-
-  it("seeds config credentials into encrypted database storage", async () => {
-    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
-
-    const program = Effect.gen(function* () {
-      const database = yield* DatabaseServiceTag;
-      yield* database.migrate;
-
-      seedStoredCredentials({ database }, {
-        codeforces: {
-          apiKey: "env-cf-key",
-          apiSecret: "env-cf-secret"
-        },
-        qoj: {
-          cookieJar: "uoj_username=qoj-user; uojsessid=session"
-        }
-      });
-
-      const stored = database.db.select().from(providerCredentials).all();
       return {
-        codeforces: getStoredCodeforcesCredentials({ database }),
-        qoj: getStoredQojCredentials({ database }),
-        stored
+        user: database.db.select().from(users).where(eq(users.username, "qoj-user")).get() ?? null,
+        role: database.db.select().from(appUserJudgeUsers).get() ?? null
       };
     });
 
@@ -314,22 +305,11 @@ describe("credentials router", () => {
       program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
     );
 
-    expect(result.codeforces).toEqual({
-      ok: true,
-      credentials: {
-        apiKey: "env-cf-key",
-        apiSecret: "env-cf-secret"
-      }
+    expect(result.user).toMatchObject({
+      username: "qoj-user",
+      judge: JUDGES.Qoj
     });
-    expect(result.qoj).toEqual({
-      ok: true,
-      credentials: {
-        cookieJar: "uoj_username=qoj-user; uojsessid=session"
-      }
-    });
-    expect(result.stored).toHaveLength(2);
-    expect(result.stored.map((credential) => credential.encryptedPayload).join("\n")).not.toContain("env-cf-secret");
-    expect(result.stored.map((credential) => credential.encryptedPayload).join("\n")).not.toContain("uojsessid");
+    expect(result.role).toMatchObject({ role: USER_TYPES.Team });
   });
 
   it("publishes status-only credential events after saving credentials", async () => {
@@ -339,8 +319,10 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         credentialEvents: {
           publish: (event) => published.push(event),
           subscribe: async function* () {}

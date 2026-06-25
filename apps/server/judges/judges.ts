@@ -3,9 +3,10 @@ import { Context, Data, Effect } from "effect";
 import { SUBMISSION_STATUSES, type JudgeResource } from "@icpc-trainer/shared";
 import type { DatabaseServiceTag } from "@icpc-trainer/db";
 import type {
+  AppUserIdTag,
+  AppScopedJudgeSyncInput,
   ContestFinderRefreshEvent,
   JudgeSyncEvent,
-  JudgeSyncInput,
   RefetchContestInput
 } from "@icpc-trainer/api";
 import type { SyncOperationError } from "./sync/sync.js";
@@ -99,6 +100,8 @@ export interface RefreshContestFinderResult {
   readonly friendsProcessed: number;
 }
 
+export type JudgeEffectContext = DatabaseServiceTag | AppUserIdTag;
+
 export type JudgeAuthenticationInput =
   | {
       readonly provider: "codeforces";
@@ -117,13 +120,13 @@ export type JudgeAuthenticationInput =
     };
 
 export interface Judge {
-  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+  readonly sync: (input: AppScopedJudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
   readonly findContest: (
     input: RefreshContestFinderInput,
-  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, DatabaseServiceTag>;
+  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, JudgeEffectContext>;
   readonly refetchContest: (
     input: RefetchContestInput,
-  ) => Effect.Effect<void, JudgeError | SyncOperationError, DatabaseServiceTag>;
+  ) => Effect.Effect<void, JudgeError | SyncOperationError, JudgeEffectContext>;
 }
 
 export interface JudgeCredentialValidator {

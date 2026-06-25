@@ -1,6 +1,6 @@
 import {
+  AppUserIdTag,
   type ContestFinderRefreshEvent,
-  type ContestFinderRefreshInput,
   type ContestFinderRefreshObserveEvent,
   type ContestFinderRefreshProviderState,
   type ContestFinderRefreshService,
@@ -17,7 +17,7 @@ import {
   type JUDGES,
   type JudgeProvider
 } from "@icpc-trainer/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { Judge } from "../judges/judges.js";
@@ -32,7 +32,7 @@ import {
 } from "./contestFinderRefreshState.js";
 import { formatJudgeError } from "./playground.js";
 
-const { contests, providerCredentials, users } = schema;
+const { appUserJudgeUsers, providerCredentials, users } = schema;
 
 type Provider = JudgeProvider;
 type Registry = Partial<Record<Provider, Judge>>;
@@ -48,49 +48,64 @@ const warning = (judge: Provider, error: unknown): ContestFinderRefreshWarning =
       : String(error)
 });
 
-const storedContestProviders = (database: DatabaseService): readonly Provider[] =>
-  database.db
-    .selectDistinct({ judge: contests.judge })
-    .from(contests)
-    .all()
-    .map((row) => row.judge)
-    .filter(isJudgeProvider);
-
-const credentialProviders = (database: DatabaseService): readonly Provider[] =>
+const credentialProviders = (database: DatabaseService, appUserId: number): readonly Provider[] =>
   database.db
     .selectDistinct({ provider: providerCredentials.provider })
     .from(providerCredentials)
+    .where(eq(providerCredentials.appUserId, appUserId))
     .all()
     .map((row) => row.provider)
     .filter(isJudgeProvider);
 
-const refreshTargets = (database: DatabaseService): readonly Provider[] => {
+const friendProviders = (database: DatabaseService, appUserId: number): readonly Provider[] =>
+  database.db
+    .selectDistinct({ judge: users.judge })
+    .from(appUserJudgeUsers)
+    .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
+    .where(and(
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend)
+    ))
+    .all()
+    .map((row) => row.judge)
+    .filter(isJudgeProvider);
+
+const refreshTargets = (database: DatabaseService, appUserId: number): readonly Provider[] => {
   const targets = new Set<Provider>([
-    ...credentialProviders(database),
-    ...storedContestProviders(database)
+    ...credentialProviders(database, appUserId),
+    ...friendProviders(database, appUserId)
   ]);
   return supportedProviders.filter((provider) => targets.has(provider));
 };
 
-const friendsForProvider = (database: DatabaseService, judge: JUDGES): readonly SyncUser[] =>
+const friendsForProvider = (database: DatabaseService, appUserId: number, judge: JUDGES): readonly SyncUser[] =>
   database.db
     .select()
-    .from(users)
-    .where(eq(users.type, USER_TYPES.Friend))
+    .from(appUserJudgeUsers)
+    .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
+    .where(and(
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend),
+      eq(users.judge, judge)
+    ))
     .all()
-    .filter((user) => user.judge === judge);
+    .map((row) => row.users);
 
 export const createContestFinderRefreshService = (
   database: DatabaseService,
   registry: Registry
 ): ContestFinderRefreshService => {
-  const jobs = createObservableProviderJobRegistry<Provider, ContestFinderRefreshEvent, ContestFinderRefreshProviderState>(
+  const jobs = createObservableProviderJobRegistry<string, ContestFinderRefreshEvent, ContestFinderRefreshProviderState>(
     supportedProviders,
-    emptyContestFinderRefreshState,
+    (key) => emptyContestFinderRefreshState(key.includes(":")
+      ? key.split(":")[1] as Provider
+      : key as Provider),
     applyContestFinderRefreshEventToState
   );
+  const jobKey = (appUserId: number, provider: Provider): string => `${appUserId}:${provider}`;
 
   const runProviderRefresh = async (
+    appUserId: number,
     provider: Provider,
     publish: PublishProviderJobEvent<ContestFinderRefreshEvent>
   ): Promise<void> => {
@@ -99,7 +114,7 @@ export const createContestFinderRefreshService = (
     let friendsProcessed = 0;
     let latestEvent: ContestFinderRefreshEvent | undefined;
     const judge = registry[provider];
-    const friends = friendsForProvider(database, judgeFromProvider(provider));
+    const friends = friendsForProvider(database, appUserId, judgeFromProvider(provider));
     const emptyStepsTotal = friends.length + 1;
     const emit = (event: ContestFinderRefreshEvent): void => {
       latestEvent = event;
@@ -147,7 +162,8 @@ export const createContestFinderRefreshService = (
           friends,
           emit: (event) => Effect.sync(() => emit(event))
         }).pipe(
-          Effect.provideService(DatabaseServiceTag, database)
+          Effect.provideService(DatabaseServiceTag, database),
+          Effect.provideService(AppUserIdTag, appUserId)
         )
       );
       contestsUpserted += result.contestsUpserted;
@@ -178,19 +194,19 @@ export const createContestFinderRefreshService = (
   };
 
   return {
-    startContestFinderRefresh: async () => {
-      for (const provider of refreshTargets(database)) {
+    startContestFinderRefresh: async ({ appUserId }) => {
+      for (const provider of refreshTargets(database, appUserId)) {
         jobs.start(
-          provider,
+          jobKey(appUserId, provider),
           {
             ...emptyContestFinderRefreshState(provider),
             status: RUN_STATUSES.Running
           },
-          (publish) => runProviderRefresh(provider, publish)
+          (publish) => runProviderRefresh(appUserId, provider, publish)
         );
       }
     },
-    observeContestFinderRefresh: (input: ContestFinderRefreshInput) =>
-      jobs.observe(input.provider) satisfies AsyncIterable<ContestFinderRefreshObserveEvent>
+    observeContestFinderRefresh: (input) =>
+      jobs.observe(jobKey(input.appUserId, input.provider)) satisfies AsyncIterable<ContestFinderRefreshObserveEvent>
   }
 };

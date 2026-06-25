@@ -1,4 +1,4 @@
-import { appRouter, seedStoredCredentials, type CredentialStatusEvent } from "@icpc-trainer/api";
+import { appRouter, type CredentialStatusEvent } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
@@ -10,6 +10,7 @@ import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
+import { appUserFromConnectionParams, appUserFromHttpRequest } from "./auth.js";
 import { createContestFinderRefreshService } from "./contestFinderRefresh.js";
 import { createAsyncEventHub } from "./asyncEventHub.js";
 import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
@@ -24,7 +25,7 @@ const json = (body: unknown): string => JSON.stringify(body);
 const writeCorsHeaders = (response: ServerResponse): void => {
   response.setHeader("access-control-allow-origin", "*");
   response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
-  response.setHeader("access-control-allow-headers", "content-type,trpc-accept");
+  response.setHeader("access-control-allow-headers", "authorization,content-type,trpc-accept");
 };
 
 export const startServer = (
@@ -33,10 +34,6 @@ export const startServer = (
   Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
-    seedStoredCredentials({ database }, {
-      codeforces: config.codeforces,
-      qoj: config.qoj
-    });
     const judgeRegistry = {
       codeforces: makeCodeforcesJudge(database),
       qoj: makeQojJudge(database)
@@ -52,7 +49,12 @@ export const startServer = (
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: () => ({ database, judges, credentialEvents })
+      createContext: async ({ req }) => ({
+        database,
+        judges,
+        credentialEvents,
+        appUser: await appUserFromHttpRequest({ config: config.clerk, database }, req)
+      })
     });
 
     const server = createServer((request, response) => {
@@ -90,7 +92,12 @@ export const startServer = (
     const wsHandler = applyWSSHandler({
       wss,
       router: appRouter,
-      createContext: () => ({ database, judges, credentialEvents })
+      createContext: async ({ info }) => ({
+        database,
+        judges,
+        credentialEvents,
+        appUser: await appUserFromConnectionParams({ config: config.clerk, database }, info.connectionParams)
+      })
     });
 
     yield* Effect.async<void, Error>((resume) => {

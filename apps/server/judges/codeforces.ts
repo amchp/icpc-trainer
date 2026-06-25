@@ -1,5 +1,5 @@
 
-import { getStoredCodeforcesCredentials } from "@icpc-trainer/api";
+import { AppUserIdTag, getStoredCodeforcesCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
   CONTEST_FINDER_REFRESH_EVENT_TYPES,
@@ -72,7 +72,7 @@ export interface CodeforcesAuth {
 type RequestCodeforces = <T>(
   method: string,
   params?: Record<string, CodeforcesRequestParam>
-) => Effect.Effect<T, CodeforcesApiError, DatabaseServiceTag>;
+) => Effect.Effect<T, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag>;
 
 interface CodeforcesContest {
   readonly id: number;
@@ -304,7 +304,8 @@ const makeCodeforcesRequester = (): RequestCodeforces =>
   <T>(method: string, params?: Record<string, CodeforcesRequestParam>) =>
     Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
-      const storedAuth = getStoredCodeforcesCredentials({ database });
+      const appUserId = yield* AppUserIdTag;
+      const storedAuth = getStoredCodeforcesCredentials({ database, appUserId });
       if (!storedAuth.ok || !hasCodeforcesAuth(storedAuth.credentials)) {
         return yield* Effect.fail({
           comment: storedAuth.ok
@@ -318,11 +319,11 @@ const makeCodeforcesRequester = (): RequestCodeforces =>
     });
 
 const getAllCodeforcesPages = <T>(
-  getPage: (from: number, count: number) => Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag>,
+  getPage: (from: number, count: number) => Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag>,
   pageSize = CODEFORCES_PAGE_SIZE,
   from = 1,
   items: ReadonlyArray<T> = []
-): Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag> =>
+): Effect.Effect<ReadonlyArray<T>, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag> =>
   getPage(from, pageSize).pipe(
     Effect.flatMap((page) => {
       const nextItems = [...items, ...page];
@@ -506,7 +507,7 @@ const getAllContests = (): Effect.Effect<ReadonlyArray<CodeforcesContest>, Codef
 
 const getRegularContests = (
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError, DatabaseServiceTag> =>
+): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag> =>
   requestCodeforces<ReadonlyArray<CodeforcesContest>>("contest.list");
 
 const getProblemset = (): Effect.Effect<CodeforcesProblemset, CodeforcesApiError> =>
@@ -515,7 +516,7 @@ const getProblemset = (): Effect.Effect<CodeforcesProblemset, CodeforcesApiError
 const getAllStandingPages = (
   contestId: string,
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesStandings>, CodeforcesApiError, DatabaseServiceTag> =>
+): Effect.Effect<ReadonlyArray<CodeforcesStandings>, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag> =>
   getAllCodeforcesPages(
     (from, count) =>
       requestCodeforces<CodeforcesStandings>("contest.standings", {
@@ -529,7 +530,7 @@ const getAllStandingPages = (
 const getAllSubmissions = (
   handle: string,
   requestCodeforces: RequestCodeforces
-): Effect.Effect<ReadonlyArray<CodeforcesSubmission>, CodeforcesApiError, DatabaseServiceTag> =>
+): Effect.Effect<ReadonlyArray<CodeforcesSubmission>, CodeforcesApiError, DatabaseServiceTag | AppUserIdTag> =>
   getAllCodeforcesPages(
     (from, count) =>
       requestCodeforces<ReadonlyArray<CodeforcesSubmission>>("user.status", {

@@ -1,34 +1,46 @@
 # ICPC Trainer
 
-Local-first starter base for a future ICPC training application.
+Local-first ICPC training app for tracking judge accounts, credentials, contests, problems, submissions, contest participation, contest discovery, and upsolving work.
 
-This repository intentionally contains no contest, problem, account, or training domain model yet. It only proves the chosen stack compiles and runs:
+The repository contains:
 
-- pnpm workspace
-- React + Vite web app
+- React + Vite web app with Clerk authentication
 - TanStack Router, Query, and Table
 - Tailwind CSS 4 and shadcn-style UI primitives
 - tRPC typed HTTP API
 - Effect-backed backend services
 - Drizzle ORM with `better-sqlite3`
+- Clerk-owned app users mapped to judge users marked as team users or friends
 
 ## Requirements
 
 - Node `>=24 <26`
 - pnpm `10.33.4`
+- A Clerk development or test instance for local auth and e2e tests
+
+## Setup
+
+```bash
+pnpm install
+cp .env.example .env.local
+```
+
+Fill `.env.local` with Clerk test or development keys. Do not commit real `.env` files.
+
+`CLERK_PUBLISHABLE_KEY` is intentionally available to the Vite frontend. `CLERK_SECRET_KEY` is a backend secret and is also required by the Playwright setup so it can create or reuse the e2e test user through Clerk's Backend API.
 
 ## Commands
 
 ```bash
-pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
 pnpm dev
+pnpm dev:reset
 pnpm test:e2e
 ```
 
-The backend defaults to `http://127.0.0.1:3773` and stores its SQLite database at `.local/icpc-trainer.sqlite`.
+`pnpm dev` starts the server on `http://127.0.0.1:3774` and the web app on Vite's local dev URL. The backend default is `http://127.0.0.1:3773` when run directly.
 
 ## Environment
 
@@ -37,4 +49,44 @@ ICPC_TRAINER_HOST=127.0.0.1
 ICPC_TRAINER_PORT=3773
 ICPC_TRAINER_SQLITE_PATH=.local/icpc-trainer.sqlite
 VITE_API_BASE_URL=http://127.0.0.1:3773
+
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+# CLERK_JWT_KEY=
+# CLERK_ALLOWED_ORIGINS=http://127.0.0.1:5173
+
+E2E_CLERK_USER_EMAIL=icpc-trainer-e2e+clerk_test@example.com
+E2E_CLERK_USER_PASSWORD=ICPC-Trainer-E2E-Password-424242!
 ```
+
+`ICPC_TRAINER_SQLITE_PATH` is resolved from the server process working directory. With the package scripts, `.local/icpc-trainer.sqlite` usually means `apps/server/.local/icpc-trainer.sqlite`.
+
+The server auto-generates a local credential encryption key file beside the SQLite database when `ICPC_TRAINER_CREDENTIAL_KEY` is not set.
+
+## Local Database Reset
+
+If local SQLite state is stale after schema changes, stop the dev server and run:
+
+```bash
+pnpm dev:reset
+```
+
+This deletes `apps/server/.local/icpc-trainer.sqlite` and `apps/server/.local/icpc-trainer.credentials.key`. Local app data and saved judge credentials will be removed.
+
+## E2E Tests
+
+`pnpm test:e2e` runs Playwright against a real Clerk instance. It loads root env files in this order when present: `.env.e2e.local`, `.env.e2e`, `.env.local`, `.env`.
+
+Required for e2e:
+
+- `CLERK_SECRET_KEY`
+- `CLERK_PUBLISHABLE_KEY` or `VITE_CLERK_PUBLISHABLE_KEY`
+
+Optional:
+
+- `E2E_CLERK_USER_EMAIL`
+- `E2E_CLERK_USER_PASSWORD`
+
+The default e2e email uses the `+clerk_test` subaddress. The global setup creates the user if it does not already exist, signs in with Clerk's testing helpers, and stores auth state under `apps/web/playwright/.clerk/`.
+
+CI must provide the same Clerk secrets as protected secrets. The Playwright config starts the API on `127.0.0.1:43773` with in-memory SQLite and the web app on `127.0.0.1:5173`.

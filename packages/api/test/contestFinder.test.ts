@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { appRouter } from "../src/index.js";
+import { attachJudgeUser, createTestAppUser } from "./testAppUser.js";
 
 const { contests, userContestStates, users } = schema;
 
@@ -13,25 +14,23 @@ describe("contest finder router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = createTestAppUser(database);
 
       database.db.insert(users).values([
         {
           username: "cf-friend",
-          type: USER_TYPES.Friend,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "qoj-friend",
-          type: USER_TYPES.Friend,
           judge: JUDGES.Qoj,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "team",
-          type: USER_TYPES.Team,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -46,7 +45,6 @@ describe("contest finder router", () => {
           link: "https://codeforces.com/gym/100",
           participants: null,
           stars: null,
-          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         },
@@ -57,7 +55,6 @@ describe("contest finder router", () => {
           link: "https://qoj.ac/contest/200",
           participants: null,
           stars: null,
-          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         },
@@ -68,7 +65,6 @@ describe("contest finder router", () => {
           link: "https://codeforces.com/gym/300",
           participants: null,
           stars: null,
-          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         },
@@ -79,7 +75,6 @@ describe("contest finder router", () => {
           link: "https://codeforces.com/gym/400",
           participants: null,
           stars: null,
-          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -96,6 +91,9 @@ describe("contest finder router", () => {
       if (!cfFriend || !qojFriend || !team || !cfContest || !qojContest || !simulatedContest) {
         throw new Error("Expected seeded rows.");
       }
+      attachJudgeUser(database, appUser.id, cfFriend.id, USER_TYPES.Friend);
+      attachJudgeUser(database, appUser.id, qojFriend.id, USER_TYPES.Friend);
+      attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team);
 
       database.db.insert(userContestStates).values([
         {
@@ -103,6 +101,8 @@ describe("contest finder router", () => {
           contestId: cfContest.id,
           submissionCount: 1,
           acceptedCount: 0,
+          distinctProblemCount: 1,
+          simulated: false,
           lastSubmissionAt: timestamp,
           updatedAt: timestamp
         },
@@ -111,6 +111,8 @@ describe("contest finder router", () => {
           contestId: qojContest.id,
           submissionCount: 1,
           acceptedCount: 0,
+          distinctProblemCount: 1,
+          simulated: false,
           lastSubmissionAt: null,
           updatedAt: timestamp
         },
@@ -119,6 +121,8 @@ describe("contest finder router", () => {
           contestId: cfContest.id,
           submissionCount: 5,
           acceptedCount: 1,
+          distinctProblemCount: 2,
+          simulated: true,
           lastSubmissionAt: timestamp,
           updatedAt: timestamp
         },
@@ -127,6 +131,18 @@ describe("contest finder router", () => {
           contestId: simulatedContest.id,
           submissionCount: 1,
           acceptedCount: 1,
+          distinctProblemCount: 1,
+          simulated: false,
+          lastSubmissionAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          userId: team.id,
+          contestId: simulatedContest.id,
+          submissionCount: 2,
+          acceptedCount: 1,
+          distinctProblemCount: 2,
+          simulated: true,
           lastSubmissionAt: timestamp,
           updatedAt: timestamp
         }
@@ -134,6 +150,7 @@ describe("contest finder router", () => {
 
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined,

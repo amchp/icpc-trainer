@@ -8,37 +8,35 @@ describe("loadServerConfig", () => {
       host: "127.0.0.1",
       port: 3773,
       databasePath: ".local/icpc-trainer.sqlite",
-      codeforces: {
-        apiKey: undefined,
-        apiSecret: undefined
-      },
-      qoj: {
-        cookieJar: undefined
+      clerk: {
+        secretKey: undefined,
+        publishableKey: undefined,
+        jwtKey: undefined,
+        authorizedParties: []
       }
     });
   });
 
-  it("accepts host, port, sqlite path, and judge auth overrides", () => {
+  it("accepts host, port, sqlite path, and Clerk auth overrides", () => {
     expect(
       loadServerConfig({
         ICPC_TRAINER_HOST: "localhost",
         ICPC_TRAINER_PORT: "4123",
         ICPC_TRAINER_SQLITE_PATH: ":memory:",
-        ICPC_TRAINER_CODEFORCES_API_KEY: "cf-key",
-        ICPC_TRAINER_CODEFORCES_API_SECRET: "cf-secret",
-        ICPC_TRAINER_QOJ_COOKIE_UOJ_USERNAME: "qoj-user",
-        ICPC_TRAINER_QOJ_COOKIE_UOJSESSID: "session"
+        CLERK_SECRET_KEY: "sk_test_secret",
+        CLERK_PUBLISHABLE_KEY: "pk_test_public",
+        CLERK_JWT_KEY: "jwt-key",
+        CLERK_ALLOWED_ORIGINS: "https://app.example, https://admin.example"
       }),
     ).toEqual({
       host: "localhost",
       port: 4123,
       databasePath: ":memory:",
-      codeforces: {
-        apiKey: "cf-key",
-        apiSecret: "cf-secret"
-      },
-      qoj: {
-        cookieJar: "uoj_username=qoj-user; uojsessid=session"
+      clerk: {
+        secretKey: "sk_test_secret",
+        publishableKey: "pk_test_public",
+        jwtKey: "jwt-key",
+        authorizedParties: ["https://app.example", "https://admin.example"]
       }
     });
   });

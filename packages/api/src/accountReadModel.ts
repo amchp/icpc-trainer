@@ -1,19 +1,25 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { providerFromJudge, type JudgeProvider } from "@icpc-trainer/shared";
-import { eq } from "drizzle-orm";
+import { USER_TYPES, providerFromJudge, type JudgeProvider } from "@icpc-trainer/shared";
+import { and, eq } from "drizzle-orm";
 
-const { contests } = schema;
+const { appUserJudgeUsers, contests, userContestStates } = schema;
 
 export interface AppDataStatus {
   readonly hasSyncedContests: boolean;
   readonly syncedContestJudges: readonly JudgeProvider[];
 }
 
-export const getAccountDataStatus = (database: DatabaseService): AppDataStatus => {
+export const getAccountDataStatus = (database: DatabaseService, appUserId: number): AppDataStatus => {
   const rows = database.db
     .select({ judge: contests.judge })
-    .from(contests)
-    .where(eq(contests.simulated, true))
+    .from(userContestStates)
+    .innerJoin(contests, eq(contests.id, userContestStates.contestId))
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Team)
+    ))
+    .where(eq(userContestStates.simulated, true))
     .groupBy(contests.judge)
     .all();
 

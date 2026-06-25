@@ -1,7 +1,7 @@
-import { providerCredentials, users } from "@icpc-trainer/db";
+import { appUserJudgeUsers, providerCredentials, users } from "@icpc-trainer/db";
 import type { DatabaseService } from "@icpc-trainer/db";
 import { JUDGES, USER_TYPES, judgeFromProvider } from "@icpc-trainer/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { PlaygroundProvider } from "./playground.js";
 
@@ -11,6 +11,7 @@ const DEFAULT_PROVIDER_USER_KEY = "default";
 
 export interface CredentialDatabaseContext {
   readonly database: DatabaseService;
+  readonly appUserId: number;
 }
 
 export interface CredentialStatus {
@@ -65,6 +66,63 @@ const trackedTeamUsername = (input: SaveCredentialsInput): string | null => {
     : null;
 };
 
+const attachTeamUser = (
+  ctx: CredentialDatabaseContext,
+  username: string,
+  judge: JUDGES,
+  timestamp: Date
+): void => {
+  ctx.database.db.transaction((tx) => {
+    tx
+      .insert(users)
+      .values({
+        username,
+        judge,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      })
+      .onConflictDoNothing()
+      .run();
+
+    const user = tx
+      .select({ id: users.id })
+      .from(users)
+      .where(and(
+        sql`lower(${users.username}) = ${username.toLowerCase()}`,
+        eq(users.judge, judge)
+      ))
+      .get();
+
+    if (user === undefined) {
+      throw new Error(`Judge user ${username} was not found after credential save.`);
+    }
+
+    tx
+      .update(users)
+      .set({ updatedAt: timestamp })
+      .where(eq(users.id, user.id))
+      .run();
+
+    tx
+      .insert(appUserJudgeUsers)
+      .values({
+        appUserId: ctx.appUserId,
+        userId: user.id,
+        role: USER_TYPES.Team,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      })
+      .onConflictDoUpdate({
+        target: [appUserJudgeUsers.appUserId, appUserJudgeUsers.userId],
+        set: {
+          role: USER_TYPES.Team,
+          updatedAt: timestamp
+        }
+      })
+      .run();
+  });
+};
+
 export const getLatestCredential = (
   ctx: CredentialDatabaseContext,
   provider: PlaygroundProvider,
@@ -74,6 +132,7 @@ export const getLatestCredential = (
     .from(providerCredentials)
     .where(
       and(
+        eq(providerCredentials.appUserId, ctx.appUserId),
         eq(providerCredentials.provider, provider),
         eq(providerCredentials.credentialType, credentialTypeFor(provider))
       )
@@ -110,6 +169,7 @@ export const saveEncryptedCredential = (
     .insert(providerCredentials)
     .values({
       provider: input.provider,
+      appUserId: ctx.appUserId,
       providerUserKey: DEFAULT_PROVIDER_USER_KEY,
       credentialType: credentialTypeFor(input.provider),
       encryptedPayload,
@@ -119,6 +179,7 @@ export const saveEncryptedCredential = (
     })
     .onConflictDoUpdate({
       target: [
+        providerCredentials.appUserId,
         providerCredentials.provider,
         providerCredentials.providerUserKey,
         providerCredentials.credentialType
@@ -132,74 +193,7 @@ export const saveEncryptedCredential = (
     .run();
 
   if (teamUsername !== null) {
-    ctx.database.db
-      .insert(users)
-      .values({
-        username: teamUsername,
-        type: USER_TYPES.Team,
-        judge,
-        createdAt: now,
-        updatedAt: now
-      })
-      .onConflictDoUpdate({
-        target: [users.username, users.judge],
-        set: {
-          type: USER_TYPES.Team,
-          judge,
-          updatedAt: now
-        }
-      })
-      .run();
-  }
-
-  return getCredentialStatus(ctx);
-};
-
-export const createEncryptedCredential = (
-  ctx: CredentialDatabaseContext,
-  input: SaveCredentialsInput,
-  encryptedPayload: string,
-): CredentialStatus => {
-  if (getLatestCredential(ctx, input.provider) !== null) {
-    throw new Error(`${input.provider} credentials already exist.`);
-  }
-
-  const now = new Date();
-  const teamUsername = trackedTeamUsername(input);
-  const judge = judgeFromProvider(input.provider);
-
-  ctx.database.db
-    .insert(providerCredentials)
-    .values({
-      provider: input.provider,
-      providerUserKey: DEFAULT_PROVIDER_USER_KEY,
-      credentialType: credentialTypeFor(input.provider),
-      encryptedPayload,
-      lastValidatedAt: now,
-      createdAt: now,
-      updatedAt: now
-    })
-    .run();
-
-  if (teamUsername !== null) {
-    ctx.database.db
-      .insert(users)
-      .values({
-        username: teamUsername,
-        type: USER_TYPES.Team,
-        judge,
-        createdAt: now,
-        updatedAt: now
-      })
-      .onConflictDoUpdate({
-        target: [users.username, users.judge],
-        set: {
-          type: USER_TYPES.Team,
-          judge,
-          updatedAt: now
-        }
-      })
-      .run();
+    attachTeamUser(ctx, teamUsername, judge, now);
   }
 
   return getCredentialStatus(ctx);
@@ -213,6 +207,7 @@ export const clearCredentials = (
     .delete(providerCredentials)
     .where(
       and(
+        eq(providerCredentials.appUserId, ctx.appUserId),
         eq(providerCredentials.provider, provider),
         eq(providerCredentials.credentialType, credentialTypeFor(provider))
       )

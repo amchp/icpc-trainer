@@ -1,5 +1,7 @@
 import {
+  AppUserIdTag,
   type RefetchContestInput,
+  type AppScopedJudgeSyncInput,
   type JudgeSyncEvent,
   type JudgeSyncInput,
   type JudgeSyncProviderState,
@@ -8,11 +10,16 @@ import {
   SyncRunStatus
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
-import { JUDGE_PROVIDERS, SYNC_ERROR_PHASES } from "@icpc-trainer/shared";
+import { SYNC_ERROR_PHASES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type { Judge } from "../judges.js";
-import { createObservableProviderJobRegistry } from "../../src/observableProviderJob.js";
+import {
+  createObservableProviderJob,
+  observeProviderJob,
+  startObservableProviderJob,
+  type ObservableProviderJob
+} from "../../src/observableProviderJob.js";
 import { emptySummary, finalEvent } from "./events.js";
 import type { EmitSyncEvent } from "./progress.js";
 import { applyJudgeSyncEventToState, emptyProviderState } from "./syncState.js";
@@ -143,37 +150,46 @@ export const createJudgeSyncService = (
   registry: JudgeSyncRegistry,
   database: DatabaseService
 ): JudgeSyncService & {
-  readonly sync: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
+  readonly sync: (input: AppScopedJudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
 } => {
-  const jobs = createObservableProviderJobRegistry<
-    JudgeSyncInput["provider"],
-    JudgeSyncEvent,
-    JudgeSyncProviderState
-  >(JUDGE_PROVIDERS, emptyProviderState, applyJudgeSyncEventToState);
+  const jobs = new Map<string, ObservableProviderJob<JudgeSyncProviderState>>();
+  const jobKey = (input: AppScopedJudgeSyncInput): string => `${input.appUserId}:${input.provider}`;
+  const jobFor = (input: AppScopedJudgeSyncInput): ObservableProviderJob<JudgeSyncProviderState> => {
+    const key = jobKey(input);
+    const existing = jobs.get(key);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const job = createObservableProviderJob(emptyProviderState(input.provider));
+    jobs.set(key, job);
+    return job;
+  };
 
   return {
     start: async (input) => {
       const judge = judgeFor(input.provider, registry);
       const iterable = judge?.sync(input) ?? notImplementedJudgeSync(input);
-      jobs.start(
-        input.provider,
+      const job = jobFor(input);
+      startObservableProviderJob(
+        job,
         {
           ...emptyProviderState(input.provider),
           status: SyncRunStatus.Running
         },
         async (publish) => {
           for await (const event of iterable) {
-            publish(event);
+            publish(applyJudgeSyncEventToState(job.latest, event));
           }
         },
         (error, publish) => {
-          publish(syncFailureEvent(input.provider, error));
-          publish(failedSyncCompletedEvent(input.provider));
+          publish(applyJudgeSyncEventToState(job.latest, syncFailureEvent(input.provider, error)));
+          publish(applyJudgeSyncEventToState(job.latest, failedSyncCompletedEvent(input.provider)));
         }
       );
     },
-    observe: (input) => jobs.observe(input.provider),
-    refetchContest: async (input: RefetchContestInput) => {
+    observe: (input) => observeProviderJob(jobFor(input)),
+    refetchContest: async (input: RefetchContestInput & { readonly appUserId: number }) => {
       const judge = judgeFor(input.provider, registry);
       if (judge === undefined) {
         throw new Error(`${input.provider} sync is not implemented yet.`);
@@ -181,7 +197,8 @@ export const createJudgeSyncService = (
 
       await Effect.runPromise(
         judge.refetchContest(input).pipe(
-          Effect.provideService(DatabaseServiceTag, database)
+          Effect.provideService(DatabaseServiceTag, database),
+          Effect.provideService(AppUserIdTag, input.appUserId)
         )
       );
     },

@@ -1,4 +1,6 @@
 import {
+  AppUserIdTag,
+  type AppScopedJudgeSyncInput,
   type JudgeSyncEvent,
   type JudgeSyncInput,
   JudgeSyncStep
@@ -31,7 +33,7 @@ import {
   type EmitSyncEvent
 } from "./progress.js";
 
-const { contests } = schema;
+const { contests, userContestStates } = schema;
 const QOJ_CONTEST_URL = "https://qoj.ac/contest";
 
 interface QojUserSyncData {
@@ -45,7 +47,7 @@ const getUserContestIds = (
   provider: JudgeSyncInput["provider"],
   judge: QojPlaygroundClient,
   user: SyncUser
-): Effect.Effect<ReadonlyArray<JudgePreviewContest>, SyncOperationError> =>
+): Effect.Effect<ReadonlyArray<JudgePreviewContest>, SyncOperationError, AppUserIdTag> =>
   runJudgeOperation(database, {
     provider,
     phase: SYNC_OPERATION_PHASES.Contests,
@@ -59,7 +61,7 @@ const getUserSubmissions = (
   provider: JudgeSyncInput["provider"],
   judge: QojPlaygroundClient,
   user: SyncUser
-): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
+): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError, AppUserIdTag> =>
   runJudgeOperation(database, {
     provider,
     phase: SYNC_OPERATION_PHASES.Submissions,
@@ -68,25 +70,28 @@ const getUserSubmissions = (
     userHandle: user.username
   }, judge.getSubmissions({ userHandle: user.username }));
 
-const syncedQojContestIds = (
+const simulatedQojContestKeys = (
   database: DatabaseService,
-  contestIds: ReadonlyArray<string>
+  contestIds: ReadonlyArray<string>,
+  userIds: ReadonlyArray<number>
 ): ReadonlySet<string> => {
-  if (contestIds.length === 0) {
+  if (contestIds.length === 0 || userIds.length === 0) {
     return new Set();
   }
 
   const rows = database.db
-    .select({ judgeId: contests.judgeId })
-    .from(contests)
+    .select({ judgeId: contests.judgeId, userId: userContestStates.userId })
+    .from(userContestStates)
+    .innerJoin(contests, eq(contests.id, userContestStates.contestId))
     .where(and(
       eq(contests.judge, JUDGES.Qoj),
-      eq(contests.simulated, true),
-      inArray(contests.judgeId, contestIds)
+      inArray(contests.judgeId, contestIds),
+      inArray(userContestStates.userId, userIds),
+      eq(userContestStates.simulated, true)
     ))
     .all();
 
-  return new Set(rows.map((row) => row.judgeId));
+  return new Set(rows.map((row) => `${row.judgeId}:${row.userId}`));
 };
 
 const qojContestLink = (contestJudgeId: string): string =>
@@ -102,7 +107,7 @@ export const syncQojContest = (
   provider: JudgeSyncInput["provider"],
   judge: QojPlaygroundClient,
   contestJudgeId: string
-): Effect.Effect<number, SyncOperationError> =>
+): Effect.Effect<number, SyncOperationError, AppUserIdTag> =>
   Effect.gen(function* () {
     const contest = yield* runJudgeOperation(database, {
       provider,
@@ -117,15 +122,15 @@ export const syncQojContest = (
 
 const runQojSyncProgram = (
   database: DatabaseService,
-  input: JudgeSyncInput,
+  input: AppScopedJudgeSyncInput,
   judge: QojPlaygroundClient,
   emit: EmitSyncEvent
-): Effect.Effect<void> =>
+): Effect.Effect<void, never, AppUserIdTag> =>
   Effect.gen(function* () {
     const provider = input.provider;
     const judgeId = JUDGES.Qoj;
     const summary = emptySummary();
-    const syncUsersResult = yield* Effect.either(getSyncUsers(database, judgeId, provider));
+    const syncUsersResult = yield* Effect.either(getSyncUsers(database, input.appUserId, judgeId, provider));
 
     if (syncUsersResult._tag === "Left") {
       summary.errors += 1;
@@ -135,7 +140,7 @@ const runQojSyncProgram = (
     }
 
     const syncUsers = syncUsersResult.right;
-    const contestsToSync = new Set<string>();
+    const contestsToSync = new Map<string, Set<number>>();
     const userSyncData: QojUserSyncData[] = [];
 
     yield* emit(startedEvent(provider));
@@ -166,7 +171,9 @@ const runQojSyncProgram = (
       const uniqueUserContests = [...new Map(userContestsResult.right.map((contest) => [contest.judgeId, contest])).values()];
 
       for (const contestJudgeId of uniqueUserContests.map((contest) => contest.judgeId)) {
-        contestsToSync.add(contestJudgeId);
+        const userIds = contestsToSync.get(contestJudgeId) ?? new Set<number>();
+        userIds.add(user.id);
+        contestsToSync.set(contestJudgeId, userIds);
       }
 
       const userSubmissionsResult = yield* Effect.either(getUserSubmissions(database, provider, judge, user));
@@ -185,9 +192,11 @@ const runQojSyncProgram = (
       yield* discoveryProgress.completeCurrent(user.username);
     }
 
-    const discoveredContestIds = [...contestsToSync].sort((left, right) => Number(left) - Number(right));
-    const alreadySyncedContestIds = syncedQojContestIds(database, discoveredContestIds);
-    const contestIds = discoveredContestIds.filter((contestId) => !alreadySyncedContestIds.has(contestId));
+    const discoveredContestIds = [...contestsToSync.keys()].sort((left, right) => Number(left) - Number(right));
+    const simulatedContestKeys = simulatedQojContestKeys(database, discoveredContestIds, syncUsers.map((user) => user.id));
+    const contestIds = discoveredContestIds.filter((contestId) =>
+      ![...(contestsToSync.get(contestId) ?? [])].every((userId) => simulatedContestKeys.has(`${contestId}:${userId}`))
+    );
     const contestProgress = createSyncStepProgress(
       provider,
       JudgeSyncStep.Contests,
@@ -279,10 +288,12 @@ const runQojSyncProgram = (
 
 export async function* createQojJudgeSync(
   database: DatabaseService,
-  input: JudgeSyncInput,
+  input: AppScopedJudgeSyncInput,
   judge: QojPlaygroundClient
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
-    runQojSyncProgram(database, input, judge, emit)
+    runQojSyncProgram(database, input, judge, emit).pipe(
+      Effect.provideService(AppUserIdTag, input.appUserId)
+    )
   );
 }

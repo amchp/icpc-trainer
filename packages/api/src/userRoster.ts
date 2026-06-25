@@ -3,7 +3,7 @@ import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-const { users } = schema;
+const { appUserJudgeUsers, users } = schema;
 
 export interface RosterUser<Type extends USER_TYPES> {
   readonly username: string;
@@ -47,13 +47,16 @@ const normalizedUsers = <Type extends USER_TYPES>(
 
 const existingUserType = (
   database: Pick<DatabaseService["db"], "select">,
+  appUserId: number,
   username: string,
   judge: JUDGES
 ): USER_TYPES | undefined =>
   database
-    .select({ type: users.type })
-    .from(users)
+    .select({ type: appUserJudgeUsers.role })
+    .from(appUserJudgeUsers)
+    .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
     .where(and(
+      eq(appUserJudgeUsers.appUserId, appUserId),
       sql`lower(${users.username}) = ${username.toLowerCase()}`,
       eq(users.judge, judge)
     ))
@@ -75,16 +78,18 @@ const conflictError = (
 
 export const getUserRoster = <Type extends USER_TYPES>(
   database: DatabaseService,
+  appUserId: number,
   type: Type
 ): UserRoster<Type> => {
   const rows = database.db
     .select({
       username: users.username,
       judge: users.judge,
-      updatedAt: users.updatedAt
+      updatedAt: appUserJudgeUsers.updatedAt
     })
-    .from(users)
-    .where(eq(users.type, type))
+    .from(appUserJudgeUsers)
+    .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
+    .where(and(eq(appUserJudgeUsers.appUserId, appUserId), eq(appUserJudgeUsers.role, type)))
     .orderBy(users.judge, users.username)
     .all();
 
@@ -105,6 +110,7 @@ export const getUserRoster = <Type extends USER_TYPES>(
 
 export const addUserToRoster = <Type extends USER_TYPES>(
   database: DatabaseService,
+  appUserId: number,
   type: Type,
   input: RosterInputUser,
   label: string
@@ -113,25 +119,52 @@ export const addUserToRoster = <Type extends USER_TYPES>(
   const username = input.username.trim();
 
   try {
-    database.db
-      .insert(users)
-      .values({
-        username,
-        type,
-        judge: input.judge,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      })
-      .run();
+    database.db.transaction((tx) => {
+      tx
+        .insert(users)
+        .values({
+          username,
+          judge: input.judge,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        })
+        .onConflictDoNothing()
+        .run();
+
+      const user = tx
+        .select({ id: users.id })
+        .from(users)
+        .where(and(
+          sql`lower(${users.username}) = ${username.toLowerCase()}`,
+          eq(users.judge, input.judge)
+        ))
+        .get();
+
+      if (user === undefined) {
+        throw new Error(`Could not find judge user ${username}.`);
+      }
+
+      tx
+        .insert(appUserJudgeUsers)
+        .values({
+          appUserId,
+          userId: user.id,
+          role: type,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        })
+        .run();
+    });
   } catch (error) {
-    throw conflictError(label, username, existingUserType(database.db, username, input.judge), error);
+    throw conflictError(label, username, existingUserType(database.db, appUserId, username, input.judge), error);
   }
 
-  return getUserRoster(database, type);
+  return getUserRoster(database, appUserId, type);
 };
 
 export const replaceUserRoster = <Type extends USER_TYPES>(
   database: DatabaseService,
+  appUserId: number,
   type: Type,
   rows: readonly RosterInputUser[],
   label: string
@@ -140,8 +173,9 @@ export const replaceUserRoster = <Type extends USER_TYPES>(
   const timestamp = new Date();
   const existingRows = database.db
     .select({ id: users.id, username: users.username, judge: users.judge })
-    .from(users)
-    .where(eq(users.type, type))
+    .from(appUserJudgeUsers)
+    .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
+    .where(and(eq(appUserJudgeUsers.appUserId, appUserId), eq(appUserJudgeUsers.role, type)))
     .all();
   const existingByUser = new Map(
     existingRows.map((row) => [userKey(row.judge, row.username), row])
@@ -155,16 +189,22 @@ export const replaceUserRoster = <Type extends USER_TYPES>(
 
   database.db.transaction((tx) => {
     if (staleIds.length > 0) {
-      tx.delete(users).where(inArray(users.id, staleIds)).run();
+      tx.delete(appUserJudgeUsers).where(and(
+        eq(appUserJudgeUsers.appUserId, appUserId),
+        inArray(appUserJudgeUsers.userId, staleIds)
+      )).run();
     }
 
     for (const rosterUser of rosterUsers) {
       const existing = existingByUser.get(userKey(rosterUser.judge, rosterUser.username));
       if (existing !== undefined) {
         tx
-          .update(users)
-          .set({ username: rosterUser.username, judge: rosterUser.judge, updatedAt: timestamp })
-          .where(eq(users.id, existing.id))
+          .update(appUserJudgeUsers)
+          .set({ role: type, updatedAt: timestamp })
+          .where(and(
+            eq(appUserJudgeUsers.appUserId, appUserId),
+            eq(appUserJudgeUsers.userId, existing.id)
+          ))
           .run();
         continue;
       }
@@ -174,22 +214,53 @@ export const replaceUserRoster = <Type extends USER_TYPES>(
           .insert(users)
           .values({
             username: rosterUser.username,
-            type,
             judge: rosterUser.judge,
             createdAt: timestamp,
             updatedAt: timestamp
+          })
+          .onConflictDoNothing()
+          .run();
+
+        const user = tx
+          .select({ id: users.id })
+          .from(users)
+          .where(and(
+            sql`lower(${users.username}) = ${rosterUser.username.toLowerCase()}`,
+            eq(users.judge, rosterUser.judge)
+          ))
+          .get();
+
+        if (user === undefined) {
+          throw new Error(`Could not find judge user ${rosterUser.username}.`);
+        }
+
+        tx
+          .insert(appUserJudgeUsers)
+          .values({
+            appUserId,
+            userId: user.id,
+            role: type,
+            createdAt: timestamp,
+            updatedAt: timestamp
+          })
+          .onConflictDoUpdate({
+            target: [appUserJudgeUsers.appUserId, appUserJudgeUsers.userId],
+            set: {
+              role: type,
+              updatedAt: timestamp
+            }
           })
           .run();
       } catch (error) {
         throw conflictError(
           label,
           rosterUser.username,
-          existingUserType(tx, rosterUser.username, rosterUser.judge),
+          existingUserType(tx, appUserId, rosterUser.username, rosterUser.judge),
           error
         );
       }
     }
   });
 
-  return getUserRoster(database, type);
+  return getUserRoster(database, appUserId, type);
 };

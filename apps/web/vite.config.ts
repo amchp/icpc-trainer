@@ -4,6 +4,8 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  envDir: "../..",
+  envPrefix: ["VITE_", "CLERK_PUBLISHABLE_KEY"],
   resolve: {
     alias: {
       "@icpc-trainer/shared": fileURLToPath(new URL("../../packages/shared/src/index.ts", import.meta.url))

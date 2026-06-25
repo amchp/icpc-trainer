@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clerk/backend": "^3.8.4",
     "@icpc-trainer/api": "workspace:*",
     "@icpc-trainer/db": "workspace:*",
     "@icpc-trainer/shared": "workspace:*",

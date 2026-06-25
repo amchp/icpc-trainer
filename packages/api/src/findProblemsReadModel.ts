@@ -2,7 +2,7 @@ import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, asc, eq, sql } from "drizzle-orm";
 
-const { contests, problems, problemTags, submissions, users } = schema;
+const { appUserJudgeUsers, contests, problems, problemTags, submissions, users } = schema;
 
 export interface FindProblemRow {
   readonly contestName: string;
@@ -27,7 +27,7 @@ export interface FindProblemsOverview {
   };
 }
 
-export const getFindProblemsOverview = (database: DatabaseService): FindProblemsOverview => {
+export const getFindProblemsOverview = (database: DatabaseService, appUserId: number): FindProblemsOverview => {
   const problemRows = database.db
     .select({
       problemId: problems.id,
@@ -49,8 +49,10 @@ export const getFindProblemsOverview = (database: DatabaseService): FindProblems
         select 1
         from ${submissions}
         inner join ${users} on ${users.id} = ${submissions.userId}
+        inner join ${appUserJudgeUsers} on ${appUserJudgeUsers.userId} = ${users.id}
         where ${submissions.problemId} = ${problems.id}
-          and ${users.type} = ${USER_TYPES.Team}
+          and ${appUserJudgeUsers.appUserId} = ${appUserId}
+          and ${appUserJudgeUsers.role} = ${USER_TYPES.Team}
           and ${submissions.status} = ${SUBMISSION_STATUSES.AC}
       )`
     ))

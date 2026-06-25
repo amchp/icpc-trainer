@@ -3,6 +3,7 @@ import type { initTRPC } from "@trpc/server";
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import {
   addUserToRoster,
   getUserRoster,
@@ -37,11 +38,11 @@ export type TeamRoster = UserRoster<USER_TYPES.Team>;
 
 export const createTeamRouter = (t: TrpcInstance) =>
   t.router({
-    roster: t.procedure.query(({ ctx }) => getUserRoster(ctx.database, USER_TYPES.Team)),
+    roster: t.procedure.query(({ ctx }) => getUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team)),
     add: t.procedure.input(addTeamUserInputSchema).mutation(({ ctx, input }) =>
-      addUserToRoster(ctx.database, USER_TYPES.Team, input, "team user")
+      addUserToRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team, input, "team user")
     ),
     replace: t.procedure.input(replaceTeamInputSchema).mutation(({ ctx, input }) =>
-      replaceUserRoster(ctx.database, USER_TYPES.Team, input.users, "team user")
+      replaceUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team, input.users, "team user")
     )
   });

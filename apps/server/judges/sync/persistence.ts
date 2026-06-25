@@ -3,12 +3,11 @@ import {
   JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES, SYNC_OPERATION_PHASES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, eq } from "drizzle-orm";
+import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES, USER_TYPES } from "@icpc-trainer/shared";
+import { and, countDistinct, eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { JudgeContest, JudgeSubmission } from "../judges.js";
-import { upsertExistingContestParticipations } from "../contestParticipation.js";
 import { estimateProblemRating, estimateSolvePercentage } from "./problemRating.js";
 import {
   syncEffect,
@@ -16,7 +15,7 @@ import {
   type SyncOperationContext
 } from "./events.js";
 
-const { contests, problems, submissions, users } = schema;
+const { appUserJudgeUsers, contests, problems, submissions, userContestStates, users } = schema;
 
 export type SyncUser = typeof users.$inferSelect;
 type ProblemRow = typeof problems.$inferSelect;
@@ -53,6 +52,7 @@ const requiredContestLink = (contest: JudgeContest): string => {
 
 export const getSyncUsers = (
   database: DatabaseService,
+  appUserId: number,
   judge: JUDGES,
   provider: JudgeSyncInput["provider"]
 ): Effect.Effect<ReadonlyArray<SyncUser>, SyncOperationError> =>
@@ -63,12 +63,15 @@ export const getSyncUsers = (
   }, () =>
     database.db
       .select()
-      .from(users)
+      .from(appUserJudgeUsers)
+      .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
       .where(and(
+        eq(appUserJudgeUsers.appUserId, appUserId),
+        eq(appUserJudgeUsers.role, USER_TYPES.Team),
         eq(users.judge, judge),
-        eq(users.type, USER_TYPES.Team)
       ))
       .all()
+      .map((row) => row.users)
   );
 
 export const findProblem = (
@@ -182,6 +185,57 @@ export const insertSubmission = (
     : { inserted: 0, updated: 1, skipped: 0 };
 });
 
+export const refreshUserContestStateFromSubmissions = (
+  database: DatabaseService,
+  user: SyncUser,
+  contestId: number,
+  context: SyncOperationContext
+): Effect.Effect<void, SyncOperationError> => syncEffect(context, () => {
+  const timestamp = now();
+  const row = database.db
+    .select({
+      submissionCount: sql<number>`count(${submissions.id})`,
+      acceptedCount: sql<number>`sum(case when ${submissions.status} = ${SUBMISSION_STATUSES.AC} then 1 else 0 end)`,
+      distinctProblemCount: countDistinct(submissions.problemId),
+      lastSubmissionAt: sql<number | Date | null>`max(${submissions.submittedAt})`
+    })
+    .from(submissions)
+    .innerJoin(problems, eq(problems.id, submissions.problemId))
+    .where(and(eq(submissions.userId, user.id), eq(problems.contestId, contestId)))
+    .get();
+  const distinctProblemCount = row?.distinctProblemCount ?? 0;
+  const lastSubmissionAt = row?.lastSubmissionAt instanceof Date
+    ? row.lastSubmissionAt
+    : row?.lastSubmissionAt === null || row?.lastSubmissionAt === undefined
+      ? null
+      : new Date(row.lastSubmissionAt);
+
+  database.db
+    .insert(userContestStates)
+    .values({
+      userId: user.id,
+      contestId,
+      submissionCount: row?.submissionCount ?? 0,
+      acceptedCount: row?.acceptedCount ?? 0,
+      distinctProblemCount,
+      simulated: distinctProblemCount >= 2,
+      lastSubmissionAt,
+      updatedAt: timestamp
+    })
+    .onConflictDoUpdate({
+      target: [userContestStates.userId, userContestStates.contestId],
+      set: {
+        submissionCount: row?.submissionCount ?? 0,
+        acceptedCount: row?.acceptedCount ?? 0,
+        distinctProblemCount,
+        simulated: distinctProblemCount >= 2,
+        lastSubmissionAt,
+        updatedAt: timestamp
+      }
+    })
+    .run();
+});
+
 export const upsertContest = (
   database: DatabaseService,
   judge: JUDGES,
@@ -200,7 +254,6 @@ export const upsertContest = (
       link,
       participants: contest.participants,
       stars: contest.stars,
-      simulated: true,
       createdAt: timestamp,
       updatedAt: timestamp
     })
@@ -211,7 +264,6 @@ export const upsertContest = (
         link,
         participants: contest.participants,
         stars: contest.stars,
-        simulated: true,
         updatedAt: timestamp
       }
     })
@@ -329,30 +381,6 @@ export const syncUserSubmissions = (
   Effect.gen(function* () {
     const userSubmissions = options.userSubmissions;
     const existingSubmissions = yield* existingSubmissionsByJudgeId(database, judge, user, provider);
-    const submissionsByContest = new Map<string, JudgeSubmission[]>();
-
-    for (const submission of userSubmissions) {
-      if (submission.judgeContestId === undefined) {
-        continue;
-      }
-
-      const contestSubmissions = submissionsByContest.get(submission.judgeContestId) ?? [];
-      contestSubmissions.push(submission);
-      submissionsByContest.set(submission.judgeContestId, contestSubmissions);
-    }
-
-    if (submissionsByContest.size > 0) {
-      yield* upsertExistingContestParticipations(
-        database,
-        provider,
-        judge,
-        [...submissionsByContest.entries()].map(([contestJudgeId, contestSubmissions]) => ({
-          user,
-          contestJudgeId,
-          submissions: contestSubmissions
-        }))
-      );
-    }
 
     let inserted = 0;
     let updated = 0;
@@ -379,6 +407,7 @@ export const syncUserSubmissions = (
       }
 
       const result = yield* insertSubmission(database, judge, user, submission, problem, context);
+      yield* refreshUserContestStateFromSubmissions(database, user, problem.contestId, context);
       inserted += result.inserted;
       updated += result.updated;
       skipped += result.skipped;
@@ -415,5 +444,7 @@ export const retryPendingSubmission = (
       }));
     }
 
-    return yield* insertSubmission(database, judge, pending.user, pending.submission, problem, context);
+    const result = yield* insertSubmission(database, judge, pending.user, pending.submission, problem, context);
+    yield* refreshUserContestStateFromSubmissions(database, pending.user, problem.contestId, context);
+    return result;
   });

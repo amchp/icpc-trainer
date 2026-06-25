@@ -1,4 +1,5 @@
 import {
+  AppUserIdTag,
   appRouter,
   type JudgeSyncEvent,
   JudgeSyncEventType,
@@ -21,8 +22,9 @@ import type { QojPlaygroundClient } from "../judges/qoj.js";
 import { createCodeforcesJudgeSync, type CodeforcesSyncOperations } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
+import { createTestAppUser } from "./testAppUser.js";
 
-const { contests, problems, problemTags, submissions, userContestStates, users } = schema;
+const { appUserJudgeUsers, contests, problems, problemTags, submissions, userContestStates, users } = schema;
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
 
@@ -78,7 +80,7 @@ const nextTick = async (): Promise<void> => {
 };
 
 const withDatabase = async <A>(
-  run: (database: DatabaseService) => Promise<A>,
+  run: (database: DatabaseService, appUserId: number) => Promise<A>,
   options: { readonly saveCredentials?: boolean } = {}
 ): Promise<A> => {
   process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
@@ -86,9 +88,11 @@ const withDatabase = async <A>(
   const program = Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
+    const appUser = createTestAppUser(database);
     if (options.saveCredentials !== false) {
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -106,10 +110,39 @@ const withDatabase = async <A>(
       );
     }
 
-    return yield* Effect.promise(() => run(database));
+    return yield* Effect.promise(() => run(database, appUser.id));
   });
 
   return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+};
+
+const attachTeamUser = (
+  database: DatabaseService,
+  appUserId: number,
+  username: string,
+  judge: JUDGES
+): void => {
+  const user = database.db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.username, username), eq(users.judge, judge)))
+    .get();
+  if (user === undefined) {
+    throw new Error(`Expected ${judge} user ${username} to exist.`);
+  }
+
+  const timestamp = new Date("2025-01-01T00:00:00.000Z");
+  database.db
+    .insert(appUserJudgeUsers)
+    .values({
+      appUserId,
+      userId: user.id,
+      role: USER_TYPES.Team,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    })
+    .onConflictDoNothing()
+    .run();
 };
 
 const codeforcesResponse = (result: unknown): Response =>
@@ -178,7 +211,7 @@ describe("createJudgeSyncService", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const events = await withDatabase(
-      (database) => collect(createSyncService(database).sync({ provider: "codeforces" })),
+      (database, appUserId) => collect(createSyncService(database).sync({ provider: "codeforces", appUserId })),
       { saveCredentials: false }
     );
 
@@ -195,7 +228,7 @@ describe("createJudgeSyncService", () => {
 
   it("observes idle state before sync starts", async () => {
     const service = createJudgeSyncService({});
-    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const observer = service.observe({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
     const state = await observer.next();
 
     expect(state.value).toMatchObject({
@@ -251,11 +284,11 @@ describe("createJudgeSyncService", () => {
     };
 
     const service = createJudgeSyncService({ codeforces: judge });
-    await service.start({ provider: "codeforces" });
-    await service.start({ provider: "codeforces" });
+    await service.start({ provider: "codeforces", appUserId: 1 });
+    await service.start({ provider: "codeforces", appUserId: 1 });
     await nextTick();
 
-    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const observer = service.observe({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
     const snapshot = await observer.next();
 
     expect(runCount).toBe(1);
@@ -276,6 +309,83 @@ describe("createJudgeSyncService", () => {
       summary: completed.summary
     });
     await observer.return?.();
+  });
+
+  it("keeps active sync state isolated per app user and provider", async () => {
+    const startedFor = (appUserId: number): JudgeSyncEvent => ({
+      type: "started",
+      provider: "codeforces",
+      stepsTotal: appUserId,
+      stepsLeft: appUserId
+    });
+    const completedFor = (appUserId: number): JudgeSyncEvent => ({
+      type: "completed",
+      provider: "codeforces",
+      stepsTotal: appUserId,
+      stepsLeft: 0,
+      summary: {
+        usersProcessed: appUserId,
+        submissionsFetched: 0,
+        submissionsInserted: 0,
+        submissionsUpdated: 0,
+        submissionsSkipped: 0,
+        contestsSynced: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0,
+        regularPendingSubmissionsRetried: 0,
+        errors: 0
+      }
+    });
+    const finishes = new Map<number, () => void>();
+    const judge: Judge = {
+      sync: async function* (input) {
+        yield startedFor(input.appUserId);
+        await new Promise<void>((resolve) => finishes.set(input.appUserId, resolve));
+        yield completedFor(input.appUserId);
+      },
+      findContest: () => Effect.succeed({
+        contestsUpserted: 0,
+        friendsProcessed: 0
+      }),
+      refetchContest: () => Effect.void
+    };
+
+    const service = createJudgeSyncService({ codeforces: judge });
+    await service.start({ provider: "codeforces", appUserId: 1 });
+    await service.start({ provider: "codeforces", appUserId: 2 });
+    await nextTick();
+
+    const firstObserver = service.observe({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
+    const secondObserver = service.observe({ provider: "codeforces", appUserId: 2 })[Symbol.asyncIterator]();
+
+    expect((await firstObserver.next()).value).toMatchObject({
+      status: "running",
+      latestEvent: startedFor(1)
+    });
+    expect((await secondObserver.next()).value).toMatchObject({
+      status: "running",
+      latestEvent: startedFor(2)
+    });
+
+    finishes.get(1)?.();
+    expect((await firstObserver.next()).value).toMatchObject({
+      status: "completed",
+      latestEvent: completedFor(1)
+    });
+    const lateSecondObserver = service.observe({ provider: "codeforces", appUserId: 2 })[Symbol.asyncIterator]();
+    expect((await lateSecondObserver.next()).value).toMatchObject({
+      status: "running",
+      latestEvent: startedFor(2)
+    });
+
+    finishes.get(2)?.();
+    expect((await secondObserver.next()).value).toMatchObject({
+      status: "completed",
+      latestEvent: completedFor(2)
+    });
+    await firstObserver.return?.();
+    await secondObserver.return?.();
+    await lateSecondObserver.return?.();
   });
 
   it("sends terminal completed state to reload observers", async () => {
@@ -316,10 +426,10 @@ describe("createJudgeSyncService", () => {
     };
 
     const service = createJudgeSyncService({ codeforces: judge });
-    await service.start({ provider: "codeforces" });
+    await service.start({ provider: "codeforces", appUserId: 1 });
     await nextTick();
 
-    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const observer = service.observe({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
     const snapshot = await observer.next();
 
     expect(snapshot.value).toMatchObject({
@@ -346,7 +456,7 @@ describe("createJudgeSyncService", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       const user = database.db.select().from(users).where(eq(users.username, "tourist")).get();
       database.db.insert(contests).values({
@@ -356,7 +466,6 @@ describe("createJudgeSyncService", () => {
         link: "https://codeforces.com/gym/100566",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -380,14 +489,23 @@ describe("createJudgeSyncService", () => {
         updatedAt: timestamp
       }).run();
 
-      await collect(createSyncService(database).sync({ provider: "codeforces" }));
-      const secondEvents = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
+      const secondEvents = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
       const rows = database.db.select().from(submissions).all();
       const contestStates = database.db.select().from(userContestStates).all();
       expect(user.username).toBe("tourist");
       expect(rows).toHaveLength(1);
-      expect(contestStates).toHaveLength(0);
+      expect(contestStates).toEqual([
+        expect.objectContaining({
+          userId: user.id,
+          contestId: contest.id,
+          submissionCount: 1,
+          acceptedCount: 1,
+          distinctProblemCount: 1,
+          simulated: false
+        })
+      ]);
       expect(rows[0]).toMatchObject({
         judgeId: "49644212",
         judge: JUDGES.Codeforces,
@@ -429,14 +547,14 @@ describe("createJudgeSyncService", () => {
         Effect.succeed(userHandle === "tourist" || userHandle === "teammate" ? [sharedSubmission] : [])
     };
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "teammate",
-        type: USER_TYPES.Team,
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "teammate", JUDGES.Codeforces);
       database.db.insert(contests).values({
         judgeId: "100566",
         judge: JUDGES.Codeforces,
@@ -444,7 +562,6 @@ describe("createJudgeSyncService", () => {
         link: "https://codeforces.com/gym/100566",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -468,7 +585,7 @@ describe("createJudgeSyncService", () => {
         updatedAt: timestamp
       }).run();
 
-      const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces" }));
+      const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces", appUserId }));
       const rows = database.db.select().from(submissions).all();
 
       expect(events.at(-1)).toMatchObject({
@@ -498,8 +615,8 @@ describe("createJudgeSyncService", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       const errorEvent = events.find((event) => event.type === "error");
 
       expect(errorEvent).toMatchObject({
@@ -542,14 +659,14 @@ describe("createJudgeSyncService", () => {
       ])
     };
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
       database.db.insert(contests).values({
         judgeId: "1113",
         judge: JUDGES.Qoj,
@@ -557,7 +674,6 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/1113",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -581,7 +697,7 @@ describe("createJudgeSyncService", () => {
         updatedAt: timestamp
       }).run();
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -627,14 +743,14 @@ describe("createJudgeSyncService", () => {
       ])
     };
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
       const user = database.db
         .select()
         .from(users)
@@ -647,7 +763,6 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/1113",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -689,7 +804,7 @@ describe("createJudgeSyncService", () => {
         updatedAt: timestamp
       }).run();
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -726,16 +841,16 @@ describe("createJudgeSyncService", () => {
       getSubmissions: () => Effect.fail(new JudgeAPIError({ judgeId: "qoj", cause: "rate limited" }))
     };
 
-    const events = await withDatabase(async (database) => {
+    const events = await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
-      return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
     }, { saveCredentials: false });
 
     expect(events).toContainEqual(expect.objectContaining({
@@ -788,9 +903,9 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
       expect(events).toContainEqual(expect.objectContaining({
         type: JudgeSyncEventType.Step,
@@ -826,9 +941,14 @@ describe("createJudgeSyncService", () => {
       ]);
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
       expect(database.db.select().from(contests).get()).toMatchObject({
-        judgeId: "100566",
-        simulated: true
+        judgeId: "100566"
       });
+      expect(database.db.select().from(userContestStates).all()).toEqual([
+        expect.objectContaining({
+          distinctProblemCount: 2,
+          simulated: true
+        })
+      ]);
     });
   });
 
@@ -851,8 +971,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         contestRows: database.db.select().from(contests).all(),
@@ -914,7 +1034,7 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
+    const result = await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(contests).values({
         judgeId: "100566",
@@ -923,12 +1043,11 @@ describe("createJudgeSyncService", () => {
         link: "https://codeforces.com/gym/100566",
         participants: null,
         stars: null,
-        simulated: false,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
 
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         contestRows: database.db.select().from(contests).all(),
@@ -945,8 +1064,7 @@ describe("createJudgeSyncService", () => {
     }));
     expect(result.contestRows).toEqual([
       expect.objectContaining({
-        judgeId: "100566",
-        simulated: false
+        judgeId: "100566"
       })
     ]);
     expect(result.contestStateRows).toHaveLength(0);
@@ -1016,11 +1134,10 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
+    const result = await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       const [friend] = database.db.insert(users).values({
         username: "friend",
-        type: USER_TYPES.Friend,
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1032,7 +1149,8 @@ describe("createJudgeSyncService", () => {
 
       await Effect.runPromise(
         makeCodeforcesJudge(database).findContest({ friends: [friend] }).pipe(
-          Effect.provideService(DatabaseServiceTag, database)
+          Effect.provideService(DatabaseServiceTag, database),
+          Effect.provideService(AppUserIdTag, appUserId)
         )
       );
 
@@ -1045,13 +1163,11 @@ describe("createJudgeSyncService", () => {
     expect(result.contestRows).toEqual(expect.arrayContaining([
       expect.objectContaining({
         judgeId: "566",
-        name: "Codeforces Round 566 (Div. 2)",
-        simulated: false
+        name: "Codeforces Round 566 (Div. 2)"
       }),
       expect.objectContaining({
         judgeId: "100566",
-        name: "ICPC Training Camp Invitational",
-        simulated: false
+        name: "ICPC Training Camp Invitational"
       })
     ]));
     expect(result.contestRows.map((contest) => contest.judgeId)).not.toContain("568");
@@ -1060,10 +1176,19 @@ describe("createJudgeSyncService", () => {
       expect.objectContaining({
         contestId: contestIdByJudgeId.get("100566"),
         submissionCount: 2,
-        acceptedCount: 1
+        acceptedCount: 1,
+        distinctProblemCount: 2,
+        simulated: true
+      }),
+      expect.objectContaining({
+        contestId: contestIdByJudgeId.get("566"),
+        submissionCount: 1,
+        acceptedCount: 0,
+        distinctProblemCount: 1,
+        simulated: false
       })
     ]));
-    expect(result.contestStateRows).toHaveLength(1);
+    expect(result.contestStateRows).toHaveLength(2);
     expect(fetchMock.mock.calls
       .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
       .map((call) => new URL(String(call[0])).searchParams.get("gym"))
@@ -1096,8 +1221,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const events = await withDatabase(async (database) => {
-      return await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const events = await withDatabase(async (database, appUserId) => {
+      return await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
     });
 
     expect(events).not.toContainEqual(expect.objectContaining({
@@ -1158,8 +1283,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         contestRows: database.db.select().from(contests).all(),
@@ -1233,8 +1358,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await withDatabase(async (database) => {
-      await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    await withDatabase(async (database, appUserId) => {
+      await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
       expect(database.db
         .select({ solvePercentage: problems.solvePercentage, rating: problems.rating })
@@ -1354,8 +1479,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
       const contestRows = database.db.select().from(contests).all();
       const problemRows = database.db.select().from(problems).all();
@@ -1394,7 +1519,12 @@ describe("createJudgeSyncService", () => {
           name: "Codeforces Round 566 (Div. 2)",
           link: "https://codeforces.com/contest/566",
           stars: 4,
-          participants: null,
+          participants: null
+        })
+      ]);
+      expect(database.db.select().from(userContestStates).all()).toEqual([
+        expect.objectContaining({
+          distinctProblemCount: 2,
           simulated: true
         })
       ]);
@@ -1480,8 +1610,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         submissions: database.db.select().from(submissions).all(),
@@ -1564,8 +1694,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         submissions: database.db.select().from(submissions).all(),
@@ -1618,8 +1748,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         submissions: database.db.select().from(submissions).all(),
@@ -1700,8 +1830,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await withDatabase(async (database) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database, appUserId) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
         submissions: database.db.select().from(submissions).all(),
@@ -1744,14 +1874,14 @@ describe("createJudgeSyncService", () => {
       getSubmissions: () => Effect.succeed([])
     };
 
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
       database.db.insert(contests).values({
         judgeId: "stale",
         judge: JUDGES.Qoj,
@@ -1759,12 +1889,11 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/stale",
         participants: 0,
         stars: 0,
-        simulated: false,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(getContest).not.toHaveBeenCalled();
       expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
@@ -1776,15 +1905,15 @@ describe("createJudgeSyncService", () => {
   });
 
   it("syncs eligible QOJ profile contests before importing profile submissions", async () => {
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const qojJudge: TestJudge = {
         getContests: () => Effect.succeed([
@@ -1848,7 +1977,7 @@ describe("createJudgeSyncService", () => {
         ])
       };
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(events).not.toContainEqual(expect.objectContaining({
         type: JudgeSyncEventType.Error,
@@ -1885,27 +2014,31 @@ describe("createJudgeSyncService", () => {
       expect(database.db.select().from(submissions).all()).toHaveLength(3);
       expect(database.db.select().from(userContestStates).all()).toEqual([
         expect.objectContaining({
-          submissionCount: 1,
-          acceptedCount: 0
+          submissionCount: 2,
+          acceptedCount: 2,
+          distinctProblemCount: 2,
+          simulated: true
         }),
         expect.objectContaining({
           submissionCount: 1,
-          acceptedCount: 0
+          acceptedCount: 1,
+          distinctProblemCount: 1,
+          simulated: false
         })
       ]);
     }, { saveCredentials: false });
   });
 
   it("syncs a QOJ profile contest with only one unique submitted problem", async () => {
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const qojJudge: TestJudge = {
         getContests: () => Effect.succeed([
@@ -1950,7 +2083,7 @@ describe("createJudgeSyncService", () => {
         ])
       };
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
         current: "111",
@@ -1959,8 +2092,13 @@ describe("createJudgeSyncService", () => {
       expect(database.db.select().from(contests).all()).toEqual([
         expect.objectContaining({
           judgeId: "111",
-          judge: JUDGES.Qoj,
-          simulated: true
+          judge: JUDGES.Qoj
+        })
+      ]);
+      expect(database.db.select().from(userContestStates).all()).toEqual([
+        expect.objectContaining({
+          distinctProblemCount: 1,
+          simulated: false
         })
       ]);
       expect(database.db.select().from(submissions).all()).toHaveLength(2);
@@ -1976,15 +2114,15 @@ describe("createJudgeSyncService", () => {
   });
 
   it("skips already simulated QOJ profile contests on later syncs", async () => {
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const getContest = vi.fn((contestId: string) => Effect.succeed({
         judgeId: contestId,
@@ -1995,6 +2133,12 @@ describe("createJudgeSyncService", () => {
             judgeId: "111-A",
             name: "A. First",
             link: "https://qoj.ac/contest/111/problem/A",
+            solves: 1
+          },
+          {
+            judgeId: "111-B",
+            name: "B. Second",
+            link: "https://qoj.ac/contest/111/problem/B",
             solves: 1
           }
         ],
@@ -2013,12 +2157,19 @@ describe("createJudgeSyncService", () => {
             problemName: "A. First",
             verdict: SUBMISSION_STATUSES.AC,
             submittedAt: new Date("2025-02-01T00:00:00.000Z")
+          },
+          {
+            judgeId: "second",
+            judgeProblemId: "111-B",
+            problemName: "B. Second",
+            verdict: SUBMISSION_STATUSES.WA,
+            submittedAt: new Date("2025-02-01T00:10:00.000Z")
           }
         ])
       };
 
-      await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
-      const secondEvents = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
+      const secondEvents = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(getContest).toHaveBeenCalledTimes(1);
       expect(secondEvents).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
@@ -2034,7 +2185,12 @@ describe("createJudgeSyncService", () => {
       expect(database.db.select().from(contests).all()).toEqual([
         expect.objectContaining({
           judgeId: "111",
-          judge: JUDGES.Qoj,
+          judge: JUDGES.Qoj
+        })
+      ]);
+      expect(database.db.select().from(userContestStates).all()).toEqual([
+        expect.objectContaining({
+          distinctProblemCount: 2,
           simulated: true
         })
       ]);
@@ -2042,15 +2198,15 @@ describe("createJudgeSyncService", () => {
   });
 
   it("does not sync QOJ profile contests that are already simulated", async () => {
-    await withDatabase(async (database) => {
+    await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
       database.db.insert(contests).values({
         judgeId: "111",
         judge: JUDGES.Qoj,
@@ -2058,8 +2214,30 @@ describe("createJudgeSyncService", () => {
         link: "https://qoj.ac/contest/111",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+      const seededUser = database.db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.username, "qoj-user"), eq(users.judge, JUDGES.Qoj)))
+        .get();
+      const seededContest = database.db
+        .select({ id: contests.id })
+        .from(contests)
+        .where(and(eq(contests.judgeId, "111"), eq(contests.judge, JUDGES.Qoj)))
+        .get();
+      if (seededUser === undefined || seededContest === undefined) {
+        throw new Error("Expected seeded QOJ user and contest.");
+      }
+      database.db.insert(userContestStates).values({
+        userId: seededUser.id,
+        contestId: seededContest.id,
+        submissionCount: 2,
+        acceptedCount: 1,
+        distinctProblemCount: 2,
+        simulated: true,
+        lastSubmissionAt: timestamp,
         updatedAt: timestamp
       }).run();
 
@@ -2080,7 +2258,7 @@ describe("createJudgeSyncService", () => {
         getSubmissions: () => Effect.succeed([])
       };
 
-      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
 
       expect(getContest).toHaveBeenCalledTimes(1);
       expect(getContest).toHaveBeenCalledWith("222");
@@ -2137,8 +2315,8 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const events = await withDatabase(async (database) =>
-      await collect(createSyncService(database).sync({ provider: "codeforces" }))
+    const events = await withDatabase(async (database, appUserId) =>
+      await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }))
     );
 
     expect(events).toContainEqual(expect.objectContaining({
@@ -2174,16 +2352,16 @@ describe("createJudgeSyncService", () => {
       ])
     };
 
-    const events = await withDatabase(async (database) => {
+    const events = await withDatabase(async (database, appUserId) => {
       database.db.insert(users).values({
         username: "qoj-user",
-        type: USER_TYPES.Team,
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
+      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
-      return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
+      return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
     }, { saveCredentials: false });
 
     expect(events.filter((event) => event.type === "error")).toHaveLength(1);

@@ -1,7 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const authStatePath = "playwright/.clerk/user.json";
+const envFiles = [".env.e2e.local", ".env.e2e", ".env.local", ".env"];
+
+for (const file of envFiles) {
+  const path = join(repoRoot, file);
+  if (existsSync(path)) {
+    loadEnvFile(path);
+  }
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -35,8 +47,17 @@ export default defineConfig({
   ],
   projects: [
     {
+      name: "setup",
+      testMatch: /global\.setup\.ts/
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] }
+      testIgnore: /global\.setup\.ts/,
+      dependencies: ["setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: authStatePath
+      }
     }
   ]
 });

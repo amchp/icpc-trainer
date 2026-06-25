@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import { getUpsolvingOverview } from "./upsolvingReadModel.js";
 
 const { contests } = schema;
@@ -21,10 +22,11 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 
 export const createUpsolvingRouter = (t: TrpcInstance) =>
   t.router({
-    overview: t.procedure.query(({ ctx }) => getUpsolvingOverview(ctx.database)),
+    overview: t.procedure.query(({ ctx }) => getUpsolvingOverview(ctx.database, requireAppUser(ctx.appUser).id)),
     refetchContest: t.procedure.input(z.object({
       contestId: z.number().int().positive()
     })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {
+      const appUser = requireAppUser(ctx.appUser);
       const contest = ctx.database.db
         .select({
           judge: contests.judge,
@@ -51,7 +53,8 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
       try {
         await ctx.judges.refetchContest({
           provider: contest.judge,
-          contestJudgeId: contest.judgeId
+          contestJudgeId: contest.judgeId,
+          appUserId: appUser.id
         });
       } catch (error) {
         throw new TRPCError({

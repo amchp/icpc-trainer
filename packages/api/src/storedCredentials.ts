@@ -1,10 +1,9 @@
 import { JUDGES } from "@icpc-trainer/shared";
 
-import { decryptCredential, encryptCredential } from "./credentialCrypto.js";
+import { decryptCredential } from "./credentialCrypto.js";
 import {
   clearCredentials,
   getLatestCredential,
-  saveEncryptedCredential,
   type CredentialDatabaseContext
 } from "./credentialRepository.js";
 import type { PlaygroundProvider } from "./playground.js";
@@ -88,46 +87,4 @@ export const clearStoredCredentials = (
   provider: PlaygroundProvider,
 ): void => {
   clearCredentials(ctx, provider);
-};
-
-export interface SeedStoredCredentialsInput {
-  readonly codeforces?: Partial<StoredCodeforcesCredentials>;
-  readonly qoj?: Partial<StoredQojCredentials>;
-}
-
-export const seedStoredCredentials = (
-  ctx: CredentialDatabaseContext,
-  input: SeedStoredCredentialsInput,
-): void => {
-  const apiKey = input.codeforces?.apiKey?.trim();
-  const apiSecret = input.codeforces?.apiSecret?.trim();
-  if (apiKey && apiSecret) {
-    saveEncryptedCredential(
-      ctx,
-      {
-        provider: JUDGES.Codeforces,
-        providerUserKey: "env",
-        codeforces: {
-          apiKey,
-          apiSecret
-        }
-      },
-      encryptCredential(JSON.stringify({ apiKey, apiSecret })),
-    );
-  }
-
-  const cookieJar = input.qoj?.cookieJar?.trim();
-  if (cookieJar) {
-    saveEncryptedCredential(
-      ctx,
-      {
-        provider: JUDGES.Qoj,
-        providerUserKey: "env",
-        qoj: {
-          cookieJar
-        }
-      },
-      encryptCredential(JSON.stringify({ cookieJar })),
-    );
-  }
 };

@@ -4,8 +4,9 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { appRouter } from "../src/index.js";
+import { attachJudgeUser, createTestAppUser } from "./testAppUser.js";
 
-const { contests, problems, submissions, users } = schema;
+const { contests, problems, submissions, userContestStates, users } = schema;
 
 describe("upsolving router", () => {
   it("returns all simulated problem rows with team user status only", async () => {
@@ -13,25 +14,23 @@ describe("upsolving router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = createTestAppUser(database);
 
       database.db.insert(users).values([
         {
           username: "other",
-          type: USER_TYPES.User,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "teammate",
-          type: USER_TYPES.Team,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "friend",
-          type: USER_TYPES.Friend,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -46,7 +45,6 @@ describe("upsolving router", () => {
           link: "https://codeforces.com/gym/100",
           participants: 50,
           stars: 2,
-          simulated: true,
           createdAt: timestamp,
           updatedAt: new Date("2026-01-02T00:00:00.000Z")
         },
@@ -57,7 +55,6 @@ describe("upsolving router", () => {
           link: "https://qoj.ac/contest/200",
           participants: null,
           stars: null,
-          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         },
@@ -68,7 +65,6 @@ describe("upsolving router", () => {
           link: "https://codeforces.com/gym/300",
           participants: 10,
           stars: 1,
-          simulated: false,
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -144,6 +140,30 @@ describe("upsolving router", () => {
       if (!other || !teammate || !friend || !solved || !attempted || !newProblem) {
         throw new Error("Expected seeded users and problems.");
       }
+      attachJudgeUser(database, appUser.id, teammate.id, USER_TYPES.Team);
+      attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend);
+      database.db.insert(userContestStates).values([
+        {
+          userId: teammate.id,
+          contestId: syncedContest.id,
+          submissionCount: 2,
+          acceptedCount: 1,
+          distinctProblemCount: 2,
+          simulated: true,
+          lastSubmissionAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          userId: friend.id,
+          contestId: qojContest.id,
+          submissionCount: 2,
+          acceptedCount: 1,
+          distinctProblemCount: 2,
+          simulated: true,
+          lastSubmissionAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]).run();
 
       database.db.insert(submissions).values([
         {
@@ -180,6 +200,7 @@ describe("upsolving router", () => {
 
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined

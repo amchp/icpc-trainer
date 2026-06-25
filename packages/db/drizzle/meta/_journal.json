@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1782144584872,
-      "tag": "0000_initial_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1782170977112,
-      "tag": "0001_military_true_believers",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1782171247823,
-      "tag": "0002_sleepy_starjammers",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1782224234849,
-      "tag": "0003_bouncy_the_executioner",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1782224560143,
-      "tag": "0004_yummy_jack_flag",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1782260000000,
-      "tag": "0005_primary_users_to_team",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1782265000000,
-      "tag": "0006_simulated_contest_participation",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1782270000000,
-      "tag": "0007_problem_tags",
+      "when": 1782416335280,
+      "tag": "0000_third_typhoid_mary",
       "breakpoints": true
     }
   ]

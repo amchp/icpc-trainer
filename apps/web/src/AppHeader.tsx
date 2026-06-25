@@ -1,4 +1,5 @@
 import { APP_NAME } from "@icpc-trainer/shared";
+import { UserButton } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Menu, RefreshCw, X } from "lucide-react";
@@ -89,6 +90,7 @@ export function AppHeader(): React.JSX.Element {
           >
             Judges
           </Link>
+          <UserButton afterSignOutUrl="/" />
           <Button
             type="button"
             variant="ghost"

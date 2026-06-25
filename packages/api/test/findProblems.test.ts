@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { appRouter } from "../src/index.js";
+import { attachJudgeUser, createTestAppUser } from "./testAppUser.js";
 
 const { contests, problems, problemTags, submissions, users } = schema;
 
@@ -13,18 +14,17 @@ describe("find problems router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = createTestAppUser(database);
 
       database.db.insert(users).values([
         {
           username: "team",
-          type: USER_TYPES.Team,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "friend",
-          type: USER_TYPES.Friend,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -39,7 +39,6 @@ describe("find problems router", () => {
           link: "https://codeforces.com/contest/100",
           participants: null,
           stars: null,
-          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         },
@@ -50,7 +49,6 @@ describe("find problems router", () => {
           link: "https://qoj.ac/contest/200",
           participants: null,
           stars: null,
-          simulated: true,
           createdAt: timestamp,
           updatedAt: timestamp
         }
@@ -124,6 +122,8 @@ describe("find problems router", () => {
       if (!team || !friend || !untagged || !tagged || !duplicateTagSource) {
         throw new Error("Expected seeded users and problems.");
       }
+      attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team);
+      attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend);
 
       database.db.insert(problemTags).values([
         { problemId: tagged.id, tag: "dp" },
@@ -166,6 +166,7 @@ describe("find problems router", () => {
 
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined

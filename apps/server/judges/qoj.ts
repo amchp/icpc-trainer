@@ -1,5 +1,5 @@
 
-import { getStoredQojCredentials } from "@icpc-trainer/api";
+import { AppUserIdTag, getStoredQojCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
   CONTEST_FINDER_REFRESH_EVENT_TYPES,
@@ -96,10 +96,11 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
   let requestChain: Promise<void> = Promise.resolve();
   let nextAvailableAt = 0;
 
-  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError, DatabaseServiceTag> =>
+  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError, DatabaseServiceTag | AppUserIdTag> =>
     Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
-      const auth = getStoredQojCredentials({ database });
+      const appUserId = yield* AppUserIdTag;
+      const auth = getStoredQojCredentials({ database, appUserId });
       if (!auth.ok) {
         return yield* Effect.fail(new JudgeCredentialError({ judgeId: "qoj", cause: auth.cause }));
       }
@@ -622,14 +623,15 @@ export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL) => {
   const requestQoj = createQojRequester(baseUrl);
   const requestProfile = (
     options?: GetContestsOptions | GetSubmissionsOptions
-  ): Effect.Effect<string, JudgeError, DatabaseServiceTag> =>
+  ): Effect.Effect<string, JudgeError, DatabaseServiceTag | AppUserIdTag> =>
     Effect.gen(function* () {
       if (options?.userHandle !== undefined && options.userHandle.trim() !== "") {
         return yield* requestQoj(`/user/profile/${encodeURIComponent(normalizeUserHandle(options.userHandle))}`);
       }
 
       const database = yield* DatabaseServiceTag;
-      const auth = getStoredQojCredentials({ database });
+      const appUserId = yield* AppUserIdTag;
+      const auth = getStoredQojCredentials({ database, appUserId });
       const handle = auth.ok ? userHandleFromCookieJar(auth.credentials.cookieJar) : undefined;
 
       if (handle === undefined || handle === "") {

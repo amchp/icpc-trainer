@@ -40,7 +40,7 @@ export const ensureCatalogContest = (
   const trimmedName = name?.trim();
   const fallbackName = `${judge === JUDGES.Codeforces ? "Codeforces" : "QOJ"} Contest ${contestJudgeId}`;
   const existing = database.db
-    .select({ id: contests.id, simulated: contests.simulated })
+    .select({ id: contests.id })
     .from(contests)
     .where(and(eq(contests.judge, judge), eq(contests.judgeId, contestJudgeId)))
     .get();
@@ -58,7 +58,6 @@ export const ensureCatalogContest = (
       link,
       participants: null,
       stars: null,
-      simulated: false,
       createdAt: timestamp,
       updatedAt: timestamp
     })
@@ -91,10 +90,18 @@ export const upsertUserContestState = (
   contestId: number,
   submissionsForContest: ReadonlyArray<ContestStateSubmission>
 ): boolean => {
-  const submittedProblemIds = new Set(submissionsForContest.map((submission) => submission.judgeProblemId));
-  if (submissionsForContest.length > 0 && submittedProblemIds.size < 2) {
+  const existing = database.db
+    .select({ userId: userContestStates.userId })
+    .from(userContestStates)
+    .where(and(eq(userContestStates.userId, userId), eq(userContestStates.contestId, contestId)))
+    .get();
+  if (submissionsForContest.length === 0 && existing !== undefined) {
     return false;
   }
+
+  const submittedProblemIds = new Set(submissionsForContest.map((submission) => submission.judgeProblemId));
+  const distinctProblemCount = submittedProblemIds.size;
+  const simulated = distinctProblemCount >= 2;
 
   const timestamp = now();
   const lastSubmissionAt = submissionsForContest.reduce<Date | null>(
@@ -111,6 +118,8 @@ export const upsertUserContestState = (
       contestId,
       submissionCount: Math.max(submissionsForContest.length, 1),
       acceptedCount,
+      distinctProblemCount,
+      simulated,
       lastSubmissionAt,
       updatedAt: timestamp
     })
@@ -119,6 +128,8 @@ export const upsertUserContestState = (
       set: {
         submissionCount: Math.max(submissionsForContest.length, 1),
         acceptedCount,
+        distinctProblemCount,
+        simulated,
         lastSubmissionAt,
         updatedAt: timestamp
       }

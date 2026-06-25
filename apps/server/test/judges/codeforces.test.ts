@@ -1,4 +1,4 @@
-import { appRouter } from "@icpc-trainer/api";
+import { AppUserIdTag, appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
@@ -13,6 +13,7 @@ import {
   getCodeforcesUser,
   makeCodeforcesCredentialValidator,
 } from "../../judges/codeforces.js";
+import { createTestAppUser, provideTestAppUser } from "../testAppUser.js";
 
 const codeforcesAuth = {
   apiKey: "key",
@@ -47,7 +48,7 @@ const expectRequestedUrl = (value: unknown, pathname: string): URL => {
 };
 
 const runWithDatabase = async <A>(
-  effect: Effect.Effect<A, unknown, DatabaseServiceTag>,
+  effect: Effect.Effect<A, unknown, DatabaseServiceTag | AppUserIdTag>,
   auth?: { readonly apiKey: string; readonly apiSecret: string },
 ): Promise<A> => {
   process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
@@ -55,10 +56,12 @@ const runWithDatabase = async <A>(
   const program = Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
+    const appUser = createTestAppUser(database);
 
     if (auth !== undefined) {
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -73,7 +76,7 @@ const runWithDatabase = async <A>(
       );
     }
 
-    return yield* effect;
+    return yield* provideTestAppUser(effect, appUser);
   });
 
   return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));

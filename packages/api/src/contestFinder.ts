@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { getContestFinderOverview } from "./contestFinderReadModel.js";
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import { judgeProviderSchema } from "./judgeProvider.js";
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
@@ -33,6 +34,9 @@ export const contestFinderRefreshInputSchema = z.object({
 });
 
 export type ContestFinderRefreshInput = z.infer<typeof contestFinderRefreshInputSchema>;
+export type AppScopedContestFinderRefreshInput = ContestFinderRefreshInput & {
+  readonly appUserId: number;
+};
 export type ContestFinderRefreshStatus = RunStatus;
 
 interface ContestFinderRefreshEventBase {
@@ -103,15 +107,15 @@ export interface ContestFinderRefreshProviderState {
 export type ContestFinderRefreshObserveEvent = ContestFinderRefreshProviderState;
 
 export interface ContestFinderRefreshService {
-  readonly startContestFinderRefresh: () => Promise<void>;
+  readonly startContestFinderRefresh: (input: { readonly appUserId: number }) => Promise<void>;
   readonly observeContestFinderRefresh: (
-    input: ContestFinderRefreshInput
+    input: AppScopedContestFinderRefreshInput
   ) => AsyncIterable<ContestFinderRefreshObserveEvent>;
 }
 
 export const createContestFinderRouter = (t: TrpcInstance) =>
   t.router({
-    overview: t.procedure.query(({ ctx }) => getContestFinderOverview(ctx.database)),
+    overview: t.procedure.query(({ ctx }) => getContestFinderOverview(ctx.database, requireAppUser(ctx.appUser).id)),
     refresh: t.procedure.mutation(async ({ ctx }): Promise<{ readonly ok: true }> => {
       if (ctx.judges.startContestFinderRefresh === undefined) {
         throw new TRPCError({
@@ -120,7 +124,7 @@ export const createContestFinderRouter = (t: TrpcInstance) =>
         });
       }
 
-      await ctx.judges.startContestFinderRefresh();
+      await ctx.judges.startContestFinderRefresh({ appUserId: requireAppUser(ctx.appUser).id });
       return { ok: true };
     }),
     observeRefresh: t.procedure.input(contestFinderRefreshInputSchema).subscription(async function* ({ ctx, input }) {
@@ -131,7 +135,7 @@ export const createContestFinderRouter = (t: TrpcInstance) =>
         });
       }
 
-      yield* ctx.judges.observeContestFinderRefresh(input);
+      yield* ctx.judges.observeContestFinderRefresh({ ...input, appUserId: requireAppUser(ctx.appUser).id });
     })
   });
 

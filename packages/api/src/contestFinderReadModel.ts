@@ -2,7 +2,7 @@ import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 
-const { contests, userContestStates, users } = schema;
+const { appUserJudgeUsers, contests, userContestStates, users } = schema;
 
 export interface ContestFinderRow {
   readonly id: number;
@@ -20,13 +20,17 @@ export interface ContestFinderOverview {
   readonly contests: readonly ContestFinderRow[];
 }
 
-export const getContestFinderOverview = (database: DatabaseService): ContestFinderOverview => {
+export const getContestFinderOverview = (database: DatabaseService, appUserId: number): ContestFinderOverview => {
   const attemptedContestIds = new Set<number>();
   const teamContestStateRows = database.db
     .select({ contestId: userContestStates.contestId })
     .from(userContestStates)
-    .innerJoin(users, eq(users.id, userContestStates.userId))
-    .where(eq(users.type, USER_TYPES.Team))
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Team)
+    ))
+    .where(eq(userContestStates.simulated, true))
     .groupBy(userContestStates.contestId)
     .all();
   for (const row of teamContestStateRows) {
@@ -35,11 +39,8 @@ export const getContestFinderOverview = (database: DatabaseService): ContestFind
 
   const attemptedContestIdList = [...attemptedContestIds];
   const contestFinderFilter = attemptedContestIdList.length === 0
-    ? eq(contests.simulated, false)
-    : and(
-      eq(contests.simulated, false),
-      notInArray(contests.id, attemptedContestIdList)
-    );
+    ? undefined
+    : notInArray(contests.id, attemptedContestIdList);
 
   const contestRows = database.db
     .select({
@@ -54,12 +55,14 @@ export const getContestFinderOverview = (database: DatabaseService): ContestFind
     })
     .from(userContestStates)
     .innerJoin(contests, eq(contests.id, userContestStates.contestId))
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend)
+    ))
     .innerJoin(
       users,
-      and(
-        eq(users.id, userContestStates.userId),
-        eq(users.type, USER_TYPES.Friend)
-      )
+      eq(users.id, userContestStates.userId)
     )
     .where(contestFinderFilter)
     .groupBy(contests.id)
@@ -72,12 +75,14 @@ export const getContestFinderOverview = (database: DatabaseService): ContestFind
       username: users.username
     })
     .from(userContestStates)
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend)
+    ))
     .innerJoin(users, eq(users.id, userContestStates.userId))
     .innerJoin(contests, eq(contests.id, userContestStates.contestId))
-    .where(and(
-      eq(users.type, USER_TYPES.Friend),
-      contestFinderFilter
-    ))
+    .where(contestFinderFilter)
     .orderBy(users.username)
     .all();
   const handlesByContestId = new Map<number, string[]>();

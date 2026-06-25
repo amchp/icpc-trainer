@@ -4,6 +4,7 @@ import { initTRPC } from "@trpc/server";
 import { Effect } from "effect";
 
 import { createAccountRouter } from "./account.js";
+import type { AppUser } from "./appUsers.js";
 import {
   createCredentialsRouter,
   type CredentialStatus,
@@ -33,11 +34,13 @@ export interface JudgeCredentialValidationService {
 export type CredentialStatusEvent =
   | {
       readonly type: "snapshot";
+      readonly appUserId: number;
       readonly status: CredentialStatus;
       readonly occurredAt: string;
     }
   | {
       readonly type: "changed";
+      readonly appUserId: number;
       readonly status: CredentialStatus;
       readonly occurredAt: string;
     };
@@ -51,6 +54,7 @@ export interface ApiContext {
   readonly database: DatabaseService;
   readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService> & Partial<ContestFinderRefreshService>;
   readonly credentialEvents?: CredentialStatusEventService;
+  readonly appUser?: AppUser;
 }
 
 const t = initTRPC.context<ApiContext>().create();
@@ -82,8 +86,18 @@ export const appRouter = t.router({
 export type AppRouter = typeof appRouter;
 
 export type {
+  AppUser
+} from "./appUsers.js";
+
+export type {
   AppDataStatus
 } from "./account.js";
+
+export {
+  AppUserIdTag,
+  upsertAppUser,
+  requireAppUser
+} from "./appUsers.js";
 
 export type {
   CredentialStatus,
@@ -93,8 +107,7 @@ export type {
 export {
   clearStoredCredentials,
   getStoredCodeforcesCredentials,
-  getStoredQojCredentials,
-  seedStoredCredentials
+  getStoredQojCredentials
 } from "./storedCredentials.js";
 
 export type {
@@ -120,12 +133,12 @@ export type {
 } from "./friends.js";
 
 export type {
-  SeedStoredCredentialsInput,
   StoredCodeforcesCredentials,
   StoredQojCredentials
 } from "./storedCredentials.js";
 
 export type {
+  AppScopedJudgeSyncInput,
   JudgeSyncEvent,
   JudgeSyncInput,
   JudgeSyncObserveEvent,

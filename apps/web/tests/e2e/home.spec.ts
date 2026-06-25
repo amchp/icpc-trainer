@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("redirects home to Find Problems", async ({ page }) => {
+test("redirects authenticated first-run home to Connect Judges", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page).toHaveURL(/\/find-problems$/);
-  await expect(page.getByRole("heading", { name: "Find Problems" })).toBeVisible();
+  await expect(page).toHaveURL(/\/connect-judges$/);
+  await expect(page.getByRole("heading", { name: "Connect Judges" })).toBeVisible();
 });

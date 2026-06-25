@@ -9,6 +9,7 @@ import {
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 const { contests, problems, submissions, users } = schema;
+const { appUserJudgeUsers, userContestStates } = schema;
 
 export type { UpsolvingProblemStatus };
 
@@ -51,7 +52,7 @@ interface SubmissionStatusAccumulator {
   hasAccepted: boolean;
 }
 
-export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOverview => {
+export const getUpsolvingOverview = (database: DatabaseService, appUserId: number): UpsolvingOverview => {
   const problemRows = database.db
     .select({
       contestId: contests.id,
@@ -65,9 +66,16 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
       solvePercentage: problems.solvePercentage,
       rating: problems.rating
     })
-    .from(problems)
-    .innerJoin(contests, eq(contests.id, problems.contestId))
-    .where(eq(contests.simulated, true))
+    .from(userContestStates)
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Team)
+    ))
+    .innerJoin(contests, eq(contests.id, userContestStates.contestId))
+    .innerJoin(problems, eq(contests.id, problems.contestId))
+    .where(eq(userContestStates.simulated, true))
+    .groupBy(problems.id)
     .orderBy(desc(contests.updatedAt), asc(contests.name), asc(problems.rating), asc(problems.judgeId))
     .all();
 
@@ -81,12 +89,18 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
       acceptedCount: sql<number>`sum(case when ${submissions.status} = ${SUBMISSION_STATUSES.AC} then 1 else 0 end)`
     })
     .from(submissions)
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, submissions.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Team)
+    ))
     .innerJoin(users, eq(users.id, submissions.userId))
     .innerJoin(problems, eq(problems.id, submissions.problemId))
     .innerJoin(contests, eq(contests.id, problems.contestId))
-    .where(and(
-      eq(contests.simulated, true),
-      eq(users.type, USER_TYPES.Team)
+    .innerJoin(userContestStates, and(
+      eq(userContestStates.userId, submissions.userId),
+      eq(userContestStates.contestId, contests.id),
+      eq(userContestStates.simulated, true)
     ))
     .groupBy(contests.id, submissions.problemId)
     .all();
@@ -147,7 +161,13 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
     })
     .from(contests)
     .leftJoin(problems, eq(problems.contestId, contests.id))
-    .where(eq(contests.simulated, true))
+    .innerJoin(userContestStates, eq(userContestStates.contestId, contests.id))
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, userContestStates.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Team)
+    ))
+    .where(eq(userContestStates.simulated, true))
     .groupBy(contests.id)
     .orderBy(desc(contests.updatedAt), asc(contests.name))
     .all();

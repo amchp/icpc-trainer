@@ -13,6 +13,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.3",
+    "@clerk/ui": "^1.23.0",
     "@icpc-trainer/api": "workspace:*",
     "@icpc-trainer/shared": "workspace:*",
     "@radix-ui/react-progress": "^1.1.10",
@@ -31,6 +33,8 @@
     "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
+    "@clerk/backend": "3.8.4",
+    "@clerk/testing": "2.1.7",
     "@icpc-trainer/tsconfig": "workspace:*",
     "@playwright/test": "1.61.0",
     "@tailwindcss/vite": "4.3.1",

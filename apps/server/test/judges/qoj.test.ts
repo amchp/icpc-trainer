@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
-import { appRouter } from "@icpc-trainer/api";
+import { AppUserIdTag, appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
@@ -11,6 +11,7 @@ import {
   makeQojCredentialValidator,
   makeQojPlaygroundClient
 } from "../../judges/qoj.js";
+import { createTestAppUser, provideTestAppUser } from "../testAppUser.js";
 
 const fixturesDir = join(import.meta.dirname, "../fixtures/qoj");
 
@@ -124,14 +125,16 @@ describe("QOJ judge HTML fixtures", () => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = originalCredentialKey ?? Buffer.alloc(32, 7).toString("base64");
   });
 
-  const runWithQojAuth = async <A>(effect: Effect.Effect<A, unknown, DatabaseServiceTag>): Promise<A> => {
+  const runWithQojAuth = async <A>(effect: Effect.Effect<A, unknown, DatabaseServiceTag | AppUserIdTag>): Promise<A> => {
     process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
+      const appUser = createTestAppUser(database);
       const caller = appRouter.createCaller({
         database,
+        appUser,
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined
@@ -147,7 +150,7 @@ describe("QOJ judge HTML fixtures", () => {
         })
       );
 
-      return yield* effect;
+      return yield* provideTestAppUser(effect, appUser);
     });
 
     return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));

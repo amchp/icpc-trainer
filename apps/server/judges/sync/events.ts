@@ -1,4 +1,5 @@
 import {
+  AppUserIdTag,
   type JudgeSyncEvent,
   type JudgeSyncInput,
   type JudgeSyncSummary,
@@ -164,8 +165,8 @@ export const syncEffect = <A>(
 export const runJudgeOperation = <A>(
   database: DatabaseService,
   context: SyncOperationContext,
-  effect: Effect.Effect<A, unknown, DatabaseServiceTag>
-): Effect.Effect<A, SyncOperationError> =>
+  effect: Effect.Effect<A, unknown, DatabaseServiceTag | AppUserIdTag>
+): Effect.Effect<A, SyncOperationError, AppUserIdTag> =>
   Effect.provideService(effect, DatabaseServiceTag, database).pipe(
     Effect.mapError((cause) => new SyncOperationError({ ...context, cause }))
   );

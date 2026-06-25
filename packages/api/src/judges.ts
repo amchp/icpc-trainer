@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { requireAppUser } from "./appUsers.js";
 import { judgeProviderSchema } from "./judgeProvider.js";
 import type { RefetchContestInput } from "./upsolving.js";
 
@@ -22,6 +23,9 @@ export const judgeSyncInputSchema = z.object({
 });
 
 export type JudgeSyncInput = z.infer<typeof judgeSyncInputSchema>;
+export type AppScopedJudgeSyncInput = JudgeSyncInput & {
+  readonly appUserId: number;
+};
 
 export interface JudgeSyncSummary {
   readonly usersProcessed: number;
@@ -103,9 +107,9 @@ export interface JudgeSyncProviderState {
 export type JudgeSyncObserveEvent = JudgeSyncProviderState;
 
 export interface JudgeSyncService {
-  readonly start: (input: JudgeSyncInput) => Promise<void>;
-  readonly observe: (input: JudgeSyncInput) => AsyncIterable<JudgeSyncObserveEvent>;
-  readonly refetchContest?: (input: RefetchContestInput) => Promise<void>;
+  readonly start: (input: AppScopedJudgeSyncInput) => Promise<void>;
+  readonly observe: (input: AppScopedJudgeSyncInput) => AsyncIterable<JudgeSyncObserveEvent>;
+  readonly refetchContest?: (input: RefetchContestInput & { readonly appUserId: number }) => Promise<void>;
 }
 
 export const createJudgesRouter = (t: TrpcInstance) =>
@@ -118,7 +122,7 @@ export const createJudgesRouter = (t: TrpcInstance) =>
         });
       }
 
-      await ctx.judges.start(input);
+      await ctx.judges.start({ ...input, appUserId: requireAppUser(ctx.appUser).id });
     }),
     observeSync: t.procedure.input(judgeSyncInputSchema).subscription(async function* ({ ctx, input }) {
       if (ctx.judges.observe === undefined) {
@@ -128,6 +132,6 @@ export const createJudgesRouter = (t: TrpcInstance) =>
         });
       }
 
-      yield* ctx.judges.observe(input);
+      yield* ctx.judges.observe({ ...input, appUserId: requireAppUser(ctx.appUser).id });
     })
   });

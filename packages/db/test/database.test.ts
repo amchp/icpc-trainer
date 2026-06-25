@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Effect, Layer } from "effect";
-import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 
 import { DatabaseLive, DatabaseServiceTag, schema } from "../src/index.js";
@@ -25,7 +25,6 @@ describe("DatabaseLive", () => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
       database.db.insert(schema.users).values({
         username: "tourist",
-        type: USER_TYPES.Team,
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -38,7 +37,6 @@ describe("DatabaseLive", () => {
         link: "https://codeforces.com/gym/566",
         participants: 1,
         stars: 0,
-        simulated: true,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
@@ -119,14 +117,12 @@ describe("DatabaseLive", () => {
       database.db.insert(schema.users).values([
         {
           username: "juancs",
-          type: USER_TYPES.Team,
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
         },
         {
           username: "juancs",
-          type: USER_TYPES.Team,
           judge: JUDGES.Qoj,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -136,7 +132,15 @@ describe("DatabaseLive", () => {
       expect(() => {
         database.db.insert(schema.users).values({
           username: "juancs",
-          type: USER_TYPES.Team,
+          judge: JUDGES.Codeforces,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }).run();
+      }).toThrow();
+
+      expect(() => {
+        database.db.insert(schema.users).values({
+          username: "Juancs",
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
@@ -167,7 +171,6 @@ describe("DatabaseLive", () => {
 
       database.db.insert(schema.users).values({
         username: "friend",
-        type: USER_TYPES.Friend,
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -179,7 +182,6 @@ describe("DatabaseLive", () => {
         link: "https://codeforces.com/gym/100",
         participants: null,
         stars: null,
-        simulated: false,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
