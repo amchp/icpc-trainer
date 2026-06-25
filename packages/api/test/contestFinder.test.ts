@@ -139,7 +139,18 @@ describe("contest finder router", () => {
           validateCredentials: async () => undefined,
           startContestFinderRefresh: async () => undefined,
           observeContestFinderRefresh: async function* (input) {
-            yield { type: "snapshot" as const, provider: input.provider, running: false, events: [] };
+            yield {
+              type: "state" as const,
+              provider: input.provider,
+              status: "idle" as const,
+              progress: 0,
+              stepsTotal: 0,
+              stepsLeft: 0,
+              current: null,
+              contestsUpserted: 0,
+              friendsProcessed: 0,
+              warnings: []
+            };
           }
         }
       });

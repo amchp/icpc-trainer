@@ -46,6 +46,21 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
   );
 });
 
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function Textarea({ className, ...props }, ref): React.JSX.Element {
+    return (
+      <textarea
+        ref={ref}
+        className={cn(
+          "flex min-h-20 w-full resize-y rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60",
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+
 export function Select({
   className,
   ...props

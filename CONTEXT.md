@@ -64,6 +64,10 @@ _Avoid_: Gym view, contest split
 The app page that ranks **Unsimulated Contests** using **Friend** **Contest Participation**.
 _Avoid_: Gym finder
 
+**Find Problems**:
+The app page where a user browses saved Codeforces **Problems** by difficulty and tags, then selects a random visible **Problem** for practice.
+_Avoid_: Problem finder, Codeforces catalog, practice picker
+
 ## Example Dialogue
 
 Dev: "Should sync fetch submissions for every Codeforces user?"

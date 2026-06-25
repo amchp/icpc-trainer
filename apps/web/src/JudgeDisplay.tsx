@@ -39,7 +39,7 @@ export function JudgeDisplay({
   );
 }
 
-function CodeforcesIcon({
+export function CodeforcesIcon({
   className
 }: {
   readonly className?: string;

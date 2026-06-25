@@ -1,4 +1,4 @@
-import { Card, Progress } from "./components/ui.js";
+import { Progress } from "./components/ui.js";
 import { judgeLabel, judgeSyncProgressClassName } from "./judgeConfig.js";
 import { useSync } from "./SyncContext.js";
 
@@ -67,41 +67,39 @@ export function SyncPanel(): React.JSX.Element {
   const runningProviders = sync.providers.filter((provider) => provider.status === "running");
 
   return (
-    <Card className="w-full p-4">
-      <div className="grid gap-3">
-        {runningProviders.map((provider) => {
-          const indicatorClassName = judgeSyncProgressClassName(provider.provider);
-          const activeStepConfig = activeStepConfigs.find(
-            (stepConfig) => provider.steps[stepConfig.key].status === "running"
-          );
-          const activeStep = activeStepConfig
-            ? {
-                ...activeStepConfig,
-                step: provider.steps[activeStepConfig.key]
-              }
-            : null;
+    <div className="grid gap-3">
+      {runningProviders.map((provider) => {
+        const indicatorClassName = judgeSyncProgressClassName(provider.provider);
+        const activeStepConfig = activeStepConfigs.find(
+          (stepConfig) => provider.steps[stepConfig.key].status === "running"
+        );
+        const activeStep = activeStepConfig
+          ? {
+              ...activeStepConfig,
+              step: provider.steps[activeStepConfig.key]
+            }
+          : null;
 
-          return (
-            <div key={provider.provider} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-4">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">{judgeLabel(provider.provider)}</p>
-                </div>
+        return (
+          <div key={provider.provider} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-4">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">{judgeLabel(provider.provider)}</p>
               </div>
-              {activeStep ? (
-                <SyncStepProgress
-                  title={activeStep.title}
-                  unit={activeStep.unit}
-                  step={activeStep.step}
-                  indicatorClassName={indicatorClassName}
-                />
-              ) : (
-                <p className="text-sm text-zinc-400">{leftLabel(provider.stepsLeft, "sync")}</p>
-              )}
             </div>
-          );
-        })}
-      </div>
-    </Card>
+            {activeStep ? (
+              <SyncStepProgress
+                title={activeStep.title}
+                unit={activeStep.unit}
+                step={activeStep.step}
+                indicatorClassName={indicatorClassName}
+              />
+            ) : (
+              <p className="text-sm text-zinc-400">{leftLabel(provider.stepsLeft, "sync")}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -94,7 +94,7 @@ export function ContestsTable({
 
       {contests.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No simulated contests yet. Run sync to load contests and problems.
+          No simulated contests yet. Click the Sync button to update data.
         </div>
       ) : visibleRows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">

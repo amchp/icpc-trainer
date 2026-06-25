@@ -6,6 +6,8 @@ import { useCallback, useState } from "react";
 import { Card, Skeleton } from "./components/ui.js";
 import { ContestsTable } from "./ContestsTable.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
+import { queryKeys } from "./queryKeys.js";
+import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { trpc } from "./trpc.js";
 import { useToaster } from "./Toaster.js";
 
@@ -15,10 +17,16 @@ export function ContestsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [refreshingContestIds, setRefreshingContestIds] = useState<readonly number[]>([]);
   const query = useQuery({
-    queryKey: ["upsolving", "overview"],
+    queryKey: queryKeys.upsolvingOverview,
     queryFn: () => trpc.upsolving.overview.query(),
     enabled: status === "ready" && hasConnectedJudge
   });
+  const dataStatusQuery = useQuery({
+    queryKey: queryKeys.accountDataStatus,
+    queryFn: () => trpc.account.dataStatus.query(),
+    enabled: status === "ready" && hasConnectedJudge
+  });
+  const noSyncedData = dataStatusQuery.data?.hasSyncedContests === false;
 
   const refetchContest = useCallback(async (contest: UpsolvingContestRow): Promise<void> => {
     setRefreshingContestIds((current) =>
@@ -27,7 +35,7 @@ export function ContestsPage(): React.JSX.Element {
 
     try {
       await trpc.upsolving.refetchContest.mutate({ contestId: contest.id });
-      await queryClient.invalidateQueries({ queryKey: ["upsolving", "overview"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.upsolvingOverview });
     } catch (error) {
       toaster.error({
         title: "Contest refresh failed",
@@ -72,7 +80,9 @@ export function ContestsPage(): React.JSX.Element {
         </Card>
       ) : null}
 
-      {query.data ? (
+      {noSyncedData ? (
+        <SyncDataPrompt />
+      ) : query.data ? (
         <ContestsTable
           contests={query.data.contests}
           refreshingContestIds={refreshingContestIds}

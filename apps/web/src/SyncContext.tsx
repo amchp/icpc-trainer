@@ -1,19 +1,44 @@
-import type { JudgeSyncEvent, JudgeSyncInput, JudgeSyncSummary } from "@icpc-trainer/api";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type {
+  JudgeSyncEvent,
+  JudgeSyncEventType as JudgeSyncEventTypeEnum,
+  JudgeSyncInput,
+  JudgeSyncProviderState,
+  SyncRunStatus as SyncRunStatusEnum,
+  JudgeSyncStepState,
+  SyncStepStatus as SyncStepStatusEnum,
+  JudgeSyncSummary
+} from "@icpc-trainer/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { useProviderStateSubscriptions } from "./providerRunObserver.js";
+import { invalidateAfterJudgeSync } from "./queryKeys.js";
 import { syncObservableProviders } from "./judgeConfig.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
-type SyncStatus = "idle" | "running" | "completed" | "error";
-type SyncStepStatus = "pending" | "running" | "completed" | "error";
+const JudgeSyncEventType = {
+  Error: "error" as JudgeSyncEventTypeEnum.Error,
+  Completed: "completed" as JudgeSyncEventTypeEnum.Completed
+};
 
-interface SyncStepProgress {
-  readonly status: SyncStepStatus;
-  readonly total: number;
-  readonly processed: number;
+const SyncRunStatus = {
+  Running: "running" as SyncRunStatusEnum.Running,
+  Completed: "completed" as SyncRunStatusEnum.Completed,
+  Error: "error" as SyncRunStatusEnum.Error
+};
+
+const SyncStepStatus = {
+  Pending: "pending" as SyncStepStatusEnum.Pending,
+  Running: "running" as SyncStepStatusEnum.Running,
+  Completed: "completed" as SyncStepStatusEnum.Completed,
+  Error: "error" as SyncStepStatusEnum.Error
+};
+
+type SyncStatus = "idle" | "running" | "completed" | "error";
+
+interface SyncStepProgress extends JudgeSyncStepState {
   readonly progress: number;
-  readonly current?: string;
 }
 
 interface SyncSteps {
@@ -49,37 +74,10 @@ interface SyncContextValue {
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 const emptyStep = (): SyncStepProgress => ({
-  status: "pending",
+  status: SyncStepStatus.Pending,
   total: 0,
   processed: 0,
   progress: 0
-});
-
-const stepProgress = (processed: number, total: number): number =>
-  total === 0 ? 0 : Math.round((processed / total) * 100);
-
-const syncStep = (
-  status: SyncStepStatus,
-  processed: number,
-  total: number,
-  current?: string
-): SyncStepProgress => {
-  const safeTotal = Math.max(total, 0);
-  const safeProcessed = Math.max(0, Math.min(processed, safeTotal));
-
-  return {
-    status,
-    total: safeTotal,
-    processed: safeProcessed,
-    progress: stepProgress(safeProcessed, safeTotal),
-    current
-  };
-};
-
-const emptySteps = (): SyncSteps => ({
-  submissions: emptyStep(),
-  contests: emptyStep(),
-  regularCatalog: emptyStep()
 });
 
 const emptySummary = (): JudgeSyncSummary => ({
@@ -108,35 +106,52 @@ const addSummary = (left: JudgeSyncSummary, right: JudgeSyncSummary): JudgeSyncS
   errors: left.errors + right.errors
 });
 
-const eventSummary = (event: JudgeSyncEvent | undefined): JudgeSyncSummary | null =>
-  event?.type === "completed" ? event.summary : null;
+const stepProgress = (processed: number, total: number): number =>
+  total === 0 ? 0 : Math.round((processed / total) * 100);
+
+const toStepProgress = (step: JudgeSyncStepState): SyncStepProgress => ({
+  ...step,
+  progress: stepProgress(step.processed, step.total)
+});
 
 const syncProgress = (stepsTotal: number, stepsLeft: number): number =>
   stepsTotal === 0 ? 0 : Math.round(((stepsTotal - stepsLeft) / stepsTotal) * 100);
 
-const aggregateStatus = (steps: readonly SyncStepProgress[]): SyncStepStatus => {
-  if (steps.some((step) => step.status === "error")) {
-    return "error";
+const aggregateStatus = (steps: readonly SyncStepProgress[]): SyncStepProgress["status"] => {
+  if (steps.some((step) => step.status === SyncStepStatus.Error)) {
+    return SyncStepStatus.Error;
   }
-  if (steps.some((step) => step.status === "running")) {
-    return "running";
+  if (steps.some((step) => step.status === SyncStepStatus.Running)) {
+    return SyncStepStatus.Running;
   }
-  if (steps.length > 0 && steps.every((step) => step.status === "completed")) {
-    return "completed";
+  if (steps.length > 0 && steps.every((step) => step.status === SyncStepStatus.Completed)) {
+    return SyncStepStatus.Completed;
   }
-  return "pending";
+  return SyncStepStatus.Pending;
 };
 
 const aggregateStep = (steps: readonly SyncStepProgress[]): SyncStepProgress => {
   const processed = steps.reduce((total, step) => total + step.processed, 0);
   const total = steps.reduce((sum, step) => sum + step.total, 0);
-  const current = steps.find((step) => step.status === "running" && step.current !== undefined)?.current;
+  const current = steps.find((step) => step.status === SyncStepStatus.Running && step.current !== undefined)?.current;
 
-  return syncStep(aggregateStatus(steps), processed, total, current);
+  return {
+    status: aggregateStatus(steps),
+    total,
+    processed: Math.max(0, Math.min(processed, total)),
+    progress: stepProgress(processed, total),
+    current
+  };
 };
 
-const aggregateSteps = (providerSteps: ReadonlyMap<JudgeSyncInput["provider"], SyncSteps>): SyncSteps => {
-  const steps = [...providerSteps.values()];
+const stateSteps = (state: JudgeSyncProviderState): SyncSteps => ({
+  submissions: toStepProgress(state.steps.submissions),
+  contests: toStepProgress(state.steps.contests),
+  regularCatalog: toStepProgress(state.steps.regularCatalog)
+});
+
+const aggregateSteps = (providerStates: readonly JudgeSyncProviderState[]): SyncSteps => {
+  const steps = providerStates.map(stateSteps);
 
   return {
     submissions: aggregateStep(steps.map((step) => step.submissions)),
@@ -145,357 +160,179 @@ const aggregateSteps = (providerSteps: ReadonlyMap<JudgeSyncInput["provider"], S
   };
 };
 
-const providerStatus = (
+const providerProgress = (state: JudgeSyncProviderState): ProviderSyncProgress => ({
+  provider: state.provider,
+  status: state.status,
+  latestEvent: state.latestEvent,
+  summary: state.summary,
+  stepsTotal: state.stepsTotal,
+  stepsLeft: state.stepsLeft,
+  progress: syncProgress(state.stepsTotal, state.stepsLeft),
+  steps: stateSteps(state)
+});
+
+const optimisticProviderState = (provider: JudgeSyncInput["provider"]): JudgeSyncProviderState => ({
+  type: "state",
+  provider,
+  status: SyncRunStatus.Running,
+  stepsTotal: 0,
+  stepsLeft: 0,
+  latestEvent: null,
+  summary: null,
+  steps: {
+    submissions: emptyStep(),
+    contests: emptyStep(),
+    regularCatalog: emptyStep()
+  }
+});
+
+const errorProviderState = (
   provider: JudgeSyncInput["provider"],
-  events: readonly JudgeSyncEvent[],
-  runningProviders: ReadonlySet<JudgeSyncInput["provider"]>
-): SyncStatus => {
-  if (runningProviders.has(provider)) {
-    return "running";
-  }
+  message: string
+): JudgeSyncProviderState => {
+  const latestEvent: JudgeSyncEvent = {
+    type: JudgeSyncEventType.Error,
+    provider,
+    phase: "database",
+    message,
+    stepsTotal: 0,
+    stepsLeft: 0
+  };
 
-  const latest = events.at(-1);
-  if (latest?.type === "completed") {
-    return latest.summary.errors > 0 ? "error" : "completed";
-  }
-  if (latest?.type === "error") {
-    return "error";
-  }
-
-  return "idle";
-};
-
-const providerProgresses = (
-  providerSteps: ReadonlyMap<JudgeSyncInput["provider"], SyncSteps>,
-  providerEvents: ReadonlyMap<JudgeSyncInput["provider"], readonly JudgeSyncEvent[]>,
-  runningProviders: ReadonlySet<JudgeSyncInput["provider"]>
-): readonly ProviderSyncProgress[] => {
-  const providers = new Set<JudgeSyncInput["provider"]>([
-    ...providerSteps.keys(),
-    ...providerEvents.keys(),
-    ...runningProviders
-  ]);
-
-  return [...providers].map((provider) => {
-    const steps = providerSteps.get(provider) ?? emptySteps();
-    const events = providerEvents.get(provider) ?? [];
-    const latestEvent = events.at(-1) ?? null;
-    const detailedStepsTotal = steps.submissions.total + steps.contests.total + steps.regularCatalog.total;
-    const detailedStepsLeft = Math.max(
-      detailedStepsTotal - steps.submissions.processed - steps.contests.processed - steps.regularCatalog.processed,
-      0
-    );
-    const stepsTotal = latestEvent?.stepsTotal ?? detailedStepsTotal;
-    const stepsLeft = Math.max(Math.min(latestEvent?.stepsLeft ?? detailedStepsLeft, stepsTotal), 0);
-
-    return {
-      provider,
-      status: providerStatus(provider, events, runningProviders),
-      latestEvent,
-      summary: eventSummary(latestEvent ?? undefined),
-      stepsTotal,
-      stepsLeft,
-      progress: syncProgress(stepsTotal, stepsLeft),
-      steps
-    };
-  });
-};
-
-const applyEventToSteps = (current: SyncSteps, event: JudgeSyncEvent): SyncSteps => {
-  if (event.type === "submissions.syncing") {
-    return {
-      ...current,
-      submissions: syncStep(event.usersTotal === 0 ? "completed" : "running", 0, event.usersTotal)
-    };
-  }
-
-  if (event.type === "submissions.userSyncing") {
-    return {
-      ...current,
-      submissions: syncStep("running", event.userIndex - 1, event.usersTotal, event.userHandle)
-    };
-  }
-
-  if (event.type === "submissions.userSynced") {
-    const processed = current.submissions.processed + 1;
-    return {
-      ...current,
-      submissions: syncStep(
-        processed >= current.submissions.total ? "completed" : "running",
-        processed,
-        current.submissions.total,
-        event.userHandle
-      )
-    };
-  }
-
-  if (event.type === "contests.syncing") {
-    return {
-      ...current,
-      contests: syncStep(event.contestsTotal === 0 ? "completed" : "running", 0, event.contestsTotal)
-    };
-  }
-
-  if (event.type === "contests.contestSyncing") {
-    return {
-      ...current,
-      contests: syncStep(
-        "running",
-        event.contestsTotal - event.contestsLeft,
-        event.contestsTotal,
-        event.contestJudgeId
-      )
-    };
-  }
-
-  if (event.type === "contests.contestSynced") {
-    const processed = current.contests.processed + 1;
-    return {
-      ...current,
-      contests: syncStep(
-        processed >= current.contests.total ? "completed" : "running",
-        processed,
-        current.contests.total,
-        event.contestJudgeId
-      )
-    };
-  }
-
-  if (event.type === "regularCatalog.contestsSyncing") {
-    return {
-      ...current,
-      regularCatalog: syncStep("running", 0, 2, "contests")
-    };
-  }
-
-  if (event.type === "regularCatalog.contestsSynced") {
-    return {
-      ...current,
-      regularCatalog: syncStep("running", 1, 2, `${event.contestsTotal} contests`)
-    };
-  }
-
-  if (event.type === "regularCatalog.problemsSyncing") {
-    return {
-      ...current,
-      regularCatalog: syncStep("running", 1, 2, "problems")
-    };
-  }
-
-  if (event.type === "regularCatalog.problemsSynced") {
-    return {
-      ...current,
-      regularCatalog: syncStep("completed", 2, 2, `${event.problemsImported} problems`)
-    };
-  }
-
-  if (event.type === "error") {
-    if (event.step === "submissions") {
-      return {
-        ...current,
-        submissions: { ...current.submissions, status: "error", current: event.userHandle }
-      };
+  return {
+    ...optimisticProviderState(provider),
+    status: SyncRunStatus.Error,
+    latestEvent,
+    summary: {
+      ...emptySummary(),
+      errors: 1
     }
-
-    if (event.step === "contests") {
-      return {
-        ...current,
-        contests: { ...current.contests, status: "error", current: event.contestJudgeId }
-      };
-    }
-
-    if (event.step === "regularCatalog") {
-      return {
-        ...current,
-        regularCatalog: { ...current.regularCatalog, status: "error" }
-      };
-    }
-  }
-
-  if (event.type === "completed") {
-    return {
-      submissions: syncStep("completed", current.submissions.total, current.submissions.total),
-      contests: syncStep("completed", current.contests.total, current.contests.total),
-      regularCatalog: syncStep("completed", current.regularCatalog.total, current.regularCatalog.total)
-    };
-  }
-
-  return current;
+  };
 };
 
 export function SyncProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
   const toaster = useToaster();
-  const [status, setStatus] = useState<SyncStatus>("idle");
-  const [events, setEvents] = useState<readonly JudgeSyncEvent[]>([]);
+  const queryClient = useQueryClient();
+  const [providerStates, setProviderStates] = useState<ReadonlyMap<JudgeSyncInput["provider"], JudgeSyncProviderState>>(
+    () => new Map()
+  );
   const [latestEvent, setLatestEvent] = useState<JudgeSyncEvent | null>(null);
-  const [summary, setSummary] = useState<JudgeSyncSummary | null>(null);
-  const [stepsTotal, setStepsTotal] = useState(0);
-  const [stepsLeft, setStepsLeft] = useState(0);
-  const [steps, setSteps] = useState<SyncSteps>(emptySteps);
-  const [providers, setProviders] = useState<readonly ProviderSyncProgress[]>([]);
-  const subscriptionsRef = useRef<Array<{ unsubscribe: () => void }>>([]);
-  const providerStepsRef = useRef(new Map<JudgeSyncInput["provider"], SyncSteps>());
-  const providerEventsRef = useRef(new Map<JudgeSyncInput["provider"], JudgeSyncEvent[]>());
-  const runningProvidersRef = useRef(new Set<JudgeSyncInput["provider"]>());
-  const summaryRef = useRef<JudgeSyncSummary>(emptySummary());
+  const shownErrorsRef = useRef(new Set<string>());
+  const invalidatedCompletionsRef = useRef(new Set<string>());
 
-  const publishAggregateState = useCallback(() => {
-    const nextSteps = aggregateSteps(providerStepsRef.current);
-    setSteps(nextSteps);
-    setProviders(providerProgresses(providerStepsRef.current, providerEventsRef.current, runningProvidersRef.current));
+  const setProviderState = useCallback((state: JudgeSyncProviderState) => {
+    setProviderStates((current) => {
+      const next = new Map(current);
+      next.set(state.provider, state);
+      return next;
+    });
 
-    const nextStepsTotal = nextSteps.submissions.total + nextSteps.contests.total + nextSteps.regularCatalog.total;
-    const nextStepsLeft = nextStepsTotal -
-      nextSteps.submissions.processed -
-      nextSteps.contests.processed -
-      nextSteps.regularCatalog.processed;
-    setStepsTotal(nextStepsTotal);
-    setStepsLeft(Math.max(nextStepsLeft, 0));
-
-    const nextEvents = [...providerEventsRef.current.values()].flat();
-    setEvents(nextEvents);
-
-    if (runningProvidersRef.current.size > 0) {
-      setStatus("running");
-      setSummary(null);
-      return;
+    if (state.latestEvent !== null) {
+      setLatestEvent(state.latestEvent);
     }
 
-    if (nextEvents.length === 0) {
-      setStatus("idle");
-      setLatestEvent(null);
-      setSummary(null);
-      return;
-    }
-
-    setSummary(summaryRef.current);
-    setStatus(summaryRef.current.errors > 0 ? "error" : "completed");
-  }, []);
-
-  const replayProviderEvents = useCallback((provider: JudgeSyncInput["provider"], replayedEvents: readonly JudgeSyncEvent[]) => {
-    let nextSteps = emptySteps();
-    for (const event of replayedEvents) {
-      nextSteps = applyEventToSteps(nextSteps, event);
-    }
-    providerStepsRef.current.set(provider, nextSteps);
-    providerEventsRef.current.set(provider, [...replayedEvents]);
-  }, []);
-
-  const handleProviderEvent = useCallback((provider: JudgeSyncInput["provider"], event: JudgeSyncEvent) => {
-    providerEventsRef.current.set(provider, [
-      ...(providerEventsRef.current.get(provider) ?? []),
-      event
-    ]);
-    setLatestEvent(event);
-
-    if (event.type === "started") {
-      runningProvidersRef.current.add(provider);
-    }
-
-    if (event.type === "error") {
-      toaster.error({
-        title: `Could not sync ${event.provider}`,
-        description: event.message
-      });
-    }
-
-    const currentSteps = providerStepsRef.current.get(provider) ?? emptySteps();
-    providerStepsRef.current.set(provider, applyEventToSteps(currentSteps, event));
-
-    if (event.type === "completed") {
-      summaryRef.current = addSummary(summaryRef.current, event.summary);
-      runningProvidersRef.current.delete(provider);
-    }
-
-    publishAggregateState();
-  }, [publishAggregateState, toaster]);
-
-  useEffect(() => {
-    subscriptionsRef.current = syncObservableProviders.map((provider) =>
-      trpc.judges.observeSync.subscribe(
-        { provider },
-        {
-          onData: (event) => {
-            if (event.type === "snapshot") {
-              if (event.running) {
-                runningProvidersRef.current.add(provider);
-                replayProviderEvents(provider, event.events);
-                setLatestEvent(event.events.at(-1) ?? null);
-              } else {
-                runningProvidersRef.current.delete(provider);
-                providerStepsRef.current.delete(provider);
-                providerEventsRef.current.delete(provider);
-              }
-              publishAggregateState();
-              return;
-            }
-
-            handleProviderEvent(provider, event);
-          },
-          onError: (error) => {
-            const errorEvent: JudgeSyncEvent = {
-              type: "error",
-              provider,
-              phase: "database",
-              message: error.message,
-              stepsTotal: 0,
-              stepsLeft: 0
-            };
-            handleProviderEvent(provider, errorEvent);
-          }
-        }
-      )
-    );
-
-    return () => {
-      for (const subscription of subscriptionsRef.current) {
-        subscription.unsubscribe();
+    if (state.latestEvent?.type === JudgeSyncEventType.Error) {
+      const key = `${state.provider}:${state.latestEvent.message}`;
+      if (!shownErrorsRef.current.has(key)) {
+        shownErrorsRef.current.add(key);
+        toaster.error({
+          title: `Could not sync ${state.provider}`,
+          description: state.latestEvent.message
+        });
       }
-      subscriptionsRef.current = [];
-    };
-  }, [handleProviderEvent, publishAggregateState, replayProviderEvents]);
+    }
+
+    if (state.latestEvent?.type === JudgeSyncEventType.Completed) {
+      const key = `${state.provider}:${state.latestEvent.stepsTotal}:${state.latestEvent.summary.errors}`;
+      if (!invalidatedCompletionsRef.current.has(key)) {
+        invalidatedCompletionsRef.current.add(key);
+        invalidateAfterJudgeSync(queryClient);
+      }
+    }
+  }, [queryClient, toaster]);
+
+  const subscribeToSyncState = useCallback((
+    provider: JudgeSyncInput["provider"],
+    handlers: {
+      readonly onData: (state: JudgeSyncProviderState) => void;
+      readonly onError: (error: Error) => void;
+    }
+  ) =>
+    trpc.judges.observeSync.subscribe(
+      { provider },
+      handlers
+    ), []);
+  const handleSyncSubscriptionError = useCallback((
+    provider: JudgeSyncInput["provider"],
+    error: Error
+  ) => {
+    setProviderState(errorProviderState(provider, error.message));
+  }, [setProviderState]);
+
+  useProviderStateSubscriptions({
+    providers: syncObservableProviders,
+    subscribe: subscribeToSyncState,
+    onData: setProviderState,
+    onError: handleSyncSubscriptionError
+  });
 
   const startSync = useCallback((providers: readonly JudgeSyncInput["provider"][]) => {
     const uniqueProviders = [...new Set(providers)];
-    if (uniqueProviders.length === 0 || runningProvidersRef.current.size > 0 || status === "running") {
+    const hasRunningProvider = [...providerStates.values()].some((state) => state.status === SyncRunStatus.Running);
+    if (uniqueProviders.length === 0 || hasRunningProvider) {
       return;
     }
 
-    setEvents([]);
+    shownErrorsRef.current.clear();
+    invalidatedCompletionsRef.current.clear();
+    setProviderStates((current) => {
+      const next = new Map(current);
+      for (const provider of uniqueProviders) {
+        next.set(provider, optimisticProviderState(provider));
+      }
+      return next;
+    });
     setLatestEvent(null);
-    setSummary(null);
-    setStepsTotal(0);
-    setStepsLeft(0);
-    setSteps(emptySteps());
-    setProviders(uniqueProviders.map((provider) => ({
-      provider,
-      status: "running",
-      latestEvent: null,
-      summary: null,
-      stepsTotal: 0,
-      stepsLeft: 0,
-      progress: 0,
-      steps: emptySteps()
-    })));
-    providerStepsRef.current = new Map(uniqueProviders.map((provider) => [provider, emptySteps()]));
-    providerEventsRef.current = new Map(uniqueProviders.map((provider) => [provider, []]));
-    runningProvidersRef.current = new Set(uniqueProviders);
-    summaryRef.current = emptySummary();
-    setStatus("running");
 
     for (const provider of uniqueProviders) {
       void trpc.judges.startSync.mutate({ provider }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
-        runningProvidersRef.current.delete(provider);
-        setStatus("error");
-        toaster.error({
-          title: `Could not sync ${provider}`,
-          description: message
-        });
+        setProviderState(errorProviderState(provider, message));
       });
     }
-  }, [status, toaster]);
+  }, [providerStates, setProviderState]);
 
+  const providerStateList = useMemo(() => [...providerStates.values()], [providerStates]);
+  const providers = useMemo(
+    () => providerStateList.map(providerProgress),
+    [providerStateList]
+  );
+  const events = useMemo(
+    () => providerStateList.flatMap((state) => state.latestEvent === null ? [] : [state.latestEvent]),
+    [providerStateList]
+  );
+  const summary = useMemo(
+    () => {
+      const summaries = providerStateList.flatMap((state) => state.summary === null ? [] : [state.summary]);
+      return summaries.length === 0 ? null : summaries.reduce(addSummary, emptySummary());
+    },
+    [providerStateList]
+  );
+  const status = useMemo<SyncStatus>(() => {
+    if (providerStateList.some((state) => state.status === SyncRunStatus.Running)) {
+      return "running";
+    }
+    if (providerStateList.some((state) => state.status === SyncRunStatus.Error)) {
+      return "error";
+    }
+    if (providerStateList.some((state) => state.status === SyncRunStatus.Completed)) {
+      return "completed";
+    }
+    return "idle";
+  }, [providerStateList]);
+  const steps = useMemo(() => aggregateSteps(providerStateList), [providerStateList]);
+  const stepsTotal = providerStateList.reduce((total, state) => total + state.stepsTotal, 0);
+  const stepsLeft = providerStateList.reduce((total, state) => total + state.stepsLeft, 0);
   const progress = syncProgress(stepsTotal, stepsLeft);
 
   const value = useMemo<SyncContextValue>(() => ({

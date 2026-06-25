@@ -39,7 +39,7 @@ export const startServer = (
     });
     const judgeRegistry = {
       codeforces: makeCodeforcesJudge(database),
-      qoj: makeQojJudge(undefined, database)
+      qoj: makeQojJudge(database)
     };
     const judges = {
       ...createJudgePlayground(database),

@@ -1,17 +1,23 @@
-import { appRouter, type JudgeSyncEvent } from "@icpc-trainer/api";
+import {
+  appRouter,
+  type JudgeSyncEvent,
+  JudgeSyncEventType,
+  JudgeSyncStep,
+  SyncStepStatus
+} from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseLive, DatabaseServiceTag, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { makeCodeforcesJudge } from "../judges/codeforces.js";
+import { makeCodeforcesJudge, type CodeforcesPlaygroundClient } from "../judges/codeforces.js";
 import {
   JudgeAPIError,
   type Judge,
-  type JudgePlaygroundClient,
   type RefreshContestFinderResult
 } from "../judges/judges.js";
+import type { QojPlaygroundClient } from "../judges/qoj.js";
 import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
@@ -34,6 +40,38 @@ const collect = async <T>(iterable: AsyncIterable<T>): Promise<readonly T[]> => 
   }
   return values;
 };
+
+const expectStepEvent = (
+  step: JudgeSyncStep,
+  values: {
+    readonly stepStatus?: SyncStepStatus;
+    readonly current?: string;
+    readonly total?: number;
+    readonly processed?: number;
+  } = {}
+): unknown =>
+  expect.objectContaining({
+    type: JudgeSyncEventType.Step,
+    step,
+    ...values
+  });
+
+const isStepEvent = (
+  event: JudgeSyncEvent,
+  step: JudgeSyncStep,
+  values: {
+    readonly stepStatus?: SyncStepStatus;
+    readonly current?: string;
+    readonly total?: number;
+    readonly processed?: number;
+  } = {}
+): boolean =>
+  event.type === JudgeSyncEventType.Step &&
+  event.step === step &&
+  (values.stepStatus === undefined || event.stepStatus === values.stepStatus) &&
+  (values.current === undefined || event.current === values.current) &&
+  (values.total === undefined || event.total === values.total) &&
+  (values.processed === undefined || event.processed === values.processed);
 
 const nextTick = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -77,7 +115,16 @@ const withDatabase = async <A>(
 const codeforcesResponse = (result: unknown): Response =>
   jsonResponse({ status: "OK", result });
 
-type TestJudge = JudgePlaygroundClient;
+type CodeforcesTestJudge =
+  Omit<CodeforcesPlaygroundClient, "getRegularContests" | "getRegularProblems"> &
+  Partial<Pick<CodeforcesPlaygroundClient, "getRegularContests" | "getRegularProblems">>;
+type TestJudge = CodeforcesTestJudge | QojPlaygroundClient;
+
+const codeforcesTestJudge = (judge: CodeforcesTestJudge): CodeforcesPlaygroundClient => ({
+  ...judge,
+  getRegularContests: judge.getRegularContests ?? (() => Effect.succeed([])),
+  getRegularProblems: judge.getRegularProblems ?? (() => Effect.succeed([]))
+});
 
 const withTestSync = (
   database: DatabaseService,
@@ -91,8 +138,8 @@ const withTestSync = (
   let syncedJudge: Judge;
   syncedJudge = {
     sync: (input) => provider === "codeforces"
-      ? createCodeforcesJudgeSync(database, input, judge)
-      : createQojJudgeSync(database, input, judge),
+      ? createCodeforcesJudgeSync(database, input, codeforcesTestJudge(judge as CodeforcesTestJudge))
+      : createQojJudgeSync(database, input, judge as QojPlaygroundClient),
     findContest: () => Effect.succeed({
       contestsUpserted: 0,
       friendsProcessed: 0
@@ -146,7 +193,21 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("keeps one active sync per provider and replays active events to late observers", async () => {
+  it("observes idle state before sync starts", async () => {
+    const service = createJudgeSyncService({});
+    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const state = await observer.next();
+
+    expect(state.value).toMatchObject({
+      type: "state",
+      provider: "codeforces",
+      status: "idle",
+      latestEvent: null
+    });
+    await observer.return?.();
+  });
+
+  it("keeps one active sync per provider and sends latest active state to late observers", async () => {
     let runCount = 0;
     let finish: (() => void) | undefined;
     const started: JudgeSyncEvent = {
@@ -167,6 +228,9 @@ describe("createJudgeSyncService", () => {
         submissionsUpdated: 0,
         submissionsSkipped: 0,
         contestsSynced: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0,
+        regularPendingSubmissionsRetried: 0,
         errors: 0
       }
     };
@@ -196,15 +260,75 @@ describe("createJudgeSyncService", () => {
 
     expect(runCount).toBe(1);
     expect(snapshot.value).toMatchObject({
-      type: "snapshot",
+      type: "state",
       provider: "codeforces",
-      running: true,
-      events: [started]
+      status: "running",
+      latestEvent: started
     });
 
     finish?.();
     const finalEvent = await observer.next();
-    expect(finalEvent.value).toEqual(completed);
+    expect(finalEvent.value).toMatchObject({
+      type: "state",
+      provider: "codeforces",
+      status: "completed",
+      latestEvent: completed,
+      summary: completed.summary
+    });
+    await observer.return?.();
+  });
+
+  it("sends terminal completed state to reload observers", async () => {
+    const started: JudgeSyncEvent = {
+      type: "started",
+      provider: "codeforces",
+      stepsTotal: 1,
+      stepsLeft: 1
+    };
+    const completed: JudgeSyncEvent = {
+      type: "completed",
+      provider: "codeforces",
+      stepsTotal: 1,
+      stepsLeft: 0,
+      summary: {
+        usersProcessed: 0,
+        submissionsFetched: 0,
+        submissionsInserted: 0,
+        submissionsUpdated: 0,
+        submissionsSkipped: 0,
+        contestsSynced: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0,
+        regularPendingSubmissionsRetried: 0,
+        errors: 0
+      }
+    };
+    const judge: Judge = {
+      sync: async function* () {
+        yield started;
+        yield completed;
+      },
+      findContest: () => Effect.succeed({
+        contestsUpserted: 0,
+        friendsProcessed: 0
+      }),
+      refetchContest: () => Effect.void
+    };
+
+    const service = createJudgeSyncService({ codeforces: judge });
+    await service.start({ provider: "codeforces" });
+    await nextTick();
+
+    const observer = service.observe({ provider: "codeforces" })[Symbol.asyncIterator]();
+    const snapshot = await observer.next();
+
+    expect(snapshot.value).toMatchObject({
+      type: "state",
+      provider: "codeforces",
+      status: "completed",
+      latestEvent: completed,
+      summary: completed.summary
+    });
     await observer.return?.();
   });
 
@@ -263,15 +387,7 @@ describe("createJudgeSyncService", () => {
       const contestStates = database.db.select().from(userContestStates).all();
       expect(user.username).toBe("tourist");
       expect(rows).toHaveLength(1);
-      expect(contestStates).toEqual([
-        expect.objectContaining({
-          userId: user.id,
-          contestId: contest.id,
-          submissionCount: 1,
-          acceptedCount: 1,
-          lastSubmissionAt: new Date(1450000000 * 1000)
-        })
-      ]);
+      expect(contestStates).toHaveLength(0);
       expect(rows[0]).toMatchObject({
         judgeId: "49644212",
         judge: JUDGES.Codeforces,
@@ -677,22 +793,30 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
 
       expect(events).toContainEqual(expect.objectContaining({
-        type: "submissions.syncing",
-        step: "submissions",
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.Submissions,
+        stepStatus: SyncStepStatus.Running,
+        total: 1,
+        processed: 0,
         stepsTotal: 1,
         stepsLeft: 1
       }));
       expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.syncing",
-        step: "contests",
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.Contests,
+        stepStatus: SyncStepStatus.Running,
+        total: 1,
+        processed: 0,
         stepsTotal: 1,
         stepsLeft: 1
       }));
       expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.contestSynced",
-        step: "contests",
-        contestJudgeId: "100566",
-        problemsSynced: 2
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.Contests,
+        stepStatus: SyncStepStatus.Completed,
+        current: "100566",
+        total: 1,
+        processed: 1
       }));
       const problemRows = database.db.select().from(problems).all();
       expect(problemRows).toHaveLength(2);
@@ -738,8 +862,10 @@ describe("createJudgeSyncService", () => {
     });
 
     expect(result.events).not.toContainEqual(expect.objectContaining({
-      type: "contests.contestSynced",
-      contestJudgeId: "100566"
+      type: JudgeSyncEventType.Step,
+      step: JudgeSyncStep.Contests,
+      stepStatus: SyncStepStatus.Completed,
+      current: "100566"
     }));
     expect(result.events.at(-1)).toMatchObject({
       type: "completed",
@@ -755,7 +881,7 @@ describe("createJudgeSyncService", () => {
     expect(result.problemRows).toHaveLength(0);
   });
 
-  it("records Codeforces participation for an existing unsimulated contest without promoting it", async () => {
+  it("does not record Codeforces participation from one accepted submission", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -812,8 +938,10 @@ describe("createJudgeSyncService", () => {
     });
 
     expect(result.events).not.toContainEqual(expect.objectContaining({
-      type: "contests.contestSynced",
-      contestJudgeId: "100566"
+      type: JudgeSyncEventType.Step,
+      step: JudgeSyncStep.Contests,
+      stepStatus: SyncStepStatus.Completed,
+      current: "100566"
     }));
     expect(result.contestRows).toEqual([
       expect.objectContaining({
@@ -821,13 +949,7 @@ describe("createJudgeSyncService", () => {
         simulated: false
       })
     ]);
-    expect(result.contestStateRows).toEqual([
-      expect.objectContaining({
-        contestId: result.contestRows[0]?.id,
-        submissionCount: 1,
-        acceptedCount: 1
-      })
-    ]);
+    expect(result.contestStateRows).toHaveLength(0);
     expect(result.problemRows).toHaveLength(0);
   });
 
@@ -865,6 +987,13 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 100566, index: "A", name: "Matching Names" },
             verdict: "OK"
+          },
+          {
+            id: 49644215,
+            contestId: 100566,
+            creationTimeSeconds: 1450000150,
+            problem: { contestId: 100566, index: "B", name: "Replicating Processes" },
+            verdict: "WRONG_ANSWER"
           },
           {
             id: 49644213,
@@ -930,16 +1059,11 @@ describe("createJudgeSyncService", () => {
     expect(result.contestStateRows).toEqual(expect.arrayContaining([
       expect.objectContaining({
         contestId: contestIdByJudgeId.get("100566"),
-        submissionCount: 1,
+        submissionCount: 2,
         acceptedCount: 1
-      }),
-      expect.objectContaining({
-        contestId: contestIdByJudgeId.get("566"),
-        submissionCount: 1,
-        acceptedCount: 0
       })
     ]));
-    expect(result.contestStateRows).toHaveLength(2);
+    expect(result.contestStateRows).toHaveLength(1);
     expect(fetchMock.mock.calls
       .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
       .map((call) => new URL(String(call[0])).searchParams.get("gym"))
@@ -977,8 +1101,10 @@ describe("createJudgeSyncService", () => {
     });
 
     expect(events).not.toContainEqual(expect.objectContaining({
-      type: "contests.contestSynced",
-      contestJudgeId: "100566"
+      type: JudgeSyncEventType.Step,
+      step: JudgeSyncStep.Contests,
+      stepStatus: SyncStepStatus.Completed,
+      current: "100566"
     }));
     expect(events.at(-1)).toMatchObject({
       type: "completed",
@@ -1032,16 +1158,24 @@ describe("createJudgeSyncService", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const events = await withDatabase(async (database) => {
-      return await collect(createSyncService(database).sync({ provider: "codeforces" }));
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        contestRows: database.db.select().from(contests).all(),
+        contestStateRows: database.db.select().from(userContestStates).all()
+      };
     });
 
-    expect(events).toContainEqual(expect.objectContaining({
-      type: "contests.contestSynced",
-      contestJudgeId: "100566",
-      problemsSynced: 2
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: JudgeSyncEventType.Step,
+      step: JudgeSyncStep.Contests,
+      stepStatus: SyncStepStatus.Completed,
+      current: "100566",
+      total: 1,
+      processed: 1
     }));
-    expect(events.at(-1)).toMatchObject({
+    expect(result.events.at(-1)).toMatchObject({
       type: "completed",
       summary: {
         submissionsInserted: 2,
@@ -1050,6 +1184,13 @@ describe("createJudgeSyncService", () => {
         errors: 0
       }
     });
+    expect(result.contestStateRows).toEqual([
+      expect.objectContaining({
+        contestId: result.contestRows[0]?.id,
+        submissionCount: 2,
+        acceptedCount: 1
+      })
+    ]);
   });
 
   it("uses the Codeforces three-star fallback when contest stars are unknown", async () => {
@@ -1221,17 +1362,19 @@ describe("createJudgeSyncService", () => {
       const submissionRows = database.db.select().from(submissions).all();
       const tagRows = database.db.select().from(problemTags).all();
 
-      expect(events.findIndex((event) => event.type === "contests.syncing"))
-        .toBeLessThan(events.findIndex((event) => event.type === "regularCatalog.contestsSyncing"));
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "regularCatalog.contestsSynced",
-        contestsTotal: 2
+      expect(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.Contests)))
+        .toBeLessThan(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.RegularCatalog)));
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
+        stepStatus: SyncStepStatus.Running,
+        current: "2 contests",
+        processed: 1,
+        total: 2
       }));
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "regularCatalog.problemsSynced",
-        contestsImported: 2,
-        problemsImported: 3,
-        pendingSubmissionsRetried: 2
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
+        stepStatus: SyncStepStatus.Completed,
+        current: "2 problems",
+        processed: 2,
+        total: 2
       }));
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -1239,8 +1382,8 @@ describe("createJudgeSyncService", () => {
           submissionsInserted: 2,
           submissionsSkipped: 0,
           contestsSynced: 0,
-          regularContestsImported: 2,
-          regularProblemsImported: 3,
+          regularContestsImported: 1,
+          regularProblemsImported: 2,
           regularPendingSubmissionsRetried: 2,
           errors: 0
         }
@@ -1252,12 +1395,6 @@ describe("createJudgeSyncService", () => {
           link: "https://codeforces.com/contest/566",
           stars: 4,
           participants: null,
-          simulated: true
-        }),
-        expect.objectContaining({
-          judgeId: "567",
-          name: "Codeforces Round 567 (Div. 3)",
-          stars: 3,
           simulated: true
         })
       ]);
@@ -1274,17 +1411,10 @@ describe("createJudgeSyncService", () => {
           name: "B. Regular Second",
           solves: 25,
           solvePercentage: 25
-        }),
-        expect.objectContaining({
-          judgeId: "567A",
-          name: "A. Other Contest",
-          solves: 50,
-          solvePercentage: 100,
-          rating: 900
         })
       ]);
       expect(submissionRows).toHaveLength(2);
-      expect(tagRows.map((row) => row.tag).sort()).toEqual(["dp", "greedy", "implementation", "math"]);
+      expect(tagRows.map((row) => row.tag).sort()).toEqual(["dp", "greedy", "math"]);
       expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
         "/api/user.status",
         "/api/contest.list",
@@ -1304,6 +1434,13 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 999, index: "A", name: "Missing Regular" },
             verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 999,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 999, index: "B", name: "Missing Regular Second" },
+            verdict: "WRONG_ANSWER"
           }
         ]);
       }
@@ -1353,28 +1490,161 @@ describe("createJudgeSyncService", () => {
       };
     });
 
-    expect(result.events).toContainEqual(expect.objectContaining({
-      type: "regularCatalog.problemsSynced",
-      contestsImported: 1,
-      problemsImported: 1,
-      pendingSubmissionsRetried: 0
+    expect(result.events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
+      stepStatus: SyncStepStatus.Completed,
+      current: "0 problems",
+      processed: 2,
+      total: 2
+    }));
+    expect(result.events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 0,
+        submissionsSkipped: 2,
+        regularPendingSubmissionsRetried: 0,
+        errors: 0
+      }
+    });
+    expect(result.submissions).toHaveLength(0);
+    expect(result.contests).toHaveLength(0);
+    expect(result.problems).toHaveLength(0);
+  });
+
+  it("imports regular Codeforces contests from one accepted pending problem", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644212,
+            contestId: 566,
+            creationTimeSeconds: 1450000000,
+            problem: { contestId: 566, index: "A", name: "Regular First" },
+            verdict: "OK"
+          },
+          {
+            id: 49644213,
+            contestId: 566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 566, index: "A", name: "Regular First" },
+            verdict: "WRONG_ANSWER"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/contest.list") {
+        return codeforcesResponse([
+          {
+            id: 566,
+            name: "Codeforces Round 566 (Div. 2)",
+            type: "CF",
+            phase: "FINISHED"
+          }
+        ]);
+      }
+
+      if (url.pathname === "/api/problemset.problems") {
+        return codeforcesResponse({
+          problems: [
+            {
+              contestId: 566,
+              index: "A",
+              name: "Regular First",
+              rating: 1200,
+              tags: ["implementation"]
+            }
+          ],
+          problemStatistics: [
+            { contestId: 566, index: "A", solvedCount: 100 }
+          ]
+        });
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        submissions: database.db.select().from(submissions).all(),
+        contests: database.db.select().from(contests).all(),
+        problems: database.db.select().from(problems).all()
+      };
+    });
+
+    expect(result.events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
+      stepStatus: SyncStepStatus.Completed,
+      current: "1 problems",
+      processed: 2,
+      total: 2
+    }));
+    expect(result.events.at(-1)).toMatchObject({
+      type: "completed",
+      summary: {
+        submissionsInserted: 2,
+        submissionsSkipped: 0,
+        regularContestsImported: 1,
+        regularPendingSubmissionsRetried: 2,
+        errors: 0
+      }
+    });
+    expect(result.submissions).toHaveLength(2);
+    expect(result.contests).toEqual([
+      expect.objectContaining({ judgeId: "566" })
+    ]);
+    expect(result.problems).toEqual([
+      expect.objectContaining({ judgeId: "566A", rating: 1200 })
+    ]);
+  });
+
+  it("does not import regular Codeforces contests from one non-accepted pending problem", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
+      if (url.pathname === "/api/user.status") {
+        return codeforcesResponse([
+          {
+            id: 49644213,
+            contestId: 566,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 566, index: "A", name: "Regular First" },
+            verdict: "WRONG_ANSWER"
+          }
+        ]);
+      }
+
+      throw new Error("Regular catalog should not be requested for one non-accepted pending problem.");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const events = await collect(createSyncService(database).sync({ provider: "codeforces" }));
+      return {
+        events,
+        submissions: database.db.select().from(submissions).all(),
+        contests: database.db.select().from(contests).all(),
+        problems: database.db.select().from(problems).all()
+      };
+    });
+
+    expect(result.events).not.toContainEqual(expect.objectContaining({
+      type: JudgeSyncEventType.Step,
+      step: JudgeSyncStep.RegularCatalog
     }));
     expect(result.events.at(-1)).toMatchObject({
       type: "completed",
       summary: {
         submissionsInserted: 0,
         submissionsSkipped: 1,
+        regularContestsImported: 0,
         regularPendingSubmissionsRetried: 0,
         errors: 0
       }
     });
     expect(result.submissions).toHaveLength(0);
-    expect(result.contests).toEqual([
-      expect.objectContaining({ judgeId: "566", simulated: true })
-    ]);
-    expect(result.problems).toEqual([
-      expect.objectContaining({ judgeId: "566A" })
-    ]);
+    expect(result.contests).toHaveLength(0);
+    expect(result.problems).toHaveLength(0);
   });
 
   it("does not error when a regular pending problem is missing from an imported catalog contest", async () => {
@@ -1388,6 +1658,13 @@ describe("createJudgeSyncService", () => {
             creationTimeSeconds: 1450000000,
             problem: { contestId: 569, index: "E", name: "Missing From Problemset" },
             verdict: "OK"
+          },
+          {
+            id: 243987790,
+            contestId: 569,
+            creationTimeSeconds: 1450000300,
+            problem: { contestId: 569, index: "F", name: "Also Missing From Problemset" },
+            verdict: "WRONG_ANSWER"
           }
         ]);
       }
@@ -1440,7 +1717,7 @@ describe("createJudgeSyncService", () => {
       type: "completed",
       summary: {
         submissionsInserted: 0,
-        submissionsSkipped: 1,
+        submissionsSkipped: 2,
         regularPendingSubmissionsRetried: 0,
         errors: 0
       }
@@ -1490,9 +1767,10 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
 
       expect(getContest).not.toHaveBeenCalled();
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.syncing",
-        contestsTotal: 0
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
+        stepStatus: SyncStepStatus.Completed,
+        total: 0,
+        processed: 0
       }));
     }, { saveCredentials: false });
   });
@@ -1573,22 +1851,36 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
 
       expect(events).not.toContainEqual(expect.objectContaining({
-        type: "error",
+        type: JudgeSyncEventType.Error,
         contestJudgeId: "222"
       }));
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.contestSynced",
-        contestJudgeId: "222"
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
+        current: "222",
+        stepStatus: SyncStepStatus.Completed
       }));
       expect(events.slice(0, 3)).toEqual([
-        expect.objectContaining({ type: "started", provider: "qoj" }),
-        expect.objectContaining({ type: "submissions.syncing", provider: "qoj", usersTotal: 1 }),
-        expect.objectContaining({ type: "submissions.userSyncing", provider: "qoj", userHandle: "qoj-user" })
+        expect.objectContaining({ type: JudgeSyncEventType.Started, provider: "qoj" }),
+        expect.objectContaining({
+          type: JudgeSyncEventType.Step,
+          provider: "qoj",
+          step: JudgeSyncStep.Submissions,
+          total: 1,
+          processed: 0
+        }),
+        expect.objectContaining({
+          type: JudgeSyncEventType.Step,
+          provider: "qoj",
+          step: JudgeSyncStep.Submissions,
+          current: "qoj-user"
+        })
       ]);
       const importSubmissionsIndex = events.findLastIndex(
-        (event) => event.type === "submissions.syncing"
+        (event) => isStepEvent(event, JudgeSyncStep.Submissions, { processed: 0 })
       );
-      expect(events.findIndex((event) => event.type === "contests.contestSynced" && event.contestJudgeId === "111"))
+      expect(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.Contests, {
+        current: "111",
+        stepStatus: SyncStepStatus.Completed
+      })))
         .toBeLessThan(importSubmissionsIndex);
       expect(database.db.select().from(submissions).all()).toHaveLength(3);
       expect(database.db.select().from(userContestStates).all()).toEqual([
@@ -1660,9 +1952,9 @@ describe("createJudgeSyncService", () => {
 
       const events = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
 
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.contestSynced",
-        contestJudgeId: "111"
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
+        current: "111",
+        stepStatus: SyncStepStatus.Completed
       }));
       expect(database.db.select().from(contests).all()).toEqual([
         expect.objectContaining({
@@ -1729,13 +2021,15 @@ describe("createJudgeSyncService", () => {
       const secondEvents = await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj" }));
 
       expect(getContest).toHaveBeenCalledTimes(1);
-      expect(secondEvents).toContainEqual(expect.objectContaining({
-        type: "contests.syncing",
-        contestsTotal: 0
+      expect(secondEvents).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
+        stepStatus: SyncStepStatus.Completed,
+        total: 0,
+        processed: 0
       }));
       expect(secondEvents).not.toContainEqual(expect.objectContaining({
-        type: "contests.contestSyncing",
-        contestJudgeId: "111"
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.Contests,
+        current: "111"
       }));
       expect(database.db.select().from(contests).all()).toEqual([
         expect.objectContaining({
@@ -1791,12 +2085,14 @@ describe("createJudgeSyncService", () => {
       expect(getContest).toHaveBeenCalledTimes(1);
       expect(getContest).toHaveBeenCalledWith("222");
       expect(events).not.toContainEqual(expect.objectContaining({
-        type: "contests.contestSyncing",
-        contestJudgeId: "111"
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.Contests,
+        current: "111"
       }));
-      expect(events).toContainEqual(expect.objectContaining({
-        type: "contests.syncing",
-        contestsTotal: 1
+      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.Contests, {
+        stepStatus: SyncStepStatus.Running,
+        total: 1,
+        processed: 0
       }));
     }, { saveCredentials: false });
   });

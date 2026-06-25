@@ -2,11 +2,12 @@ import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
-import { Button, Card, FieldLabel, Input, Label, Separator } from "./components/ui.js";
+import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { ConnectJudgesFormHeader } from "./ConnectJudgesFormHeader.js";
 import { formatConnectJudgeError } from "./connectJudgeErrors.js";
 import type { ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
+import { CodeforcesIcon } from "./JudgeDisplay.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -55,7 +56,12 @@ export function CodeforcesConnectJudgeForm({
       >
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <ConnectJudgesFormHeader title="Codeforces" disabled={isSubmitting} onChangeProvider={onChangeProvider} />
+            <ConnectJudgesFormHeader
+              title="Codeforces"
+              icon={<CodeforcesIcon className="size-4" aria-hidden="true" />}
+              disabled={isSubmitting}
+              onChangeProvider={onChangeProvider}
+            />
           )}
         </form.Subscribe>
         <Separator />
@@ -78,17 +84,19 @@ export function CodeforcesConnectJudgeForm({
             )}
           </form.Field>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
             <form.Field name="apiKey">
               {(field) => (
                 <Label>
                   <FieldLabel>API key</FieldLabel>
-                  <Input
+                  <Textarea
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                     placeholder="Codeforces API key"
                     autoComplete="off"
+                    spellCheck={false}
+                    className="min-h-20 font-mono text-xs leading-relaxed"
                     disabled={form.state.isSubmitting}
                     required
                   />
@@ -99,13 +107,14 @@ export function CodeforcesConnectJudgeForm({
               {(field) => (
                 <Label>
                   <FieldLabel>API secret</FieldLabel>
-                  <Input
+                  <Textarea
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                     placeholder="Codeforces API secret"
-                    type="password"
-                    autoComplete="current-password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="min-h-20 font-mono text-xs leading-relaxed"
                     disabled={form.state.isSubmitting}
                     required
                   />

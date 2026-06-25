@@ -1,43 +1,54 @@
-import { type JudgeSyncEvent, type JudgeSyncInput } from "@icpc-trainer/api";
-import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES } from "@icpc-trainer/shared";
-import { and, eq, inArray } from "drizzle-orm";
+import {
+  type JudgeSyncEvent,
+  type JudgeSyncInput,
+  JudgeSyncStep,
+  SyncStepStatus
+} from "@icpc-trainer/api";
+import { type DatabaseService } from "@icpc-trainer/db";
+import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
-import type { JudgePlaygroundClient, JudgeRegularCatalogContest, JudgeRegularCatalogProblem } from "../judges.js";
-import { isNormalRegularCodeforcesContestName } from "../codeforces.js";
+import type {
+  JudgeContest,
+  JudgeRegularCatalogContest,
+  JudgeSubmission
+} from "../judges.js";
+import type { CodeforcesPlaygroundClient } from "../codeforces.js";
 import {
-  createJudgeSyncRunner,
+  upsertExistingContestParticipations,
+  type ExistingContestParticipationInput
+} from "../contestParticipation.js";
+import {
   emptySummary,
   finalEvent,
+  runJudgeOperation,
+  syncOperationErrorEvent,
+  type SyncOperationError
+} from "./events.js";
+import {
   findProblem,
   getSyncUsers,
-  insertSubmission,
-  providerJudge,
-  runJudgeOperation,
+  retryPendingSubmission,
   submissionContext,
-  syncContest,
-  syncOperationErrorEvent,
   syncUserSubmissions,
-  type EmitSyncEvent,
-  type PendingSubmission,
-  type SyncOperationError,
-  SyncOperationError as SyncOperationErrorClass,
-  type UpsertSubmissionResult
-} from "./sync.js";
-import { estimateContestStarsFromName, estimateProblemRating } from "./problemRating.js";
+  upsertFetchedContest,
+  type PendingSubmission
+} from "./persistence.js";
+import {
+  createJudgeSyncRunner
+} from "./runtime.js";
+import {
+  createSyncStepProgress,
+  startedEvent,
+  syncStepEvent,
+  type EmitSyncEvent
+} from "./progress.js";
+import { upsertCodeforcesRegularCatalog } from "./codeforcesRegularCatalog.js";
 
-const CODEFORCES_CONTEST_URL = "https://codeforces.com/contest";
 const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
-
-const { contests, problems, problemTags } = schema;
-
-interface RegularCatalogImportResult {
-  readonly importedContestIds: ReadonlySet<string>;
-  readonly contestsImported: number;
-  readonly problemsImported: number;
-}
+const CODEFORCES_GYM_CONTEST_URL = "https://codeforces.com/gym";
+const CODEFORCES_REGULAR_CONTEST_URL = "https://codeforces.com/contest";
 
 const isGymContestJudgeId = (contestJudgeId: string): boolean => {
   const contestId = Number(contestJudgeId);
@@ -46,248 +57,97 @@ const isGymContestJudgeId = (contestJudgeId: string): boolean => {
     contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
 };
 
-const regularContestStars = (contestName: string): number => {
-  const divisionMatch = /(?:div\.?|division)\s*([1-4])/i.exec(contestName);
-  const division = divisionMatch?.[1];
+const hasAcceptedPendingSubmission = (
+  pendingSubmissionsByContest: ReadonlyMap<string, readonly PendingSubmission[]>,
+  contestJudgeId: string
+): boolean =>
+  (pendingSubmissionsByContest.get(contestJudgeId) ?? []).some(
+    (pending) => pending.submission.verdict === SUBMISSION_STATUSES.AC
+  );
 
-  switch (division) {
-    case "1":
-      return 5;
-    case "2":
-      return 4;
-    case "3":
-      return 3;
-    case "4":
-      return 2;
-    default:
-      return estimateContestStarsFromName(contestName) || 3;
+const pendingContestParticipations = (
+  contestJudgeId: string,
+  pendingSubmissions: readonly PendingSubmission[]
+): ExistingContestParticipationInput[] => {
+  const submissionsByUser = new Map<number, {
+    readonly user: PendingSubmission["user"];
+    readonly submissions: JudgeSubmission[];
+  }>();
+
+  for (const pending of pendingSubmissions) {
+    const entry = submissionsByUser.get(pending.user.id) ?? {
+      user: pending.user,
+      submissions: []
+    };
+    entry.submissions.push(pending.submission);
+    submissionsByUser.set(pending.user.id, entry);
   }
+
+  return [...submissionsByUser.values()].map(({ user, submissions }) => ({
+    user,
+    contestJudgeId,
+    submissions
+  }));
 };
 
-const regularSolvePercentage = (solves: number, maxSolvesInContest: number): number =>
-  maxSolvesInContest <= 0
-    ? 0
-    : Math.round(Math.max(0, Math.min(solves / maxSolvesInContest, 1)) * 100);
-
-const upsertRegularCatalog = (
+const getUserSubmissions = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  contestCatalog: readonly JudgeRegularCatalogContest[],
-  problemCatalog: readonly JudgeRegularCatalogProblem[]
-): Effect.Effect<RegularCatalogImportResult, SyncOperationError> =>
-  Effect.gen(function* () {
-    return yield* Effect.try({
-      try: () => {
-        const timestamp = new Date();
-        const contestNames = new Map(
-          contestCatalog
-            .filter((contest) => isNormalRegularCodeforcesContestName(contest.name))
-            .map((contest) => [contest.judgeId, contest.name])
-        );
-        const problemsByContest = new Map<string, JudgeRegularCatalogProblem[]>();
+  judge: CodeforcesPlaygroundClient,
+  userHandle: string
+): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
+  runJudgeOperation(database, {
+    provider,
+    phase: "submissions",
+    step: "submissions",
+    action: `submissions for user ${userHandle}`,
+    userHandle
+  }, judge.getSubmissions({ userHandle }));
 
-        for (const problem of problemCatalog) {
-          if (!contestNames.has(problem.judgeContestId)) {
-            continue;
-          }
+const codeforcesContestLink = (contestJudgeId: string): string =>
+  isGymContestJudgeId(contestJudgeId)
+    ? `${CODEFORCES_GYM_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`
+    : `${CODEFORCES_REGULAR_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`;
 
-          const contestProblems = problemsByContest.get(problem.judgeContestId) ?? [];
-          contestProblems.push(problem);
-          problemsByContest.set(problem.judgeContestId, contestProblems);
-        }
+const withCodeforcesContestLink = (contest: JudgeContest): JudgeContest => ({
+  ...contest,
+  link: contest.link ?? codeforcesContestLink(contest.judgeId)
+});
 
-        let problemsImported = 0;
-        const importedContestIds = new Set<string>();
+const withCodeforcesRegularContestLink = (
+  contest: JudgeRegularCatalogContest
+): JudgeRegularCatalogContest => ({
+  ...contest,
+  link: contest.link ?? codeforcesContestLink(contest.judgeId)
+});
 
-        database.db.transaction((tx) => {
-          for (const [contestJudgeId, contestProblems] of problemsByContest.entries()) {
-            const name = contestNames.get(contestJudgeId);
-            if (name === undefined || contestProblems.length === 0) {
-              continue;
-            }
-
-            const existingContest = tx
-              .select({
-                id: contests.id,
-                participants: contests.participants,
-                stars: contests.stars
-              })
-              .from(contests)
-              .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-              .get();
-            const standingsGrade = existingContest?.participants !== null && existingContest?.participants !== undefined;
-            const stars = standingsGrade && existingContest?.stars !== null && existingContest?.stars !== undefined
-              ? existingContest.stars
-              : regularContestStars(name);
-
-            tx
-              .insert(contests)
-              .values({
-                judgeId: contestJudgeId,
-                judge: JUDGES.Codeforces,
-                name,
-                link: `${CODEFORCES_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`,
-                participants: existingContest?.participants ?? null,
-                stars,
-                simulated: true,
-                createdAt: timestamp,
-                updatedAt: timestamp
-              })
-              .onConflictDoUpdate({
-                target: [contests.judgeId, contests.judge],
-                set: {
-                  name,
-                  link: `${CODEFORCES_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`,
-                  participants: existingContest?.participants ?? null,
-                  stars,
-                  simulated: true,
-                  updatedAt: timestamp
-                }
-              })
-              .run();
-
-            const contestRow = tx
-              .select({
-                id: contests.id,
-                participants: contests.participants
-              })
-              .from(contests)
-              .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-              .get();
-
-            if (contestRow === undefined) {
-              throw new Error(`Regular Codeforces contest ${contestJudgeId} was not found after upsert.`);
-            }
-
-            const problemJudgeIds = contestProblems.map((problem) => problem.judgeId);
-            const existingProblems = problemJudgeIds.length === 0
-              ? []
-              : tx
-                .select({
-                  id: problems.id,
-                  judgeId: problems.judgeId,
-                  solvePercentage: problems.solvePercentage,
-                  rating: problems.rating
-                })
-                .from(problems)
-                .where(and(
-                  eq(problems.judge, JUDGES.Codeforces),
-                  inArray(problems.judgeId, problemJudgeIds)
-                ))
-                .all();
-            const existingProblemsByJudgeId = new Map(existingProblems.map((problem) => [problem.judgeId, problem]));
-            const maxSolvesInContest = Math.max(0, ...contestProblems.map((problem) => problem.solves));
-            const preserveSolvePercentage = contestRow.participants !== null;
-            importedContestIds.add(contestJudgeId);
-
-            for (const problem of contestProblems) {
-              const existingProblem = existingProblemsByJudgeId.get(problem.judgeId);
-              const fallbackRating = estimateProblemRating({
-                stars,
-                participants: maxSolvesInContest,
-                solves: problem.solves,
-                maxSolvesInContest
-              });
-              const rating = problem.rating ?? existingProblem?.rating ?? fallbackRating;
-              const solvePercentage = preserveSolvePercentage && existingProblem !== undefined
-                ? existingProblem.solvePercentage
-                : regularSolvePercentage(problem.solves, maxSolvesInContest);
-
-              const [problemRow] = tx
-                .insert(problems)
-                .values({
-                  judgeId: problem.judgeId,
-                  judge: JUDGES.Codeforces,
-                  name: problem.name,
-                  link: problem.link,
-                  contestId: contestRow.id,
-                  solves: problem.solves,
-                  solvePercentage,
-                  rating,
-                  createdAt: timestamp,
-                  updatedAt: timestamp
-                })
-                .onConflictDoUpdate({
-                  target: [problems.judgeId, problems.judge],
-                  set: {
-                    name: problem.name,
-                    link: problem.link,
-                    contestId: contestRow.id,
-                    solves: problem.solves,
-                    solvePercentage,
-                    rating,
-                    updatedAt: timestamp
-                  }
-                })
-                .returning({ id: problems.id })
-                .all();
-
-              if (problemRow === undefined) {
-                throw new Error(`Regular Codeforces problem ${problem.judgeId} was not found after upsert.`);
-              }
-
-              tx.delete(problemTags).where(eq(problemTags.problemId, problemRow.id)).run();
-              for (const tag of [...new Set(problem.tags.map((value) => value.trim()).filter(Boolean))]) {
-                tx.insert(problemTags).values({
-                  problemId: problemRow.id,
-                  tag
-                }).onConflictDoNothing().run();
-              }
-
-              problemsImported += 1;
-            }
-          }
-        });
-
-        return {
-          importedContestIds,
-          contestsImported: importedContestIds.size,
-          problemsImported
-        };
-      },
-      catch: (cause) => new SyncOperationErrorClass({
-        provider,
-        phase: "regularCatalog",
-        step: "regularCatalog",
-        action: "regular catalog import",
-        cause
-      })
-    });
-  });
-
-const retryPendingSubmission = (
+export const syncCodeforcesContest = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  judgeId: ReturnType<typeof providerJudge>,
-  pending: PendingSubmission
-): Effect.Effect<UpsertSubmissionResult, SyncOperationError> =>
+  judge: CodeforcesPlaygroundClient,
+  contestJudgeId: string
+): Effect.Effect<number, SyncOperationError> =>
   Effect.gen(function* () {
-    const context = submissionContext(provider, pending.user, pending.submission);
-    const problem = yield* findProblem(database, judgeId, pending.submission.judgeProblemId, context);
+    const contest = yield* runJudgeOperation(database, {
+      provider,
+      phase: "contests",
+      step: "contests",
+      action: `contest ${contestJudgeId}`,
+      contestJudgeId
+    }, judge.getContest(contestJudgeId));
 
-    if (problem === undefined) {
-      return yield* Effect.fail(new SyncOperationErrorClass({
-        ...context,
-        cause: new Error(
-          pending.submission.judgeContestId === undefined
-            ? `Problem ${pending.submission.judgeProblemId} was not found after contest sync.`
-            : `Problem ${pending.submission.judgeProblemId} from contest ${pending.submission.judgeContestId} was not found after contest sync.`
-        )
-      }));
-    }
-
-    return yield* insertSubmission(database, judgeId, pending.user, pending.submission, problem, context);
+    return yield* upsertFetchedContest(database, provider, JUDGES.Codeforces, withCodeforcesContestLink(contest));
   });
 
 const runCodeforcesSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: JudgePlaygroundClient,
+  judge: CodeforcesPlaygroundClient,
   emit: EmitSyncEvent
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
     const provider = input.provider;
-    const judgeId = providerJudge(provider);
+    const judgeId = JUDGES.Codeforces;
     const summary = emptySummary();
     const syncUsersResult = yield* Effect.either(getSyncUsers(database, judgeId, provider));
 
@@ -301,70 +161,60 @@ const runCodeforcesSyncProgram = (
     const syncUsers = syncUsersResult.right;
     const pendingSubmissionsByContest = new Map<string, PendingSubmission[]>();
     const missingProblemIdsByContest = new Map<string, Set<string>>();
-    let completedSteps = 0;
-    let stepsTotal = syncUsers.length;
+    yield* emit(startedEvent(provider));
 
-    const stepsLeft = (): number => Math.max(stepsTotal - completedSteps, 0);
-
-    yield* emit({
-      type: "started",
+    const submissionProgress = createSyncStepProgress(
       provider,
-      stepsTotal: 0,
-      stepsLeft: 0
-    });
-
-    yield* emit({
-      type: "submissions.syncing",
-      step: "submissions",
-      provider,
-      usersTotal: syncUsers.length,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
+      JudgeSyncStep.Submissions,
+      syncUsers.length,
+      emit
+    );
+    yield* submissionProgress.start();
 
     for (const [index, user] of syncUsers.entries()) {
-      yield* emit({
-        type: "submissions.userSyncing",
-        step: "submissions",
-        provider,
-        userHandle: user.username,
-        userIndex: index + 1,
-        usersTotal: syncUsers.length,
-        stepsTotal,
-        stepsLeft: stepsLeft()
-      });
+      yield* submissionProgress.running(index, user.username);
+
+      const userSubmissionsResult = yield* Effect.either(
+        getUserSubmissions(database, provider, judge, user.username)
+      );
+
+      if (userSubmissionsResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(
+          userSubmissionsResult.left,
+          submissionProgress.stepsTotal,
+          submissionProgress.stepsLeft()
+        ));
+        yield* submissionProgress.completeCurrent(user.username);
+        continue;
+      }
 
       const userSyncResult = yield* Effect.either(
-        syncUserSubmissions(database, provider, judgeId, judge, user, {
-          queueMissingSubmissions: true
+        syncUserSubmissions(database, provider, judgeId, user, {
+          queueMissingSubmissions: true,
+          userSubmissions: userSubmissionsResult.right
         })
       );
-      let fetched = 0;
-      let inserted = 0;
-      let updated = 0;
-      let skipped = 0;
-      let missingProblems = 0;
 
       if (userSyncResult._tag === "Left") {
         summary.errors += 1;
-        yield* emit(syncOperationErrorEvent(userSyncResult.left, stepsTotal, stepsLeft()));
+        yield* emit(syncOperationErrorEvent(
+          userSyncResult.left,
+          submissionProgress.stepsTotal,
+          submissionProgress.stepsLeft()
+        ));
       } else {
-        fetched = userSyncResult.right.fetched;
-        inserted = userSyncResult.right.inserted;
-        updated = userSyncResult.right.updated;
-        skipped = userSyncResult.right.skipped;
-        missingProblems = userSyncResult.right.missingProblems;
-
         summary.usersProcessed += 1;
-        summary.submissionsFetched += fetched;
-        summary.submissionsInserted += inserted;
-        summary.submissionsUpdated += updated;
-        summary.submissionsSkipped += skipped;
+        summary.submissionsFetched += userSyncResult.right.fetched;
+        summary.submissionsInserted += userSyncResult.right.inserted;
+        summary.submissionsUpdated += userSyncResult.right.updated;
+        summary.submissionsSkipped += userSyncResult.right.skipped;
 
         for (const pending of userSyncResult.right.pendingSubmissions) {
           if (pending.submission.judgeContestId === undefined) {
             continue;
           }
+
           const pendingSubmissions = pendingSubmissionsByContest.get(pending.submission.judgeContestId) ?? [];
           pendingSubmissions.push(pending);
           pendingSubmissionsByContest.set(pending.submission.judgeContestId, pendingSubmissions);
@@ -375,20 +225,7 @@ const runCodeforcesSyncProgram = (
         }
       }
 
-      completedSteps += 1;
-      yield* emit({
-        type: "submissions.userSynced",
-        step: "submissions",
-        provider,
-        userHandle: user.username,
-        fetched,
-        inserted,
-        updated,
-        skipped,
-        missingProblems,
-        stepsTotal,
-        stepsLeft: stepsLeft()
-      });
+      yield* submissionProgress.completeCurrent(user.username);
     }
 
     const contestIds = [...missingProblemIdsByContest.entries()]
@@ -396,60 +233,61 @@ const runCodeforcesSyncProgram = (
       .filter(([, problemIds]) => problemIds.size >= 2)
       .map(([contestJudgeId]) => contestJudgeId)
       .sort((left, right) => Number(left) - Number(right));
-    completedSteps = 0;
-    stepsTotal = contestIds.length;
-
-    yield* emit({
-      type: "contests.syncing",
-      step: "contests",
+    const contestProgress = createSyncStepProgress(
       provider,
-      contestsTotal: contestIds.length,
-      contestsLeft: contestIds.length,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
+      JudgeSyncStep.Contests,
+      contestIds.length,
+      emit
+    );
+    yield* contestProgress.start();
 
     for (const [index, contestJudgeId] of contestIds.entries()) {
-      const contestsLeft = contestIds.length - index;
+      yield* contestProgress.running(index, contestJudgeId);
 
-      yield* emit({
-        type: "contests.contestSyncing",
-        step: "contests",
-        provider,
-        contestJudgeId,
-        contestsLeft,
-        contestsTotal: contestIds.length,
-        stepsTotal,
-        stepsLeft: stepsLeft()
-      });
-
-      const contestSyncResult = yield* Effect.either(syncContest(database, provider, judgeId, judge, contestJudgeId));
-      completedSteps += 1;
+      const contestSyncResult = yield* Effect.either(
+        syncCodeforcesContest(database, provider, judge, contestJudgeId)
+      );
 
       if (contestSyncResult._tag === "Left") {
         summary.errors += 1;
-        yield* emit(syncOperationErrorEvent(contestSyncResult.left, stepsTotal, stepsLeft()));
+        yield* contestProgress.completeCurrent(contestJudgeId);
+        yield* emit(syncOperationErrorEvent(
+          contestSyncResult.left,
+          contestProgress.stepsTotal,
+          contestProgress.stepsLeft()
+        ));
         continue;
       }
 
       summary.contestsSynced += 1;
-      yield* emit({
-        type: "contests.contestSynced",
-        step: "contests",
-        provider,
-        contestJudgeId,
-        problemsSynced: contestSyncResult.right,
-        stepsTotal,
-        stepsLeft: stepsLeft()
-      });
+      yield* contestProgress.completeCurrent(contestJudgeId);
 
       const pendingSubmissions = pendingSubmissionsByContest.get(contestJudgeId) ?? [];
       pendingSubmissionsByContest.delete(contestJudgeId);
+      const participationResult = yield* Effect.either(upsertExistingContestParticipations(
+        database,
+        provider,
+        judgeId,
+        pendingContestParticipations(contestJudgeId, pendingSubmissions)
+      ));
+      if (participationResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(
+          participationResult.left,
+          contestProgress.stepsTotal,
+          contestProgress.stepsLeft()
+        ));
+      }
+
       for (const pending of pendingSubmissions) {
         const retryResult = yield* Effect.either(retryPendingSubmission(database, provider, judgeId, pending));
         if (retryResult._tag === "Left") {
           summary.errors += 1;
-          yield* emit(syncOperationErrorEvent(retryResult.left, stepsTotal, stepsLeft()));
+          yield* emit(syncOperationErrorEvent(
+            retryResult.left,
+            contestProgress.stepsTotal,
+            contestProgress.stepsLeft()
+          ));
         } else {
           summary.submissionsInserted += retryResult.right.inserted;
           summary.submissionsUpdated += retryResult.right.updated;
@@ -458,106 +296,125 @@ const runCodeforcesSyncProgram = (
       }
     }
 
-    const hasRegularPendingContest = [...pendingSubmissionsByContest.keys()]
-      .some((contestJudgeId) => !isGymContestJudgeId(contestJudgeId));
+    const regularContestIds = [...missingProblemIdsByContest.entries()]
+      .filter(([contestJudgeId]) => !isGymContestJudgeId(contestJudgeId))
+      .filter(([contestJudgeId, problemIds]) =>
+        problemIds.size >= 2 || hasAcceptedPendingSubmission(pendingSubmissionsByContest, contestJudgeId)
+      )
+      .map(([contestJudgeId]) => contestJudgeId);
+    const regularContestIdSet = new Set(regularContestIds);
 
-    if (syncUsers.length === 0 || !hasRegularPendingContest) {
-      yield* emit(finalEvent(provider, stepsTotal, summary));
+    if (syncUsers.length === 0 || regularContestIds.length === 0) {
+      yield* emit(finalEvent(provider, contestProgress.stepsTotal, summary));
       return;
     }
 
-    completedSteps = 0;
-    stepsTotal = 2;
-    yield* emit({
-      type: "regularCatalog.contestsSyncing",
-      step: "regularCatalog",
+    let completedRegularSteps = 0;
+    const regularStepsTotal = 2;
+    const regularStepsLeft = (): number => Math.max(regularStepsTotal - completedRegularSteps, 0);
+    yield* emit(syncStepEvent(
       provider,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
+      JudgeSyncStep.RegularCatalog,
+      SyncStepStatus.Running,
+      { processed: 0, total: 2, current: "contests", stepsTotal: regularStepsTotal, stepsLeft: regularStepsLeft() }
+    ));
 
-    const regularContestCatalogResult = judge.getRegularContests === undefined
-      ? { _tag: "Right" as const, right: [] as readonly JudgeRegularCatalogContest[] }
-      : yield* Effect.either(
-        runJudgeOperation(
-          database,
-          {
-            provider,
-            phase: "regularCatalog",
-            step: "regularCatalog",
-            action: "regular contest list"
-          },
-          judge.getRegularContests()
-        )
-      );
+    const regularContestCatalogResult = yield* Effect.either(
+      runJudgeOperation(
+        database,
+        {
+          provider,
+          phase: "regularCatalog",
+          step: "regularCatalog",
+          action: "regular contest list"
+        },
+        judge.getRegularContests()
+      )
+    );
 
     if (regularContestCatalogResult._tag === "Left") {
       summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularContestCatalogResult.left, stepsTotal, stepsLeft()));
-      yield* emit(finalEvent(provider, stepsTotal, summary));
+      yield* emit(syncOperationErrorEvent(regularContestCatalogResult.left, regularStepsTotal, regularStepsLeft()));
+      yield* emit(finalEvent(provider, regularStepsTotal, summary));
       return;
     }
 
     const regularContestCatalog = regularContestCatalogResult.right;
-    completedSteps += 1;
-    yield* emit({
-      type: "regularCatalog.contestsSynced",
-      step: "regularCatalog",
+    completedRegularSteps += 1;
+    yield* emit(syncStepEvent(
       provider,
-      contestsTotal: regularContestCatalog.length,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
-    yield* emit({
-      type: "regularCatalog.problemsSyncing",
-      step: "regularCatalog",
+      JudgeSyncStep.RegularCatalog,
+      SyncStepStatus.Running,
+      {
+        processed: 1,
+        total: 2,
+        current: `${regularContestCatalog.length} contests`,
+        stepsTotal: regularStepsTotal,
+        stepsLeft: regularStepsLeft()
+      }
+    ));
+    yield* emit(syncStepEvent(
       provider,
-      contestsTotal: regularContestCatalog.length,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
+      JudgeSyncStep.RegularCatalog,
+      SyncStepStatus.Running,
+      { processed: 1, total: 2, current: "problems", stepsTotal: regularStepsTotal, stepsLeft: regularStepsLeft() }
+    ));
 
-    const regularProblemCatalogResult = judge.getRegularProblems === undefined
-      ? { _tag: "Right" as const, right: [] as readonly JudgeRegularCatalogProblem[] }
-      : yield* Effect.either(
-        runJudgeOperation(
-          database,
-          {
-            provider,
-            phase: "regularCatalog",
-            step: "regularCatalog",
-            action: "regular problem catalog"
-          },
-          judge.getRegularProblems()
-        )
-      );
+    const regularProblemCatalogResult = yield* Effect.either(
+      runJudgeOperation(
+        database,
+        {
+          provider,
+          phase: "regularCatalog",
+          step: "regularCatalog",
+          action: "regular problem catalog"
+        },
+        judge.getRegularProblems()
+      )
+    );
 
     if (regularProblemCatalogResult._tag === "Left") {
       summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularProblemCatalogResult.left, stepsTotal, stepsLeft()));
-      yield* emit(finalEvent(provider, stepsTotal, summary));
+      yield* emit(syncOperationErrorEvent(regularProblemCatalogResult.left, regularStepsTotal, regularStepsLeft()));
+      yield* emit(finalEvent(provider, regularStepsTotal, summary));
       return;
     }
 
     const regularImportResult = yield* Effect.either(
-      upsertRegularCatalog(database, provider, regularContestCatalog, regularProblemCatalogResult.right)
+      upsertCodeforcesRegularCatalog(
+        database,
+        provider,
+        regularContestIdSet,
+        regularContestCatalog.map(withCodeforcesRegularContestLink),
+        regularProblemCatalogResult.right
+      )
     );
-    completedSteps += 1;
+    completedRegularSteps += 1;
 
     if (regularImportResult._tag === "Left") {
       summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularImportResult.left, stepsTotal, stepsLeft()));
-      yield* emit(finalEvent(provider, stepsTotal, summary));
+      yield* emit(syncOperationErrorEvent(regularImportResult.left, regularStepsTotal, regularStepsLeft()));
+      yield* emit(finalEvent(provider, regularStepsTotal, summary));
       return;
     }
 
     summary.regularContestsImported += regularImportResult.right.contestsImported;
     summary.regularProblemsImported += regularImportResult.right.problemsImported;
 
-    let regularPendingSubmissionsRetried = 0;
     for (const contestJudgeId of regularImportResult.right.importedContestIds) {
       const pendingSubmissions = pendingSubmissionsByContest.get(contestJudgeId) ?? [];
       pendingSubmissionsByContest.delete(contestJudgeId);
+      const participationResult = yield* Effect.either(upsertExistingContestParticipations(
+        database,
+        provider,
+        judgeId,
+        pendingContestParticipations(contestJudgeId, pendingSubmissions)
+      ));
+      if (participationResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(participationResult.left, regularStepsTotal, regularStepsLeft()));
+      }
+
       for (const pending of pendingSubmissions) {
         const problemResult = yield* Effect.either(
           findProblem(
@@ -569,7 +426,7 @@ const runCodeforcesSyncProgram = (
         );
         if (problemResult._tag === "Left") {
           summary.errors += 1;
-          yield* emit(syncOperationErrorEvent(problemResult.left, stepsTotal, stepsLeft()));
+          yield* emit(syncOperationErrorEvent(problemResult.left, regularStepsTotal, regularStepsLeft()));
           continue;
         }
 
@@ -580,9 +437,8 @@ const runCodeforcesSyncProgram = (
         const retryResult = yield* Effect.either(retryPendingSubmission(database, provider, judgeId, pending));
         if (retryResult._tag === "Left") {
           summary.errors += 1;
-          yield* emit(syncOperationErrorEvent(retryResult.left, stepsTotal, stepsLeft()));
+          yield* emit(syncOperationErrorEvent(retryResult.left, regularStepsTotal, regularStepsLeft()));
         } else {
-          regularPendingSubmissionsRetried += 1;
           summary.regularPendingSubmissionsRetried += 1;
           summary.submissionsInserted += retryResult.right.inserted;
           summary.submissionsUpdated += retryResult.right.updated;
@@ -591,24 +447,26 @@ const runCodeforcesSyncProgram = (
       }
     }
 
-    yield* emit({
-      type: "regularCatalog.problemsSynced",
-      step: "regularCatalog",
+    yield* emit(syncStepEvent(
       provider,
-      contestsImported: regularImportResult.right.contestsImported,
-      problemsImported: regularImportResult.right.problemsImported,
-      pendingSubmissionsRetried: regularPendingSubmissionsRetried,
-      stepsTotal,
-      stepsLeft: stepsLeft()
-    });
+      JudgeSyncStep.RegularCatalog,
+      SyncStepStatus.Completed,
+      {
+        processed: 2,
+        total: 2,
+        current: `${regularImportResult.right.problemsImported} problems`,
+        stepsTotal: regularStepsTotal,
+        stepsLeft: regularStepsLeft()
+      }
+    ));
 
-    yield* emit(finalEvent(provider, stepsTotal, summary));
+    yield* emit(finalEvent(provider, regularStepsTotal, summary));
   });
 
 export async function* createCodeforcesJudgeSync(
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: JudgePlaygroundClient
+  judge: CodeforcesPlaygroundClient
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
     runCodeforcesSyncProgram(database, input, judge, emit)

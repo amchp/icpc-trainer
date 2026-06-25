@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Activity, RefreshCw } from "lucide-react";
 
+import { queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
 import { Badge, Button, Card, Separator, Skeleton } from "./components/ui.js";
 
 export function HealthPanel(): React.JSX.Element {
   const health = useQuery({
-    queryKey: ["health", "ping"],
+    queryKey: queryKeys.healthPing,
     queryFn: () => trpc.health.ping.query(),
     refetchInterval: false,
     retry: 1

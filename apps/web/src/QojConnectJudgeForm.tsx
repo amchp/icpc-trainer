@@ -2,13 +2,11 @@ import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
-import { Button, Card, FieldLabel, Input, Label, Separator } from "./components/ui.js";
+import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { ConnectJudgesFormHeader } from "./ConnectJudgesFormHeader.js";
 import { formatConnectJudgeError } from "./connectJudgeErrors.js";
-import {
-  type ProviderConnectJudgeFormProps
-} from "./connectJudgesShared.js";
+import { type ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -112,18 +110,20 @@ export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFo
             )}
           </form.Field>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
             {qojCookieKeys.map((cookie) => (
               <form.Field key={cookie.key} name={`qojCookies.${cookie.key}` as const}>
                 {(field) => (
                   <Label>
                     <FieldLabel>{cookie.label}</FieldLabel>
-                    <Input
+                    <Textarea
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                       placeholder={cookie.label}
                       autoComplete="off"
+                      spellCheck={false}
+                      className="min-h-20 font-mono text-xs leading-relaxed"
                       disabled={form.state.isSubmitting}
                     />
                   </Label>

@@ -2,10 +2,11 @@
 import { getStoredCodeforcesCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { createHash, randomBytes } from "node:crypto";
 
 import {
+  type GetContestsOptions,
   type GetSubmissionsOptions,
   type Judge,
   type JudgeCredentialValidator,
@@ -13,11 +14,9 @@ import {
   type JudgeError,
   type JudgeAuthenticationInput,
   JudgeNotFoundError,
-  type JudgePlaygroundClient,
   type JudgePreviewContest,
   type JudgeRegularCatalogProblem,
   type JudgeSubmission,
-  JudgeTag,
   JudgeUnavailableError,
   type Problem,
   JudgeAPIError,
@@ -25,13 +24,11 @@ import {
 } from "./judges.js";
 import {
   codeforcesContestParticipations,
-  emptyContestFinderRefresh,
   upsertContestFinderCatalog,
   upsertContestFinderParticipations
 } from "./contestFinder.js";
-import { createCodeforcesJudgeSync } from "./sync/sync_codeforces.js";
+import { createCodeforcesJudgeSync, syncCodeforcesContest } from "./sync/sync_codeforces.js";
 import { estimateContestStarsFromName } from "./sync/problemRating.js";
-import { notImplementedJudgeSync, syncContest } from "./sync/sync.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
 const CODEFORCES_GYM_URL = "https://codeforces.com/gym";
@@ -483,6 +480,18 @@ const isGymContestId = (contestId: number): boolean =>
   contestId >= CODEFORCES_GYM_CONTEST_ID_MIN &&
   contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
 
+const codeforcesContestLink = (contestJudgeId: string): string => {
+  const contestId = Number(contestJudgeId);
+  return Number.isInteger(contestId) && isGymContestId(contestId)
+    ? `${CODEFORCES_GYM_URL}/${encodeURIComponent(contestJudgeId)}`
+    : `${CODEFORCES_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`;
+};
+
+const withCodeforcesContestLink = (contest: JudgePreviewContest): JudgePreviewContest => ({
+  ...contest,
+  link: contest.link ?? codeforcesContestLink(contest.judgeId)
+});
+
 const getAllContests = (): Effect.Effect<ReadonlyArray<CodeforcesContest>, CodeforcesApiError> =>
   requestCodeforcesPublic<ReadonlyArray<CodeforcesContest>>("contest.list", {
     gym: true
@@ -590,11 +599,11 @@ const validateCodeforcesAuthentication = (
   );
 };
 
-export const makeCodeforcesPlaygroundClient = (): JudgePlaygroundClient => {
+export const makeCodeforcesPlaygroundClient = () => {
   const requestCodeforces = makeCodeforcesRequester();
 
   return {
-    getContests: () =>
+    getContests: (_options?: GetContestsOptions) =>
       getAllContests().pipe(
         Effect.map((contests) =>
           contests
@@ -604,7 +613,7 @@ export const makeCodeforcesPlaygroundClient = (): JudgePlaygroundClient => {
         Effect.mapError((error) => toJudgeError("codeforces", "contest", error))
       ),
 
-    getContest: (contestId) =>
+    getContest: (contestId: string) =>
       getAllStandingPages(contestId, requestCodeforces).pipe(
         Effect.mapError((error) => toJudgeError(contestId, "contest", error)),
         Effect.flatMap((pages) => {
@@ -617,7 +626,7 @@ export const makeCodeforcesPlaygroundClient = (): JudgePlaygroundClient => {
         Effect.map(toContest)
       ),
 
-    getUser: (handle) =>
+    getUser: (handle: string) =>
       requestCodeforces<ReadonlyArray<CodeforcesUser>>("user.info", {
         handles: handle,
         historic: false
@@ -701,119 +710,117 @@ export const makeCodeforcesPlaygroundClient = (): JudgePlaygroundClient => {
   };
 };
 
+export type CodeforcesPlaygroundClient = ReturnType<typeof makeCodeforcesPlaygroundClient>;
+
 export const makeCodeforcesCredentialValidator = (): JudgeCredentialValidator => ({
   validateAuthentication: validateCodeforcesAuthentication
 });
 
-export const makeCodeforcesJudge = (database?: DatabaseService): Judge => {
+const findCodeforcesContests = (
+  database: DatabaseService,
+  client: CodeforcesPlaygroundClient,
+  input: Parameters<Judge["findContest"]>[0]
+): ReturnType<Judge["findContest"]> => Effect.gen(function* () {
+  const emit = input.emit ?? (() => Effect.void);
+  const stepsTotal = input.friends.length + 1;
+  let stepsDone = 0;
+
+  yield* emit({
+    type: "started",
+    provider: "codeforces",
+    stepsTotal,
+    stepsLeft: stepsTotal
+  });
+  yield* emit({
+    type: "catalog.syncing",
+    provider: "codeforces",
+    step: "catalog",
+    stepsTotal,
+    stepsLeft: stepsTotal - stepsDone
+  });
+  const gymCatalog = yield* client.getContests();
+  const regularCatalog = yield* client.getRegularContests();
+  const catalog = mergePreviewContests(gymCatalog, regularCatalog).map(withCodeforcesContestLink);
+  const contestsUpserted = yield* upsertContestFinderCatalog(
+    database,
+    "codeforces",
+    JUDGES.Codeforces,
+    catalog
+  ).pipe(
+    Effect.mapError((error) => new JudgeAPIError({ judgeId: "codeforces", cause: error }))
+  );
+  stepsDone += 1;
+  yield* emit({
+    type: "catalog.synced",
+    provider: "codeforces",
+    step: "catalog",
+    contestsUpserted,
+    stepsTotal,
+    stepsLeft: stepsTotal - stepsDone
+  });
+  const contestCatalog = new Map(catalog.map((contest) => [contest.judgeId, contest]));
+  let friendsProcessed = 0;
+
+  yield* emit({
+    type: "friends.syncing",
+    provider: "codeforces",
+    step: "friends",
+    friendsTotal: input.friends.length,
+    stepsTotal,
+    stepsLeft: stepsTotal - stepsDone
+  });
+  for (const friend of input.friends) {
+    yield* emit({
+      type: "friends.friendSyncing",
+      provider: "codeforces",
+      step: "friends",
+      userHandle: friend.username,
+      friendIndex: friendsProcessed + 1,
+      friendsTotal: input.friends.length,
+      stepsTotal,
+      stepsLeft: stepsTotal - stepsDone
+    });
+    const submissions = yield* client.getSubmissions({ userHandle: friend.username });
+    yield* upsertContestFinderParticipations(
+      database,
+      "codeforces",
+      JUDGES.Codeforces,
+      codeforcesContestParticipations(friend, submissions, contestCatalog)
+    ).pipe(
+      Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
+    );
+    friendsProcessed += 1;
+    stepsDone += 1;
+    yield* emit({
+      type: "friends.friendSynced",
+      provider: "codeforces",
+      step: "friends",
+      userHandle: friend.username,
+      friendIndex: friendsProcessed,
+      friendsTotal: input.friends.length,
+      friendsProcessed: 1,
+      stepsTotal,
+      stepsLeft: stepsTotal - stepsDone
+    });
+  }
+
+  return {
+    contestsUpserted,
+    friendsProcessed
+  };
+});
+
+export const makeCodeforcesJudge = (database: DatabaseService): Judge => {
   const client = makeCodeforcesPlaygroundClient();
 
   return {
-    findContest: (input) => database === undefined
-      ? Effect.succeed(emptyContestFinderRefresh())
-      : Effect.gen(function* () {
-          const emit = input.emit ?? (() => Effect.void);
-          const stepsTotal = input.friends.length + 1;
-          let stepsDone = 0;
+    findContest: (input) => findCodeforcesContests(database, client, input),
 
-          yield* emit({
-            type: "started",
-            provider: "codeforces",
-            stepsTotal,
-            stepsLeft: stepsTotal
-          });
-          yield* emit({
-            type: "catalog.syncing",
-            provider: "codeforces",
-            step: "catalog",
-            stepsTotal,
-            stepsLeft: stepsTotal - stepsDone
-          });
-          const gymCatalog = yield* client.getContests();
-          const regularCatalog = yield* (client.getRegularContests?.() ?? Effect.succeed([]));
-          const catalog = mergePreviewContests(gymCatalog, regularCatalog);
-          const contestsUpserted = yield* upsertContestFinderCatalog(
-            database,
-            "codeforces",
-            JUDGES.Codeforces,
-            catalog
-          ).pipe(
-            Effect.mapError((error) => new JudgeAPIError({ judgeId: "codeforces", cause: error }))
-          );
-          stepsDone += 1;
-          yield* emit({
-            type: "catalog.synced",
-            provider: "codeforces",
-            step: "catalog",
-            contestsUpserted,
-            stepsTotal,
-            stepsLeft: stepsTotal - stepsDone
-          });
-          const contestNames = new Map(catalog.map((contest) => [contest.judgeId, contest.name]));
-          let friendsProcessed = 0;
-
-          yield* emit({
-            type: "friends.syncing",
-            provider: "codeforces",
-            step: "friends",
-            friendsTotal: input.friends.length,
-            stepsTotal,
-            stepsLeft: stepsTotal - stepsDone
-          });
-          for (const friend of input.friends) {
-            yield* emit({
-              type: "friends.friendSyncing",
-              provider: "codeforces",
-              step: "friends",
-              userHandle: friend.username,
-              friendIndex: friendsProcessed + 1,
-              friendsTotal: input.friends.length,
-              stepsTotal,
-              stepsLeft: stepsTotal - stepsDone
-            });
-            const submissions = yield* client.getSubmissions({ userHandle: friend.username });
-            yield* upsertContestFinderParticipations(
-              database,
-              "codeforces",
-              JUDGES.Codeforces,
-              codeforcesContestParticipations(friend, submissions, contestNames)
-            ).pipe(
-              Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
-            );
-            friendsProcessed += 1;
-            stepsDone += 1;
-            yield* emit({
-              type: "friends.friendSynced",
-              provider: "codeforces",
-              step: "friends",
-              userHandle: friend.username,
-              friendIndex: friendsProcessed,
-              friendsTotal: input.friends.length,
-              friendsProcessed: 1,
-              stepsTotal,
-              stepsLeft: stepsTotal - stepsDone
-            });
-          }
-
-          return {
-            contestsUpserted,
-            friendsProcessed
-          };
-        }),
-
-    refetchContest: (input) => database === undefined
-      ? Effect.void
-      : syncContest(database, input.provider, JUDGES.Codeforces, client, input.contestJudgeId).pipe(
+    refetchContest: (input) =>
+      syncCodeforcesContest(database, input.provider, client, input.contestJudgeId).pipe(
         Effect.asVoid
       ),
 
-    sync: database === undefined
-      ? notImplementedJudgeSync
-      : (input) => createCodeforcesJudgeSync(database, input, client)
+    sync: (input) => createCodeforcesJudgeSync(database, input, client)
   };
 };
-
-export const CodeforcesJudgeLive: Layer.Layer<JudgeTag> = Layer.succeed(
-  JudgeTag,
-  makeCodeforcesJudge()
-);

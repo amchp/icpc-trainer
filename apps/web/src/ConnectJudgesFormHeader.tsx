@@ -1,15 +1,18 @@
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "./components/ui.js";
 import type { ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
 
 interface ConnectJudgesFormHeaderProps extends ProviderConnectJudgeFormProps {
   readonly disabled: boolean;
+  readonly icon?: ReactNode;
   readonly title: string;
 }
 
 export function ConnectJudgesFormHeader({
   disabled,
+  icon,
   onChangeProvider,
   title
 }: ConnectJudgesFormHeaderProps): React.JSX.Element {
@@ -26,7 +29,7 @@ export function ConnectJudgesFormHeader({
         <ArrowLeft className="size-4" aria-hidden="true" />
       </Button>
       <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
-        <CheckCircle2 className="size-4 text-blue-300" aria-hidden="true" />
+        {icon}
         {title}
       </div>
     </div>

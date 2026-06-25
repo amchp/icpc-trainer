@@ -4,7 +4,15 @@ interface AsyncEventQueue<T> {
   readonly close: () => void;
 }
 
-const createAsyncEventQueue = <T>(): AsyncEventQueue<T> => {
+export interface AsyncEventHubOptions {
+  readonly maxBufferedEvents?: number;
+}
+
+const DEFAULT_MAX_BUFFERED_EVENTS = 512;
+
+const createAsyncEventQueue = <T>(
+  maxBufferedEvents: number
+): AsyncEventQueue<T> => {
   const values: T[] = [];
   const waiters: Array<(result: IteratorResult<T>) => void> = [];
   let closed = false;
@@ -35,6 +43,9 @@ const createAsyncEventQueue = <T>(): AsyncEventQueue<T> => {
     }
 
     values.push(value);
+    if (values.length > maxBufferedEvents) {
+      values.splice(0, values.length - maxBufferedEvents);
+    }
   };
 
   const close = (): void => {
@@ -58,7 +69,8 @@ export interface AsyncEventHub<T> {
   readonly subscribe: () => AsyncIterable<T>;
 }
 
-export const createAsyncEventHub = <T>(): AsyncEventHub<T> => {
+export const createAsyncEventHub = <T>(options: AsyncEventHubOptions = {}): AsyncEventHub<T> => {
+  const maxBufferedEvents = Math.max(1, options.maxBufferedEvents ?? DEFAULT_MAX_BUFFERED_EVENTS);
   const subscribers = new Set<AsyncEventQueue<T>>();
 
   return {
@@ -68,7 +80,7 @@ export const createAsyncEventHub = <T>(): AsyncEventHub<T> => {
       }
     },
     subscribe: () => {
-      const queue = createAsyncEventQueue<T>();
+      const queue = createAsyncEventQueue<T>(maxBufferedEvents);
       subscribers.add(queue);
 
       return {

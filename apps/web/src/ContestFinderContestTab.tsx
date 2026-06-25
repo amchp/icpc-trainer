@@ -1,7 +1,6 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import {
   Card,
@@ -16,6 +15,7 @@ import {
   judgeSourceFor,
   type JudgeSourceFilterId
 } from "./JudgeSourceFilter.js";
+import { VirtualGridTable } from "./VirtualGridTable.js";
 
 const contestFinderGridTemplateColumns = "minmax(18rem, 1fr) 7rem 8rem";
 
@@ -38,7 +38,6 @@ export function ContestFinderContestTab({
   readonly onSearchQueryChange: (value: string) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
-  const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const judgeSourceCounts = useMemo(
     () =>
       allContests.reduce<Record<JudgeSourceFilterId, number>>((counts, contest) => {
@@ -50,28 +49,6 @@ export function ContestFinderContestTab({
       }, emptyJudgeSourceCounts()),
     [allContests]
   );
-  const scrollMargin = tableContainerRef.current?.offsetTop ?? 0;
-  const rowVirtualizer = useWindowVirtualizer({
-    count: contests.length,
-    estimateSize: () => 78,
-    overscan: 12,
-    scrollMargin,
-    initialRect: {
-      width: 1000,
-      height: 640
-    }
-  });
-  const shouldVirtualizeRows =
-    typeof navigator !== "undefined" && !navigator.userAgent.toLowerCase().includes("jsdom");
-  const virtualRows = shouldVirtualizeRows
-    ? rowVirtualizer.getVirtualItems()
-    : contests.map((_, index) => ({
-        index,
-        start: index * 78
-      }));
-  const virtualizedHeight = shouldVirtualizeRows
-    ? rowVirtualizer.getTotalSize()
-    : contests.length * 78;
 
   return (
     <Card className="overflow-hidden">
@@ -104,80 +81,29 @@ export function ContestFinderContestTab({
           No unsimulated contests match the current filters.
         </div>
       ) : (
-        <div ref={tableContainerRef} className="overflow-x-auto border-t border-zinc-800">
-          <div role="table" className="min-w-[34rem] text-sm">
-            <div role="rowgroup" className="sticky top-0 z-10 bg-zinc-950">
-              <div
-                role="row"
-                className="grid border-b border-zinc-800"
-                style={{ gridTemplateColumns: contestFinderGridTemplateColumns }}
+        <VirtualGridTable
+          rows={contests}
+          estimateSize={78}
+          getRowKey={(contest) => `${contest.judge}:${contest.judgeId}`}
+          gridTemplateColumns={contestFinderGridTemplateColumns}
+          headerGroups={[["Contest", "Judge", "Friends"]]}
+          minWidthClassName="min-w-[34rem]"
+          showRowNumbers={false}
+          renderCells={(contest) => [
+            <div className="min-w-0">
+              <a
+                href={contest.link}
+                target="_blank"
+                rel="noreferrer"
+                className="line-clamp-2 font-medium text-blue-300 hover:text-blue-200 hover:underline"
               >
-                <div role="columnheader" className="px-3 py-3 text-left align-middle text-xs font-medium text-zinc-500">
-                  Contest
-                </div>
-                <div role="columnheader" className="px-3 py-3 text-left align-middle text-xs font-medium text-zinc-500">
-                  Judge
-                </div>
-                <div role="columnheader" className="px-3 py-3 text-left align-middle text-xs font-medium text-zinc-500">
-                  Friends
-                </div>
-              </div>
-            </div>
-
-            <div
-              role="rowgroup"
-              className="relative"
-              style={{
-                height: `${virtualizedHeight}px`
-              }}
-            >
-              {virtualRows.map((virtualRow) => {
-                const contest = contests[virtualRow.index];
-
-                if (contest === undefined) {
-                  return null;
-                }
-
-                return (
-                  <div
-                    key={`${contest.judge}:${contest.judgeId}`}
-                    ref={(node) => {
-                      if (node && shouldVirtualizeRows) {
-                        rowVirtualizer.measureElement(node);
-                      }
-                    }}
-                    data-index={virtualRow.index}
-                    role="row"
-                    className="absolute left-0 top-0 grid w-full border-b border-zinc-800 transition-colors hover:bg-zinc-900/60"
-                    style={{
-                      gridTemplateColumns: contestFinderGridTemplateColumns,
-                      transform: `translateY(${virtualRow.start - scrollMargin}px)`
-                    }}
-                  >
-                    <div role="cell" className="px-3 py-3 align-middle text-zinc-300">
-                      <div className="min-w-0">
-                        <a
-                          href={contest.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="line-clamp-2 font-medium text-blue-300 hover:text-blue-200 hover:underline"
-                        >
-                          {contest.name}
-                        </a>
-                      </div>
-                    </div>
-                    <div role="cell" className="px-3 py-3 align-middle text-zinc-300">
-                      <JudgeDisplay judge={contest.judge} />
-                    </div>
-                    <div role="cell" className="px-3 py-3 align-middle text-zinc-300">
-                      {contest.friendCount}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+                {contest.name}
+              </a>
+            </div>,
+            <JudgeDisplay judge={contest.judge} />,
+            contest.friendCount
+          ]}
+        />
       )}
     </Card>
   );

@@ -1,9 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
-import { KeyRound, ShieldCheck } from "lucide-react";
 
 import { Button } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { connectJudgeProviders } from "./connectJudgesShared.js";
+import { CodeforcesIcon } from "./JudgeDisplay.js";
 
 export function AvailableJudgeProviderSelection(): React.JSX.Element {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export function AvailableJudgeProviderSelection(): React.JSX.Element {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {availableProviders.map((provider) => {
-        const Icon = provider.id === "codeforces" ? KeyRound : ShieldCheck;
+        const Icon = provider.id === "codeforces" ? CodeforcesIcon : undefined;
         return (
           <Button
             key={provider.id}
@@ -29,7 +29,7 @@ export function AvailableJudgeProviderSelection(): React.JSX.Element {
             onClick={() => void navigate({ to: `/connect-judges/${provider.id}` })}
           >
             <span className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-              <Icon className="size-4 text-blue-300" aria-hidden="true" />
+              {Icon === undefined ? null : <Icon className="size-4" aria-hidden="true" />}
               {provider.name}
             </span>
           </Button>

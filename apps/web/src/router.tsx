@@ -1,36 +1,21 @@
 import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
 
 import { AccountRoute } from "./AccountRoute.js";
+import { appPaths } from "./appNavigation.js";
 import { CodeforcesConnectJudgeRoute } from "./CodeforcesConnectJudgeRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
 import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
-import { HomeRoute } from "./HomeRoute.js";
+import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeRoute } from "./QojConnectJudgeRoute.js";
-import { connectedJudgesFromCredentialStatus } from "./judgeConfig.js";
 import { TeamRoute } from "./TeamRoute.js";
-import { trpc } from "./trpc.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
 
 const rootRoute = createRootRoute({
   component: Outlet
 });
-
-const requireConnectedJudge = async (): Promise<void> => {
-  const credentialStatus = await trpc.credentials.status.query();
-  if (connectedJudgesFromCredentialStatus(credentialStatus).length === 0) {
-    throw redirect({ to: "/connect-judges" });
-  }
-};
-
-const requireSyncedContests = async (): Promise<void> => {
-  const dataStatus = await trpc.account.dataStatus.query();
-  if (!dataStatus.hasSyncedContests) {
-    throw redirect({ to: "/connect-judges" });
-  }
-};
 
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -40,74 +25,77 @@ const appRoute = createRoute({
 
 const indexRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/",
-  component: HomeRoute,
-  beforeLoad: requireSyncedContests
+  path: appPaths.root,
+  beforeLoad: () => {
+    throw redirect({ to: appPaths.findProblems });
+  }
 });
 
 const connectJudgesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/connect-judges",
+  path: appPaths.connectJudges,
   component: ConnectJudgesRoute
 });
 
 const codeforcesConnectJudgeRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/connect-judges/codeforces",
+  path: appPaths.connectCodeforces,
   component: CodeforcesConnectJudgeRoute
 });
 
 const qojConnectJudgeRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/connect-judges/qoj",
+  path: appPaths.connectQoj,
   component: QojConnectJudgeRoute
 });
 
 const playgroundRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/playground",
-  component: PlaygroundRoute,
-  beforeLoad: requireConnectedJudge
+  path: appPaths.playground,
+  component: PlaygroundRoute
 });
 
 const upsolvingRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/upsolving",
-  component: UpsolvingRoute,
-  beforeLoad: requireSyncedContests
+  path: appPaths.upsolving,
+  component: UpsolvingRoute
 });
 
 const contestsRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/contests",
-  component: ContestsRoute,
-  beforeLoad: requireSyncedContests
+  path: appPaths.contests,
+  component: ContestsRoute
+});
+
+const findProblemsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: appPaths.findProblems,
+  component: FindProblemsRoute
 });
 
 const contestFinderRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/contest-finder",
-  component: ContestFinderRoute,
-  beforeLoad: requireConnectedJudge
+  path: appPaths.contestFinder,
+  component: ContestFinderRoute
 });
 
 const teamRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/team",
+  path: appPaths.team,
   component: TeamRoute
 });
 
 const judgesRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/judges",
+  path: appPaths.judges,
   component: AccountRoute
 });
 
 const accountRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/account",
+  path: appPaths.account,
   beforeLoad: () => {
-    throw redirect({ to: "/judges" });
+    throw redirect({ to: appPaths.judges });
   }
 });
 
@@ -118,6 +106,7 @@ const routeTree = rootRoute.addChildren([
     judgesRoute,
     contestFinderRoute,
     contestsRoute,
+    findProblemsRoute,
     teamRoute,
     upsolvingRoute
   ]),

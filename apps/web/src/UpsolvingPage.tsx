@@ -3,18 +3,26 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Card, Skeleton } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
+import { queryKeys } from "./queryKeys.js";
+import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { trpc } from "./trpc.js";
 import { UpsolvingProblemTable } from "./UpsolvingProblemTable.js";
 
 export function UpsolvingPage(): React.JSX.Element {
   const { hasConnectedJudge, status } = useConnectedJudges();
   const query = useQuery({
-    queryKey: ["upsolving", "overview"],
+    queryKey: queryKeys.upsolvingOverview,
     queryFn: () => trpc.upsolving.overview.query(),
+    enabled: status === "ready" && hasConnectedJudge
+  });
+  const dataStatusQuery = useQuery({
+    queryKey: queryKeys.accountDataStatus,
+    queryFn: () => trpc.account.dataStatus.query(),
     enabled: status === "ready" && hasConnectedJudge
   });
 
   const overview = query.data;
+  const noSyncedData = dataStatusQuery.data?.hasSyncedContests === false;
 
   if (status !== "ready" || !hasConnectedJudge) {
     return <main className="min-h-screen bg-zinc-950" />;
@@ -50,7 +58,9 @@ export function UpsolvingPage(): React.JSX.Element {
         </Card>
       ) : null}
 
-      {overview ? (
+      {noSyncedData ? (
+        <SyncDataPrompt />
+      ) : overview ? (
         <UpsolvingProblemTable rows={overview.rows} />
       ) : null}
     </main>

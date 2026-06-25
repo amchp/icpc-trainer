@@ -30,7 +30,7 @@ export function UpsolvingProblemTable({
 }): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("upsolved");
   const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
     defaultJudgeSourceFilters
   );
@@ -96,7 +96,7 @@ export function UpsolvingProblemTable({
 
       {rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No simulated contests yet. Run sync to load contests and problems.
+          No simulated contests yet. Click the Sync button to update data.
         </div>
       ) : visibleRows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">

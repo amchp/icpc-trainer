@@ -1,4 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type {
+  JudgeSyncEventType as JudgeSyncEventTypeValue,
+  JudgeSyncStep as JudgeSyncStepValue,
+  SyncRunStatus as SyncRunStatusValue,
+  SyncStepStatus as SyncStepStatusValue
+} from "@icpc-trainer/api";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +13,6 @@ import { ConnectJudgesPage } from "./ConnectJudgesPage.js";
 import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { CodeforcesConnectJudgePage } from "./CodeforcesConnectJudgePage.js";
 import { AccountPage } from "./AccountPage.js";
-import { HomeRoute } from "./HomeRoute.js";
 import { PlaygroundPage } from "./PlaygroundPage.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
@@ -35,77 +40,195 @@ const syncObservers = vi.hoisted(() =>
   new Map<string, Array<{ readonly onData?: (event: any) => void; readonly onError?: (error: any) => void }>>()
 );
 const syncSnapshots = vi.hoisted(() =>
-  new Map<string, { readonly running: boolean; readonly events: readonly any[] }>()
+  new Map<string, any>()
 );
+
+const JudgeSyncEventType = {
+  Started: "started" as JudgeSyncEventTypeValue,
+  Step: "step" as JudgeSyncEventTypeValue,
+  Error: "error" as JudgeSyncEventTypeValue,
+  Completed: "completed" as JudgeSyncEventTypeValue
+};
+
+const JudgeSyncStep = {
+  Submissions: "submissions" as JudgeSyncStepValue,
+  Contests: "contests" as JudgeSyncStepValue,
+  RegularCatalog: "regularCatalog" as JudgeSyncStepValue
+};
+
+const SyncRunStatus = {
+  Idle: "idle" as SyncRunStatusValue,
+  Running: "running" as SyncRunStatusValue,
+  Completed: "completed" as SyncRunStatusValue,
+  Error: "error" as SyncRunStatusValue
+};
+
+const SyncStepStatus = {
+  Pending: "pending" as SyncStepStatusValue,
+  Running: "running" as SyncStepStatusValue,
+  Completed: "completed" as SyncStepStatusValue,
+  Error: "error" as SyncStepStatusValue
+};
+
+const emptySyncStep = () => ({
+  status: SyncStepStatus.Pending,
+  total: 0,
+  processed: 0
+});
+
+const emptyProviderState = (provider: "codeforces" | "qoj") => ({
+  type: "state" as const,
+  provider,
+  status: SyncRunStatus.Idle,
+  stepsTotal: 0,
+  stepsLeft: 0,
+  latestEvent: null,
+  summary: null,
+  steps: {
+    submissions: emptySyncStep(),
+    contests: emptySyncStep(),
+    regularCatalog: emptySyncStep()
+  }
+});
+
+const applySyncEvent = (state: any, event: any) => {
+  const base = {
+    ...state,
+    status: event.type === JudgeSyncEventType.Completed
+      ? event.summary.errors > 0 ? SyncRunStatus.Error : SyncRunStatus.Completed
+      : SyncRunStatus.Running,
+    stepsTotal: event.stepsTotal,
+    stepsLeft: event.stepsLeft,
+    latestEvent: event,
+    summary: event.type === JudgeSyncEventType.Completed ? event.summary : state.summary
+  };
+
+  if (event.type === JudgeSyncEventType.Step) {
+    return {
+      ...base,
+      steps: {
+        ...state.steps,
+        [event.step]: {
+          status: event.stepStatus,
+          total: event.total,
+          processed: event.processed,
+          current: event.current
+        }
+      }
+    };
+  }
+
+  if (event.type === JudgeSyncEventType.Error) {
+    return {
+      ...base,
+      status: SyncRunStatus.Running,
+      steps: {
+        ...state.steps,
+        [event.step ?? JudgeSyncStep.Submissions]: event.step === undefined
+          ? state.steps.submissions
+          : {
+              ...state.steps[event.step],
+              status: SyncStepStatus.Error,
+              current: event.userHandle ?? event.contestJudgeId
+            }
+      }
+    };
+  }
+
+  if (event.type === JudgeSyncEventType.Completed) {
+    return {
+      ...base,
+      steps: {
+        submissions: { ...state.steps.submissions, status: SyncStepStatus.Completed, processed: state.steps.submissions.total },
+        contests: { ...state.steps.contests, status: SyncStepStatus.Completed, processed: state.steps.contests.total },
+        regularCatalog: {
+          ...state.steps.regularCatalog,
+          status: SyncStepStatus.Completed,
+          processed: state.steps.regularCatalog.total
+        }
+      }
+    };
+  }
+
+  return base;
+};
+
+const syncStateFromFixtureEvents = (provider: "codeforces" | "qoj", events: readonly any[]) =>
+  events.reduce(applySyncEvent, emptyProviderState(provider));
 
 const syncEvents = (provider: "codeforces" | "qoj") => [
   {
-    type: "started" as const,
+    type: JudgeSyncEventType.Started,
     provider,
     stepsTotal: 2,
     stepsLeft: 2
   },
   {
-    type: "submissions.syncing" as const,
-    step: "submissions" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Submissions,
+    stepStatus: SyncStepStatus.Running,
     provider,
-    usersTotal: 1,
+    total: 1,
+    processed: 0,
     stepsTotal: 2,
     stepsLeft: 2
   },
   {
-    type: "submissions.userSyncing" as const,
-    step: "submissions" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Submissions,
+    stepStatus: SyncStepStatus.Running,
     provider,
-    userHandle: "tourist",
-    userIndex: 1,
-    usersTotal: 1,
+    current: "tourist",
+    total: 1,
+    processed: 0,
     stepsTotal: 2,
     stepsLeft: 2
   },
   {
-    type: "submissions.userSynced" as const,
-    step: "submissions" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Submissions,
+    stepStatus: SyncStepStatus.Completed,
     provider,
-    userHandle: "tourist",
-    fetched: 3,
-    inserted: 2,
-    updated: 1,
-    skipped: 0,
-    missingProblems: 0,
+    current: "tourist",
+    total: 1,
+    processed: 1,
     stepsTotal: 2,
     stepsLeft: 1
   },
   {
-    type: "contests.syncing" as const,
-    step: "contests" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Contests,
+    stepStatus: SyncStepStatus.Running,
     provider,
-    contestsTotal: 1,
-    contestsLeft: 1,
+    total: 1,
+    processed: 0,
     stepsTotal: 2,
     stepsLeft: 1
   },
   {
-    type: "contests.contestSyncing" as const,
-    step: "contests" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Contests,
+    stepStatus: SyncStepStatus.Running,
     provider,
-    contestJudgeId: "566",
-    contestsTotal: 1,
-    contestsLeft: 1,
+    current: "566",
+    total: 1,
+    processed: 0,
     stepsTotal: 2,
     stepsLeft: 1
   },
   {
-    type: "contests.contestSynced" as const,
-    step: "contests" as const,
+    type: JudgeSyncEventType.Step,
+    step: JudgeSyncStep.Contests,
+    stepStatus: SyncStepStatus.Completed,
     provider,
-    contestJudgeId: "566",
-    problemsSynced: 2,
+    current: "566",
+    total: 1,
+    processed: 1,
     stepsTotal: 2,
     stepsLeft: 0
   },
   {
-    type: "completed" as const,
+    type: JudgeSyncEventType.Completed,
     provider,
     stepsTotal: 2,
     stepsLeft: 0 as const,
@@ -116,6 +239,9 @@ const syncEvents = (provider: "codeforces" | "qoj") => [
       submissionsUpdated: 1,
       submissionsSkipped: 0,
       contestsSynced: 1,
+      regularContestsImported: 0,
+      regularProblemsImported: 0,
+      regularPendingSubmissionsRetried: 0,
       errors: 0
     }
   }
@@ -218,8 +344,10 @@ vi.mock("./trpc", () => ({
         mutate: vi.fn(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
           queueMicrotask(() => {
             for (const observer of syncObservers.get(provider) ?? []) {
+              let state = emptyProviderState(provider);
               for (const event of syncEvents(provider)) {
-                observer.onData?.(event);
+                state = applySyncEvent(state, event);
+                observer.onData?.(state);
               }
             }
           });
@@ -231,16 +359,7 @@ vi.mock("./trpc", () => ({
           observers.push(options);
           syncObservers.set(input.provider, observers);
           queueMicrotask(() => {
-            const snapshot = syncSnapshots.get(input.provider) ?? {
-              running: false,
-              events: []
-            };
-            options.onData?.({
-              type: "snapshot",
-              provider: input.provider,
-              running: snapshot.running,
-              events: snapshot.events
-            });
+            options.onData?.(syncSnapshots.get(input.provider) ?? emptyProviderState(input.provider));
           });
           return {
             unsubscribe: vi.fn(() => {
@@ -281,7 +400,7 @@ const renderWithQuery = (ui: ReactNode): void => {
   );
 };
 
-describe("HomeRoute", () => {
+describe("app shell", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -312,10 +431,7 @@ describe("HomeRoute", () => {
   });
 
   it("shows separate judge progress while a sync is running", async () => {
-    syncSnapshots.set("codeforces", {
-      running: true,
-      events: syncEvents("codeforces").slice(0, 3)
-    });
+    syncSnapshots.set("codeforces", syncStateFromFixtureEvents("codeforces", syncEvents("codeforces").slice(0, 3)));
 
     renderWithQuery(<ProtectedLayout />);
 
@@ -335,6 +451,16 @@ describe("HomeRoute", () => {
       expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
     );
     await waitFor(() => expect(screen.queryByText("User submission sync")).not.toBeInTheDocument());
+  });
+
+  it("refreshes synced data queries after sync completes", async () => {
+    renderWithQuery(<ProtectedLayout />);
+
+    await waitFor(() => expect(accountDataStatusMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
+
+    await waitFor(() => expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" }));
+    await waitFor(() => expect(accountDataStatusMock).toHaveBeenCalledTimes(2));
   });
 
   it("starts all authenticated judge syncs from the navbar", async () => {
@@ -373,25 +499,36 @@ describe("HomeRoute", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("QOJ authentication is not connected");
   });
 
+  it("syncs a newly connected judge even when other judges have local synced contests", async () => {
+    accountDataStatusMock.mockResolvedValue({
+      hasSyncedContests: true,
+      syncedContestJudges: ["qoj"]
+    });
+
+    renderWithQuery(<ProtectedLayout />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
+
+    await waitFor(() =>
+      expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
+    );
+  });
+
   it("shows a toast when sync emits an error", async () => {
     vi.mocked(trpc.judges.observeSync.subscribe).mockImplementationOnce((input, options) => {
       const observers = syncObservers.get(input.provider) ?? [];
       observers.push(options);
       syncObservers.set(input.provider, observers);
       queueMicrotask(() => {
-        options.onData?.({
-          type: "snapshot",
-          provider: input.provider,
-          running: false,
-          events: []
-        });
+        options.onData?.(emptyProviderState(input.provider));
       });
       return { unsubscribe: vi.fn() };
     });
     vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
       queueMicrotask(() => {
         for (const observer of syncObservers.get(provider) ?? []) {
-          observer.onData?.({
+          let state = emptyProviderState(provider);
+          state = applySyncEvent(state, {
           type: "error",
           provider,
           phase: "contests",
@@ -401,7 +538,8 @@ describe("HomeRoute", () => {
           stepsTotal: 1,
           stepsLeft: 1
         });
-          observer.onData?.({
+          observer.onData?.(state);
+          state = applySyncEvent(state, {
           type: "completed",
           provider,
           stepsTotal: 1,
@@ -413,9 +551,13 @@ describe("HomeRoute", () => {
             submissionsUpdated: 0,
             submissionsSkipped: 0,
             contestsSynced: 0,
+            regularContestsImported: 0,
+            regularProblemsImported: 0,
+            regularPendingSubmissionsRetried: 0,
             errors: 1
           }
         });
+          observer.onData?.(state);
         }
       });
     });
@@ -432,8 +574,9 @@ describe("HomeRoute", () => {
     vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
       queueMicrotask(() => {
         for (const observer of syncObservers.get(provider) ?? []) {
+          let state = emptyProviderState(provider);
           for (const index of Array.from({ length: 8 }, (_, value) => value + 1)) {
-            observer.onData?.({
+            state = applySyncEvent(state, {
             type: "error",
             provider,
             phase: "contests",
@@ -443,8 +586,9 @@ describe("HomeRoute", () => {
             stepsTotal: 8,
             stepsLeft: 8 - index
           });
+            observer.onData?.(state);
           }
-          observer.onData?.({
+          state = applySyncEvent(state, {
           type: "completed",
           provider,
           stepsTotal: 8,
@@ -456,9 +600,13 @@ describe("HomeRoute", () => {
             submissionsUpdated: 0,
             submissionsSkipped: 0,
             contestsSynced: 0,
+            regularContestsImported: 0,
+            regularProblemsImported: 0,
+            regularPendingSubmissionsRetried: 0,
             errors: 8
           }
         });
+          observer.onData?.(state);
         }
       });
     });
@@ -508,12 +656,6 @@ describe("HomeRoute", () => {
     await waitFor(() => expect(trpc.credentials.clear.mutate).toHaveBeenCalledWith("codeforces"));
     expect(trpc.credentials.clear.mutate).toHaveBeenCalledWith("qoj");
     await waitFor(() => expect(credentialStatusMock).toHaveBeenCalledTimes(2));
-  });
-
-  it("renders home even when no judge is connected", () => {
-    renderWithQuery(<HomeRoute />);
-
-    expect(navigateMock).not.toHaveBeenCalledWith({ to: "/connect-judges" });
   });
 
   it("navigates from connect judges to the selected provider page", () => {

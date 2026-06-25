@@ -61,6 +61,11 @@ const sourceRows: UpsolvingProblemRow[] = [
   }
 ];
 
+const selectAllStatuses = (): void => {
+  fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /all statuses/i }));
+};
+
 describe("UpsolvingProblemTable", () => {
   beforeEach(() => {
     cleanup();
@@ -69,13 +74,14 @@ describe("UpsolvingProblemTable", () => {
   it("renders rows through TanStack Table sorted by rating", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
+    expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("New(1)");
     const bodyRows = screen.getAllByRole("row").slice(1);
-    expect(bodyRows).toHaveLength(3);
+    expect(bodyRows).toHaveLength(1);
     expect(within(bodyRows[0]!).getAllByRole("cell")[0]).toHaveTextContent("1");
-    expect(within(bodyRows[0]!).getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
-    expect(screen.getAllByText("Regional Practice")).toHaveLength(3);
+    expect(within(bodyRows[0]!).getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Regional Practice")).toHaveLength(1);
     expect(screen.queryByText("100A")).not.toBeInTheDocument();
     expect(screen.queryByText("Submissions")).not.toBeInTheDocument();
   });
@@ -83,6 +89,7 @@ describe("UpsolvingProblemTable", () => {
   it("filters by global search text", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
+    selectAllStatuses();
     fireEvent.change(screen.getByRole("searchbox", { name: /search problems/i }), {
       target: { value: "100C" }
     });
@@ -119,6 +126,7 @@ describe("UpsolvingProblemTable", () => {
   it("filters by selected judge sources", () => {
     render(<UpsolvingProblemTable rows={sourceRows} />);
 
+    selectAllStatuses();
     fireEvent.click(screen.getByRole("button", { name: /filter by judge/i }));
     const menu = screen.getByRole("menu", { name: /judge filter options/i });
     expect(within(menu).getByRole("menuitemcheckbox", { name: /codeforces contest, 1 item/i })).toBeInTheDocument();

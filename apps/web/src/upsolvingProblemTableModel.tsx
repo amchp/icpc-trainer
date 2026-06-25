@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
 import { cn } from "./lib.js";
 
-export type UpsolvingStatusFilter = "all" | UpsolvingProblemStatus;
+export type UpsolvingStatusFilter = "all" | Exclude<UpsolvingProblemStatus, "new">;
 
 export type SearchableUpsolvingProblemRow = UpsolvingProblemRow & {
   readonly displayProblemName: string;
@@ -68,14 +68,15 @@ export const statusCountsFor = (
 ): Record<UpsolvingStatusFilter, number> => {
   const counts: Record<UpsolvingStatusFilter, number> = {
     all: rows.length,
-    new: 0,
     upsolved: 0,
     attempted: 0,
     solved: 0
   };
 
   for (const row of rows) {
-    counts[row.status] += 1;
+    if (row.status !== "new") {
+      counts[row.status] += 1;
+    }
   }
 
   return counts;

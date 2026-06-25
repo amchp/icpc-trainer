@@ -1,6 +1,6 @@
 import type { TeamRoster } from "@icpc-trainer/api";
 import { JUDGES } from "@icpc-trainer/shared";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -21,26 +21,31 @@ import {
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { JudgeDisplay, type JudgeDisplayId } from "./JudgeDisplay.js";
 import { judgeLabel, type JudgeProvider } from "./judgeConfig.js";
+import { invalidateAfterTeamRosterChange, queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
-import { useToaster } from "./Toaster.js";
+import { useRosterMutations } from "./useRosterMutations.js";
 
 const toJudge = (value: JudgeProvider | JUDGES): JUDGES =>
   value === JUDGES.Qoj ? JUDGES.Qoj : JUDGES.Codeforces;
 
 export function TeamPage(): React.JSX.Element {
   const { connectedJudges, hasConnectedJudge, status } = useConnectedJudges();
-  const toaster = useToaster();
-  const queryClient = useQueryClient();
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
-  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const query = useQuery({
-    queryKey: ["team", "roster"],
+    queryKey: queryKeys.teamRoster,
     queryFn: () => trpc.team.roster.query(),
     enabled: status === "ready" && hasConnectedJudge
   });
   const roster = query.data ?? { users: [], updatedAt: null } satisfies TeamRoster;
+  const rosterMutations = useRosterMutations<TeamRoster>({
+    add: trpc.team.add.mutate,
+    errorTitle: "User was not saved",
+    invalidateAfterSave: invalidateAfterTeamRosterChange,
+    queryKey: queryKeys.teamRoster,
+    replace: trpc.team.replace.mutate
+  });
   const judgeOptions = connectedJudges.length > 0
     ? connectedJudges
     : [
@@ -55,68 +60,23 @@ export function TeamPage(): React.JSX.Element {
     return <main className="min-h-screen bg-zinc-950" />;
   }
 
-  const replaceRoster = async (users: TeamRoster["users"]): Promise<boolean> => {
-    setSaving(true);
-    try {
-      const nextRoster = await trpc.team.replace.mutate({
-        users: users.map((user) => ({
-          username: user.username,
-          judge: user.judge
-        }))
-      });
-      queryClient.setQueryData(["team", "roster"], nextRoster);
-      return true;
-    } catch (error) {
-      toaster.error({
-        title: "User was not saved",
-        description: error instanceof Error ? error.message : String(error)
-      });
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const addUser = async (): Promise<void> => {
-    const nextUsername = draftUsername.trim();
-    if (nextUsername === "") {
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const nextRoster = await trpc.team.add.mutate({
-        username: nextUsername,
-        judge: selectedJudge
-      });
-      queryClient.setQueryData(["team", "roster"], nextRoster);
+    const saved = await rosterMutations.addUser(draftUsername, selectedJudge);
+    if (saved) {
       setDraftUsername("");
       requestAnimationFrame(() => inputRef.current?.focus());
-    } catch (error) {
-      toaster.error({
-        title: "User was not saved",
-        description: error instanceof Error ? error.message : String(error)
-      });
-    } finally {
-      setSaving(false);
     }
   };
 
   const removeUser = async (username: string, judge: JUDGES): Promise<void> => {
-    await replaceRoster(
-      roster.users.filter(
-        (user) =>
-          user.username.toLowerCase() !== username.toLowerCase() ||
-          user.judge !== judge
-      )
-    );
+    await rosterMutations.removeUser(roster.users, username, judge);
   };
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <section className="mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
         </div>
       </section>
 
@@ -134,7 +94,7 @@ export function TeamPage(): React.JSX.Element {
               value={draftUsername}
               onChange={(event) => setDraftUsername(event.target.value)}
               placeholder="tourist"
-              disabled={query.isLoading || saving}
+              disabled={query.isLoading || rosterMutations.saving}
             />
           </Label>
           <Label>
@@ -142,7 +102,7 @@ export function TeamPage(): React.JSX.Element {
             <Select
               value={selectedJudge}
               onChange={(event) => setDraftJudge(toJudge(event.target.value as JudgeProvider))}
-              disabled={query.isLoading || saving}
+              disabled={query.isLoading || rosterMutations.saving}
             >
               {judgeOptions.map((judge) => (
                 <option key={judge.id} value={judge.id}>
@@ -154,9 +114,9 @@ export function TeamPage(): React.JSX.Element {
           <Button
             type="submit"
             className="sm:w-auto"
-            disabled={saving || draftUsername.trim() === ""}
+            disabled={rosterMutations.saving || draftUsername.trim() === ""}
           >
-            {saving ? (
+            {rosterMutations.saving ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
               <Plus className="size-4" aria-hidden="true" />
@@ -196,7 +156,7 @@ export function TeamPage(): React.JSX.Element {
                         variant="ghost"
                         className="h-8 text-zinc-400 hover:text-red-300"
                         onClick={() => void removeUser(user.username, user.judge)}
-                        disabled={saving}
+                        disabled={rosterMutations.saving}
                         aria-label={`Remove ${user.username}`}
                       >
                         <X className="size-3.5" aria-hidden="true" />

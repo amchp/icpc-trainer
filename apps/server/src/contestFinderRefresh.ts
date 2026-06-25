@@ -2,6 +2,7 @@ import {
   type ContestFinderRefreshEvent,
   type ContestFinderRefreshInput,
   type ContestFinderRefreshObserveEvent,
+  type ContestFinderRefreshProviderState,
   type ContestFinderRefreshService,
   type ContestFinderRefreshWarning
 } from "@icpc-trainer/api";
@@ -12,17 +13,20 @@ import { Effect } from "effect";
 
 import type { Judge } from "../judges/judges.js";
 import type { SyncUser } from "../judges/sync/sync.js";
-import { createAsyncEventHub } from "./asyncEventHub.js";
+import {
+  createObservableProviderJobRegistry,
+  type PublishProviderJobEvent
+} from "./observableProviderJob.js";
+import {
+  applyContestFinderRefreshEventToState,
+  emptyContestFinderRefreshState
+} from "./contestFinderRefreshState.js";
 import { formatJudgeError } from "./playground.js";
 
 const { contests, providerCredentials, users } = schema;
 
 type Provider = "codeforces" | "qoj";
 type Registry = Partial<Record<Provider, Judge>>;
-type ProviderState = {
-  running: boolean;
-  events: ContestFinderRefreshEvent[];
-};
 
 const supportedProviders: readonly Provider[] = ["codeforces", "qoj"];
 
@@ -77,27 +81,29 @@ export const createContestFinderRefreshService = (
   database: DatabaseService,
   registry: Registry
 ): ContestFinderRefreshService => {
-  const eventHubs: Record<Provider, ReturnType<typeof createAsyncEventHub<ContestFinderRefreshEvent>>> = {
-    codeforces: createAsyncEventHub<ContestFinderRefreshEvent>(),
-    qoj: createAsyncEventHub<ContestFinderRefreshEvent>()
-  };
-  const states: Record<Provider, ProviderState> = {
-    codeforces: { running: false, events: [] },
-    qoj: { running: false, events: [] }
-  };
+  const jobs = createObservableProviderJobRegistry<Provider, ContestFinderRefreshEvent, ContestFinderRefreshProviderState>(
+    supportedProviders,
+    emptyContestFinderRefreshState,
+    applyContestFinderRefreshEventToState
+  );
 
-  const publish = (provider: Provider, event: ContestFinderRefreshEvent): void => {
-    states[provider].events.push(event);
-    eventHubs[provider].publish(event);
-  };
-
-  const runProviderRefresh = async (provider: Provider): Promise<void> => {
+  const runProviderRefresh = async (
+    provider: Provider,
+    publish: PublishProviderJobEvent<ContestFinderRefreshEvent>
+  ): Promise<void> => {
     const warnings: ContestFinderRefreshWarning[] = [];
     let contestsUpserted = 0;
     let friendsProcessed = 0;
+    let latestEvent: ContestFinderRefreshEvent | undefined;
     const judge = registry[provider];
     const friends = friendsForProvider(database, providerJudge(provider));
     const emptyStepsTotal = friends.length + 1;
+    const emit = (event: ContestFinderRefreshEvent): void => {
+      latestEvent = event;
+      publish(event);
+    };
+    const latestStepsTotal = (): number => latestEvent?.stepsTotal ?? emptyStepsTotal;
+    const latestStepsLeft = (): number => latestEvent?.stepsLeft ?? emptyStepsTotal;
 
     if (judge === undefined) {
       const missingWarning = {
@@ -105,20 +111,20 @@ export const createContestFinderRefreshService = (
         message: `${provider} is not configured.`
       };
       warnings.push(missingWarning);
-      publish(provider, {
+      emit({
         type: "started",
         provider,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
-      publish(provider, {
+      emit({
         type: "warning",
         provider,
         message: missingWarning.message,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
-      publish(provider, {
+      emit({
         type: "completed",
         provider,
         stepsTotal: emptyStepsTotal,
@@ -136,7 +142,7 @@ export const createContestFinderRefreshService = (
       const result = await Effect.runPromise(
         judge.findContest({
           friends,
-          emit: (event) => Effect.sync(() => publish(provider, event))
+          emit: (event) => Effect.sync(() => emit(event))
         }).pipe(
           Effect.provideService(DatabaseServiceTag, database)
         )
@@ -146,21 +152,19 @@ export const createContestFinderRefreshService = (
     } catch (error) {
       const refreshWarning = warning(provider, error);
       warnings.push(refreshWarning);
-      const lastEvent = states[provider].events.at(-1);
-      publish(provider, {
+      emit({
         type: "warning",
         provider,
         message: refreshWarning.message,
-        stepsTotal: lastEvent?.stepsTotal ?? emptyStepsTotal,
-        stepsLeft: lastEvent?.stepsLeft ?? emptyStepsTotal
+        stepsTotal: latestStepsTotal(),
+        stepsLeft: latestStepsLeft()
       });
     }
 
-    const lastEvent = states[provider].events.at(-1);
-    publish(provider, {
+    emit({
       type: "completed",
       provider,
-      stepsTotal: lastEvent?.stepsTotal ?? emptyStepsTotal,
+      stepsTotal: latestStepsTotal(),
       stepsLeft: 0,
       summary: {
         contestsUpserted,
@@ -173,26 +177,17 @@ export const createContestFinderRefreshService = (
   return {
     startContestFinderRefresh: async () => {
       for (const provider of refreshTargets(database)) {
-        if (states[provider].running) {
-          continue;
-        }
-
-        states[provider] = { running: true, events: [] };
-        void runProviderRefresh(provider).finally(() => {
-          states[provider].running = false;
-        });
+        jobs.start(
+          provider,
+          {
+            ...emptyContestFinderRefreshState(provider),
+            status: "running"
+          },
+          (publish) => runProviderRefresh(provider, publish)
+        );
       }
     },
-    observeContestFinderRefresh: (input: ContestFinderRefreshInput) => ({
-      [Symbol.asyncIterator]: async function* () {
-        yield {
-          type: "snapshot",
-          provider: input.provider,
-          running: states[input.provider].running,
-          events: states[input.provider].events
-        } satisfies ContestFinderRefreshObserveEvent;
-        yield* eventHubs[input.provider].subscribe();
-      }
-    })
+    observeContestFinderRefresh: (input: ContestFinderRefreshInput) =>
+      jobs.observe(input.provider) satisfies AsyncIterable<ContestFinderRefreshObserveEvent>
   }
 };

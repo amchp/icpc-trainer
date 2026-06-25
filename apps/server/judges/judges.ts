@@ -40,6 +40,7 @@ export type JudgeError =
 export interface JudgePreviewContest {
   readonly judgeId: string;
   readonly name: string;
+  readonly link?: string;
 }
 
 export interface Problem {
@@ -52,6 +53,7 @@ export interface Problem {
 export interface JudgeContest {
   readonly judgeId: string;
   readonly name: string;
+  readonly link?: string;
   readonly participants: number;
   readonly problems: ReadonlyArray<Problem>;
   readonly stars: number;
@@ -73,6 +75,7 @@ export interface JudgeSubmission {
 export interface JudgeRegularCatalogContest {
   readonly judgeId: string;
   readonly name: string;
+  readonly link?: string;
 }
 
 export interface JudgeRegularCatalogProblem {
@@ -134,19 +137,6 @@ export interface JudgeCredentialValidator {
   readonly validateAuthentication: (
     input: JudgeAuthenticationInput,
   ) => Effect.Effect<void, JudgeError, DatabaseServiceTag>;
-}
-
-export interface JudgePlaygroundClient {
-  readonly getContests: (
-    options?: GetContestsOptions,
-  ) => Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError, DatabaseServiceTag>;
-  readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, JudgeError, DatabaseServiceTag>;
-  readonly getUser: (handle: string) => Effect.Effect<JudgeUser, JudgeError, DatabaseServiceTag>;
-  readonly getSubmissions: (
-    options?: GetSubmissionsOptions,
-  ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, JudgeError, DatabaseServiceTag>;
-  readonly getRegularContests?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, JudgeError, DatabaseServiceTag>;
-  readonly getRegularProblems?: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, JudgeError, DatabaseServiceTag>;
 }
 
 export class JudgeTag extends Context.Tag("@icpc-trainer/server/Judge")<

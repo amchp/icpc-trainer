@@ -130,39 +130,77 @@ const runPlaygroundEffect = async <T>(
   return await toPlaygroundResult(database, input, provided);
 };
 
+const runCodeforcesPlayground = async (
+  database: DatabaseService,
+  input: PlaygroundInput
+): Promise<PlaygroundResult> => {
+  const judge = makeCodeforcesPlaygroundClient();
+
+  if (input.operation === "contests") {
+    return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
+  }
+
+  if (input.operation === "contest") {
+    return await runPlaygroundEffect(
+      database,
+      input,
+      judge.getContest(requiredInput(input.contestId, "Contest ID"))
+    );
+  }
+
+  if (input.operation === "user") {
+    return await runPlaygroundEffect(
+      database,
+      input,
+      judge.getUser(requiredInput(input.userHandle, "User handle"))
+    );
+  }
+
+  return await runPlaygroundEffect(
+    database,
+    input,
+    judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
+  );
+};
+
+const runQojPlayground = async (
+  database: DatabaseService,
+  input: PlaygroundInput
+): Promise<PlaygroundResult> => {
+  const judge = makeQojPlaygroundClient();
+
+  if (input.operation === "contests") {
+    return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
+  }
+
+  if (input.operation === "contest") {
+    return await runPlaygroundEffect(
+      database,
+      input,
+      judge.getContest(requiredInput(input.contestId, "Contest ID"))
+    );
+  }
+
+  if (input.operation === "user") {
+    return await runPlaygroundEffect(
+      database,
+      input,
+      judge.getUser(requiredInput(input.userHandle, "User handle"))
+    );
+  }
+
+  return await runPlaygroundEffect(
+    database,
+    input,
+    judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
+  );
+};
+
 export const createJudgePlayground = (database: DatabaseService): JudgePlaygroundService => {
   return {
-    run: async (input) => {
-      const judge = input.provider === "codeforces"
-        ? makeCodeforcesPlaygroundClient()
-        : makeQojPlaygroundClient();
-
-      if (input.operation === "contests") {
-        return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
-      }
-
-      if (input.operation === "contest") {
-        return await runPlaygroundEffect(
-          database,
-          input,
-          judge.getContest(requiredInput(input.contestId, "Contest ID"))
-        );
-      }
-
-      if (input.operation === "user") {
-        return await runPlaygroundEffect(
-          database,
-          input,
-          judge.getUser(requiredInput(input.userHandle, "User handle"))
-        );
-      }
-
-      return await runPlaygroundEffect(
-        database,
-        input,
-        judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
-      );
-    }
+    run: async (input) => input.provider === "codeforces"
+      ? await runCodeforcesPlayground(database, input)
+      : await runQojPlayground(database, input)
   };
 };
 
