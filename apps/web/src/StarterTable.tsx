@@ -27,8 +27,7 @@ interface StackRow {
 const rows: readonly StackRow[] = [
   { layer: "Web", role: "React, Router, Query, Table, Tailwind", status: STARTER_STACK_STATUSES.Wired },
   { layer: "API", role: "tRPC over typed HTTP", status: STARTER_STACK_STATUSES.Wired },
-  { layer: "Data", role: "Effect service, Drizzle, SQLite", status: STARTER_STACK_STATUSES.Local },
-  { layer: "Desktop", role: "Electron wrapper", status: STARTER_STACK_STATUSES.Local }
+  { layer: "Data", role: "Effect service, Drizzle, SQLite", status: STARTER_STACK_STATUSES.Local }
 ];
 
 const columns: Array<ColumnDef<StackRow>> = [

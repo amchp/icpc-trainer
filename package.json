@@ -12,12 +12,10 @@
     "dev:reset": "node scripts/reset-dev-server.mjs",
     "dev:web": "pnpm --filter @icpc-trainer/web dev",
     "dev:server": "pnpm --filter @icpc-trainer/server dev",
-    "dev:desktop": "pnpm --filter @icpc-trainer/desktop dev",
     "build": "pnpm -r build",
     "typecheck": "tsc -b",
     "test": "pnpm -r test",
-    "test:e2e": "pnpm --filter @icpc-trainer/web test:e2e",
-    "smoke:desktop": "pnpm --filter @icpc-trainer/desktop smoke"
+    "test:e2e": "pnpm --filter @icpc-trainer/web test:e2e"
   },
   "devDependencies": {
     "@types/node": "26.0.0",

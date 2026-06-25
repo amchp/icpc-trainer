@@ -11,7 +11,6 @@ This repository intentionally contains no contest, problem, account, or training
 - tRPC typed HTTP API
 - Effect-backed backend services
 - Drizzle ORM with `better-sqlite3`
-- Electron wrapper via `electron-vite`
 
 ## Requirements
 
@@ -26,9 +25,7 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm dev
-pnpm dev:desktop
 pnpm test:e2e
-pnpm smoke:desktop
 ```
 
 The backend defaults to `http://127.0.0.1:3773` and stores its SQLite database at `.local/icpc-trainer.sqlite`.
