@@ -14,6 +14,7 @@ import {
   type SaveCredentialsInput
 } from "./credentialRepository.js";
 import type { ApiContext } from "./index.js";
+import { judgeProviderSchema } from "./judgeProvider.js";
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
   ? T
@@ -25,8 +26,6 @@ const optionalTrimmedString = z.preprocess(
 );
 
 const requiredTrimmedString = (message: string) => z.string().trim().min(1, message);
-
-const providerSchema = z.enum(["codeforces", "qoj"]);
 
 const credentialPayloadFor = (input: SaveCredentialsInput): string =>
   input.provider === JUDGES.Codeforces
@@ -115,7 +114,7 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
       publishCredentialChange(ctx, status);
       return status;
     }),
-    clear: t.procedure.input(providerSchema).mutation(({ ctx, input }): CredentialStatus => {
+    clear: t.procedure.input(judgeProviderSchema).mutation(({ ctx, input }): CredentialStatus => {
       const status = clearCredentials(ctx, input);
       ctx.credentialEvents?.publish({
         type: "changed",

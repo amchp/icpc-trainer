@@ -1,8 +1,9 @@
 import {
-  type JudgeSyncInput
+  type JudgeSyncInput,
+  JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, SYNC_OPERATION_PHASES, USER_TYPES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -57,7 +58,7 @@ export const getSyncUsers = (
 ): Effect.Effect<ReadonlyArray<SyncUser>, SyncOperationError> =>
   syncEffect({
     provider,
-    phase: "database",
+    phase: SYNC_OPERATION_PHASES.Database,
     action: "users to sync"
   }, () =>
     database.db
@@ -100,7 +101,7 @@ export const existingSubmissionsByJudgeId = (
 ): Effect.Effect<ReadonlyMap<string, ExistingSubmissionRow>, SyncOperationError> =>
   syncEffect({
     provider,
-    phase: "database",
+    phase: SYNC_OPERATION_PHASES.Database,
     action: `existing submissions for user ${user.username}`,
     userHandle: user.username
   }, () => {
@@ -293,8 +294,8 @@ export const upsertFetchedContest = (
   Effect.gen(function* () {
     const contestContext = {
       provider,
-      phase: "contests" as const,
-      step: "contests" as const,
+      phase: SYNC_OPERATION_PHASES.Contests as const,
+      step: JudgeSyncStep.Contests,
       action: `contest ${contest.judgeId}`,
       contestJudgeId: contest.judgeId
     };
@@ -308,7 +309,7 @@ export const submissionContext = (
   submission: JudgeSubmission
 ): SyncOperationContext => ({
   provider,
-  phase: "database",
+  phase: SYNC_OPERATION_PHASES.Database,
   action: `submission ${submission.judgeId} for user ${user.username}`,
   userHandle: user.username,
   judgeId: submission.judgeId,

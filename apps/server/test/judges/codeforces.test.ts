@@ -5,8 +5,13 @@ import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getCodeforcesContest,
+  getCodeforcesContests,
+  getCodeforcesRegularContests,
+  getCodeforcesRegularProblems,
+  getCodeforcesSubmissions,
+  getCodeforcesUser,
   makeCodeforcesCredentialValidator,
-  makeCodeforcesPlaygroundClient
 } from "../../judges/codeforces.js";
 
 const codeforcesAuth = {
@@ -79,7 +84,7 @@ const runWithCodeforcesAuth = async <A>(
   auth = codeforcesAuth,
 ): Promise<A> => runWithDatabase(effect, auth);
 
-describe("makeCodeforcesPlaygroundClient", () => {
+describe("Codeforces judge operations", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     if (originalCredentialKey === undefined) {
@@ -144,7 +149,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const submissions = await runWithCodeforcesAuth(
-      makeCodeforcesPlaygroundClient().getSubmissions({ userHandle: " Fefer_Ivan " })
+      getCodeforcesSubmissions({ userHandle: " Fefer_Ivan " })
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -235,7 +240,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const contests = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getRegularContests?.() ?? Effect.succeed([]));
+    const contests = await runWithCodeforcesAuth(getCodeforcesRegularContests());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.list");
@@ -285,7 +290,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const problems = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getRegularProblems?.() ?? Effect.succeed([]));
+    const problems = await runWithCodeforcesAuth(getCodeforcesRegularProblems());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/problemset.problems");
@@ -357,7 +362,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const contest = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getContest("566"));
+    const contest = await runWithCodeforcesAuth(getCodeforcesContest("566"));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.standings");
@@ -421,7 +426,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const contest = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getContest("104666"));
+    const contest = await runWithCodeforcesAuth(getCodeforcesContest("104666"));
 
     expect(contest).toMatchObject({
       judgeId: "104666",
@@ -458,7 +463,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const contests = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getContests());
+    const contests = await runWithCodeforcesAuth(getCodeforcesContests());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/contest.list");
@@ -498,7 +503,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const user = await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getUser("Fefer_Ivan"));
+    const user = await runWithCodeforcesAuth(getCodeforcesUser("Fefer_Ivan"));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
@@ -520,7 +525,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await runWithCodeforcesAuth(makeCodeforcesPlaygroundClient().getUser("Fefer_Ivan"));
+    await runWithCodeforcesAuth(getCodeforcesUser("Fefer_Ivan"));
 
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
     expect(url.searchParams.get("handles")).toBe("Fefer_Ivan");
@@ -595,7 +600,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
 
     await expect(
       runWithCodeforcesAuth(
-        Effect.flip(makeCodeforcesPlaygroundClient().getUser("x")),
+        Effect.flip(getCodeforcesUser("x")),
         { apiKey: "bad-key", apiSecret: "bad-secret" }
       )
     ).resolves.toMatchObject({
@@ -609,7 +614,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runWithDatabase(Effect.flip(makeCodeforcesPlaygroundClient().getContest("566")))
+      runWithDatabase(Effect.flip(getCodeforcesContest("566")))
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "Connect Codeforces before using the playground."
@@ -627,7 +632,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runWithCodeforcesAuth(Effect.flip(makeCodeforcesPlaygroundClient().getContest("104217")))
+      runWithCodeforcesAuth(Effect.flip(getCodeforcesContest("104217")))
     ).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "Contest is private. Access denied."
@@ -647,7 +652,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runWithCodeforcesAuth(Effect.flip(makeCodeforcesPlaygroundClient().getContest("abc")))
+      runWithCodeforcesAuth(Effect.flip(getCodeforcesContest("abc")))
     ).resolves.toMatchObject({
       _tag: "JudgeAPIError",
       cause: "Codeforces API returned HTTP 400: contestId: Field should contain integer."
@@ -667,7 +672,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runWithCodeforcesAuth(Effect.flip(makeCodeforcesPlaygroundClient().getContest("566")))
+      runWithCodeforcesAuth(Effect.flip(getCodeforcesContest("566")))
     ).resolves.toMatchObject({
       _tag: "JudgeUnavailableError",
       cause: "Codeforces API is unavailable (HTTP 503): Service unavailable."
@@ -679,7 +684,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runWithCodeforcesAuth(Effect.flip(makeCodeforcesPlaygroundClient().getUser("tourist")))
+      runWithCodeforcesAuth(Effect.flip(getCodeforcesUser("tourist")))
     ).resolves.toMatchObject({
       _tag: "JudgeUnavailableError",
       cause: "Codeforces API is unavailable. The request could not reach Codeforces."
@@ -695,9 +700,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const judge = makeCodeforcesPlaygroundClient();
-
-    await runWithCodeforcesAuth(judge.getUser("Fefer_Ivan"));
+    await runWithCodeforcesAuth(getCodeforcesUser("Fefer_Ivan"));
 
     const url = expectRequestedUrl(fetchMock.mock.calls[0]?.[0], "/api/user.info");
     expect(url.searchParams.get("apiKey")).toBe("key");
@@ -707,7 +710,7 @@ describe("makeCodeforcesPlaygroundClient", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(runWithDatabase(Effect.flip(makeCodeforcesPlaygroundClient().getUser("x")))).resolves.toMatchObject({
+    await expect(runWithDatabase(Effect.flip(getCodeforcesUser("x")))).resolves.toMatchObject({
       _tag: "JudgeCredentialError",
       cause: "Connect Codeforces before using the playground."
     });

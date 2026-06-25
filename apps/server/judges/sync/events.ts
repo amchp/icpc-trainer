@@ -6,6 +6,12 @@ import {
   JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
+import {
+  JUDGE_RESOURCES,
+  SYNC_ERROR_PHASES,
+  SYNC_OPERATION_PHASES,
+  type SyncOperationPhase
+} from "@icpc-trainer/shared";
 import { Data, Effect } from "effect";
 
 import type { JudgeError } from "../judges.js";
@@ -14,19 +20,17 @@ export type MutableJudgeSyncSummary = {
   -readonly [Key in keyof JudgeSyncSummary]: JudgeSyncSummary[Key];
 };
 
-export type SyncOperationPhase = "submissions" | "contests" | "regularCatalog" | "database";
-
 export interface SyncOperationContext {
   readonly provider: JudgeSyncInput["provider"];
   readonly phase: SyncOperationPhase;
-  readonly step?: "submissions" | "contests" | "regularCatalog";
+  readonly step?: JudgeSyncStep;
   readonly action: string;
   readonly userHandle?: string;
   readonly contestJudgeId?: string;
   readonly judgeId?: string;
 }
 
-type JudgeSyncErrorPhase = JudgeSyncStep | "database" | "concurrency";
+type JudgeSyncErrorPhase = JudgeSyncStep | SYNC_ERROR_PHASES;
 
 export class SyncOperationError extends Data.TaggedError("SyncOperationError")<SyncOperationContext & {
   readonly cause: unknown;
@@ -86,7 +90,7 @@ const formatSyncJudgeError = (error: JudgeError): string => {
     case "JudgeCredentialError":
       return `Credential error for ${error.judgeId}.${suffix}`;
     case "JudgeNotFoundError":
-      return `${error.resource === "contest" ? "Contest" : "User"} not found on judge: ${error.judgeId}.`;
+      return `${error.resource === JUDGE_RESOURCES.Contest ? "Contest" : "User"} not found on judge: ${error.judgeId}.`;
     case "JudgeAPIError":
       return `Judge API rejected the request for ${error.judgeId}.${suffix}`;
     case "JudgeUnavailableError":
@@ -120,22 +124,16 @@ const syncErrorMessage = (
 ): string => `Could not sync ${provider} ${action}: ${rawErrorMessage(error)}`;
 
 const eventPhase = (phase: SyncOperationPhase): JudgeSyncErrorPhase =>
-  phase === "submissions"
+  phase === SYNC_OPERATION_PHASES.Submissions
     ? JudgeSyncStep.Submissions
-    : phase === "contests"
+    : phase === SYNC_OPERATION_PHASES.Contests
       ? JudgeSyncStep.Contests
-      : phase === "regularCatalog"
+      : phase === SYNC_OPERATION_PHASES.RegularCatalog
         ? JudgeSyncStep.RegularCatalog
-        : phase;
+        : SYNC_ERROR_PHASES.Database;
 
 const eventStep = (step: SyncOperationContext["step"]): JudgeSyncStep | undefined =>
-  step === "submissions"
-    ? JudgeSyncStep.Submissions
-    : step === "contests"
-      ? JudgeSyncStep.Contests
-      : step === "regularCatalog"
-        ? JudgeSyncStep.RegularCatalog
-        : undefined;
+  step;
 
 export const syncOperationErrorEvent = (
   error: SyncOperationError,

@@ -1,12 +1,12 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { USER_TYPES } from "@icpc-trainer/shared";
+import { USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 
 const { contests, userContestStates, users } = schema;
 
 export interface ContestFinderRow {
   readonly id: number;
-  readonly judge: "codeforces" | "qoj";
+  readonly judge: JudgeProvider;
   readonly judgeId: string;
   readonly name: string;
   readonly link: string;

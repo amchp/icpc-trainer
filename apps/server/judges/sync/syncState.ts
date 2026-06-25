@@ -7,6 +7,7 @@ import {
   SyncRunStatus,
   SyncStepStatus
 } from "@icpc-trainer/api";
+import { PROVIDER_STATE_EVENT_TYPES } from "@icpc-trainer/shared";
 
 const emptySyncStep = (): JudgeSyncStepState => ({
   status: SyncStepStatus.Pending,
@@ -21,7 +22,7 @@ const emptySyncSteps = (): JudgeSyncProviderState["steps"] => ({
 });
 
 export const emptyProviderState = (provider: JudgeSyncInput["provider"]): JudgeSyncProviderState => ({
-  type: "state",
+  type: PROVIDER_STATE_EVENT_TYPES.State,
   provider,
   status: SyncRunStatus.Idle,
   stepsTotal: 0,

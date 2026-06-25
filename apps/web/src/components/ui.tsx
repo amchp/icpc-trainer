@@ -1,9 +1,8 @@
 import * as ProgressPrimitive from "@radix-ui/react-progress";
+import type { ButtonVariant } from "@icpc-trainer/shared";
 import * as React from "react";
 
 import { cn } from "../lib.js";
-
-type ButtonVariant = "default" | "secondary" | "ghost";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: ButtonVariant;

@@ -3,6 +3,11 @@ import {
   type ContestFinderRefreshInput,
   type ContestFinderRefreshProviderState
 } from "@icpc-trainer/api";
+import {
+  CONTEST_FINDER_REFRESH_EVENT_TYPES,
+  PROVIDER_STATE_EVENT_TYPES,
+  RUN_STATUSES
+} from "@icpc-trainer/shared";
 
 type Provider = ContestFinderRefreshInput["provider"];
 
@@ -16,9 +21,9 @@ const progressValue = (stepsTotal: unknown, stepsLeft: unknown): number => {
 };
 
 export const emptyContestFinderRefreshState = (provider: Provider): ContestFinderRefreshProviderState => ({
-  type: "state",
+  type: PROVIDER_STATE_EVENT_TYPES.State,
   provider,
-  status: "idle",
+  status: RUN_STATUSES.Idle,
   progress: 0,
   stepsTotal: 0,
   stepsLeft: 0,
@@ -43,7 +48,7 @@ const warningMessages = (warnings: unknown): readonly string[] =>
 const withProgress = (
   current: ContestFinderRefreshProviderState,
   event: ContestFinderRefreshEvent,
-  status: ContestFinderRefreshProviderState["status"] = "running"
+  status: ContestFinderRefreshProviderState["status"] = RUN_STATUSES.Running
 ): ContestFinderRefreshProviderState => {
   const stepsTotal = Math.max(finiteNumber(event.stepsTotal), 0);
   const stepsLeft = Math.max(0, Math.min(finiteNumber(event.stepsLeft), stepsTotal));
@@ -60,22 +65,22 @@ export const applyContestFinderRefreshEventToState = (
   current: ContestFinderRefreshProviderState,
   event: ContestFinderRefreshEvent
 ): ContestFinderRefreshProviderState => {
-  if (event.type === "started") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Started) {
     return {
       ...withProgress(emptyContestFinderRefreshState(event.provider), event),
-      status: "running",
+      status: RUN_STATUSES.Running,
       current: "Preparing refresh"
     };
   }
 
-  if (event.type === "catalog.syncing") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSyncing) {
     return {
       ...withProgress(current, event),
       current: "Refreshing contest catalog"
     };
   }
 
-  if (event.type === "catalog.synced") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSynced) {
     return {
       ...withProgress(current, event),
       current: "Contest catalog refreshed",
@@ -83,21 +88,21 @@ export const applyContestFinderRefreshEventToState = (
     };
   }
 
-  if (event.type === "friends.syncing") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing) {
     return {
       ...withProgress(current, event),
       current: event.friendsTotal === 0 ? "No friends to refresh" : "Refreshing friends"
     };
   }
 
-  if (event.type === "friends.friendSyncing") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing) {
     return {
       ...withProgress(current, event),
       current: `${event.userHandle} (${event.friendIndex}/${event.friendsTotal})`
     };
   }
 
-  if (event.type === "friends.friendSynced") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced) {
     return {
       ...withProgress(current, event),
       current: `${event.userHandle} refreshed`,
@@ -105,7 +110,7 @@ export const applyContestFinderRefreshEventToState = (
     };
   }
 
-  if (event.type === "warning") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning) {
     const message = event.userHandle === undefined
       ? event.message
       : `${event.userHandle}: ${event.message}`;
@@ -117,14 +122,14 @@ export const applyContestFinderRefreshEventToState = (
     };
   }
 
-  if (event.type === "completed") {
+  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed) {
     const summary = event.summary as Partial<{
       readonly contestsUpserted: unknown;
       readonly friendsProcessed: unknown;
       readonly warnings: unknown;
     }> | undefined;
     return {
-      ...withProgress(current, event, "completed"),
+      ...withProgress(current, event, RUN_STATUSES.Completed),
       progress: 100,
       stepsLeft: 0,
       current: null,
@@ -136,7 +141,7 @@ export const applyContestFinderRefreshEventToState = (
 
   return {
     ...current,
-    status: "error",
+    status: RUN_STATUSES.Error,
     current: "Refresh status unavailable"
   };
 };

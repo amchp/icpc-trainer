@@ -1,9 +1,12 @@
+import type { ContestFinderRefreshStatus } from "@icpc-trainer/api";
+import { RUN_STATUSES, type JudgeProvider } from "@icpc-trainer/shared";
+
 import { Progress } from "./components/ui.js";
 import { judgeLabel, judgeSyncProgressClassName } from "./judgeConfig.js";
 
 export interface ContestFinderRefreshState {
-  readonly provider: "codeforces" | "qoj";
-  readonly status: "idle" | "running" | "completed" | "error";
+  readonly provider: JudgeProvider;
+  readonly status: ContestFinderRefreshStatus;
   readonly progress: number;
   readonly stepsLeft: number;
   readonly stepsTotal: number;
@@ -18,7 +21,7 @@ export function ContestFinderRefreshPanel({
 }: {
   readonly states: readonly ContestFinderRefreshState[];
 }): React.JSX.Element | null {
-  const visibleStates = states.filter((state) => state.status === "running");
+  const visibleStates = states.filter((state) => state.status === RUN_STATUSES.Running);
 
   if (visibleStates.length === 0) {
     return null;

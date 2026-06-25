@@ -7,7 +7,16 @@ import {
   type ContestFinderRefreshWarning
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag, schema } from "@icpc-trainer/db";
-import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
+import {
+  CONTEST_FINDER_REFRESH_EVENT_TYPES,
+  JUDGE_PROVIDERS,
+  RUN_STATUSES,
+  USER_TYPES,
+  isJudgeProvider,
+  judgeFromProvider,
+  type JUDGES,
+  type JudgeProvider
+} from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -25,16 +34,10 @@ import { formatJudgeError } from "./playground.js";
 
 const { contests, providerCredentials, users } = schema;
 
-type Provider = "codeforces" | "qoj";
+type Provider = JudgeProvider;
 type Registry = Partial<Record<Provider, Judge>>;
 
-const supportedProviders: readonly Provider[] = ["codeforces", "qoj"];
-
-const providerJudge = (provider: Provider): JUDGES =>
-  provider === "codeforces" ? JUDGES.Codeforces : JUDGES.Qoj;
-
-const isProvider = (value: string): value is Provider =>
-  value === "codeforces" || value === "qoj";
+const supportedProviders: readonly Provider[] = JUDGE_PROVIDERS;
 
 const warning = (judge: Provider, error: unknown): ContestFinderRefreshWarning => ({
   judge,
@@ -51,7 +54,7 @@ const storedContestProviders = (database: DatabaseService): readonly Provider[] 
     .from(contests)
     .all()
     .map((row) => row.judge)
-    .filter(isProvider);
+    .filter(isJudgeProvider);
 
 const credentialProviders = (database: DatabaseService): readonly Provider[] =>
   database.db
@@ -59,7 +62,7 @@ const credentialProviders = (database: DatabaseService): readonly Provider[] =>
     .from(providerCredentials)
     .all()
     .map((row) => row.provider)
-    .filter(isProvider);
+    .filter(isJudgeProvider);
 
 const refreshTargets = (database: DatabaseService): readonly Provider[] => {
   const targets = new Set<Provider>([
@@ -96,7 +99,7 @@ export const createContestFinderRefreshService = (
     let friendsProcessed = 0;
     let latestEvent: ContestFinderRefreshEvent | undefined;
     const judge = registry[provider];
-    const friends = friendsForProvider(database, providerJudge(provider));
+    const friends = friendsForProvider(database, judgeFromProvider(provider));
     const emptyStepsTotal = friends.length + 1;
     const emit = (event: ContestFinderRefreshEvent): void => {
       latestEvent = event;
@@ -112,20 +115,20 @@ export const createContestFinderRefreshService = (
       };
       warnings.push(missingWarning);
       emit({
-        type: "started",
+        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started,
         provider,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
       emit({
-        type: "warning",
+        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning,
         provider,
         message: missingWarning.message,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
       emit({
-        type: "completed",
+        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed,
         provider,
         stepsTotal: emptyStepsTotal,
         stepsLeft: 0,
@@ -153,7 +156,7 @@ export const createContestFinderRefreshService = (
       const refreshWarning = warning(provider, error);
       warnings.push(refreshWarning);
       emit({
-        type: "warning",
+        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning,
         provider,
         message: refreshWarning.message,
         stepsTotal: latestStepsTotal(),
@@ -162,7 +165,7 @@ export const createContestFinderRefreshService = (
     }
 
     emit({
-      type: "completed",
+      type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed,
       provider,
       stepsTotal: latestStepsTotal(),
       stepsLeft: 0,
@@ -181,7 +184,7 @@ export const createContestFinderRefreshService = (
           provider,
           {
             ...emptyContestFinderRefreshState(provider),
-            status: "running"
+            status: RUN_STATUSES.Running
           },
           (publish) => runProviderRefresh(provider, publish)
         );

@@ -1,5 +1,5 @@
 import { DatabaseLive, DatabaseServiceTag, schema } from "@icpc-trainer/db";
-import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, PROVIDER_STATE_EVENT_TYPES, RUN_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -140,9 +140,9 @@ describe("contest finder router", () => {
           startContestFinderRefresh: async () => undefined,
           observeContestFinderRefresh: async function* (input) {
             yield {
-              type: "state" as const,
+              type: PROVIDER_STATE_EVENT_TYPES.State,
               provider: input.provider,
-              status: "idle" as const,
+              status: RUN_STATUSES.Idle,
               progress: 0,
               stepsTotal: 0,
               stepsLeft: 0,

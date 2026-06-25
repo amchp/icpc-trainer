@@ -1,3 +1,4 @@
+import { STARTER_STACK_STATUSES } from "@icpc-trainer/shared";
 import {
   flexRender,
   getCoreRowModel,
@@ -20,14 +21,14 @@ import {
 interface StackRow {
   readonly layer: string;
   readonly role: string;
-  readonly status: "wired" | "local";
+  readonly status: STARTER_STACK_STATUSES;
 }
 
 const rows: readonly StackRow[] = [
-  { layer: "Web", role: "React, Router, Query, Table, Tailwind", status: "wired" },
-  { layer: "API", role: "tRPC over typed HTTP", status: "wired" },
-  { layer: "Data", role: "Effect service, Drizzle, SQLite", status: "local" },
-  { layer: "Desktop", role: "Electron wrapper", status: "local" }
+  { layer: "Web", role: "React, Router, Query, Table, Tailwind", status: STARTER_STACK_STATUSES.Wired },
+  { layer: "API", role: "tRPC over typed HTTP", status: STARTER_STACK_STATUSES.Wired },
+  { layer: "Data", role: "Effect service, Drizzle, SQLite", status: STARTER_STACK_STATUSES.Local },
+  { layer: "Desktop", role: "Electron wrapper", status: STARTER_STACK_STATUSES.Local }
 ];
 
 const columns: Array<ColumnDef<StackRow>> = [

@@ -1,14 +1,20 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import {
+  SUBMISSION_STATUSES,
+  UPSOLVING_PROBLEM_STATUSES,
+  USER_TYPES,
+  type JudgeProvider,
+  type UpsolvingProblemStatus
+} from "@icpc-trainer/shared";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 const { contests, problems, submissions, users } = schema;
 
-export type UpsolvingProblemStatus = "new" | "upsolved" | "attempted" | "solved";
+export type { UpsolvingProblemStatus };
 
 export interface UpsolvingProblemRow {
   readonly contestName: string;
-  readonly judge: "codeforces" | "qoj";
+  readonly judge: JudgeProvider;
   readonly problemJudgeId: string;
   readonly problemName: string;
   readonly problemLink: string;
@@ -19,7 +25,7 @@ export interface UpsolvingProblemRow {
 
 export interface UpsolvingContestRow {
   readonly id: number;
-  readonly judge: "codeforces" | "qoj";
+  readonly judge: JudgeProvider;
   readonly judgeId: string;
   readonly name: string;
   readonly link: string;
@@ -98,12 +104,12 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
     const submissionState = submissionStateByProblemId.get(row.problemId);
     const submissionCount = submissionState?.submissionCount ?? 0;
     const status: UpsolvingProblemStatus = submissionState?.hasAccepted === true
-      ? "solved"
+      ? UPSOLVING_PROBLEM_STATUSES.Solved
       : submissionCount > 0
-        ? "attempted"
+        ? UPSOLVING_PROBLEM_STATUSES.Attempted
         : contestIdsWithSubmissions.has(row.contestId)
-          ? "upsolved"
-          : "new";
+          ? UPSOLVING_PROBLEM_STATUSES.Upsolved
+          : UPSOLVING_PROBLEM_STATUSES.New;
 
     return {
       contestName: row.contestName,
@@ -115,7 +121,7 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
       rating: row.rating,
       status
     };
-  }).filter((row) => row.status !== "new");
+  }).filter((row) => row.status !== UPSOLVING_PROBLEM_STATUSES.New);
 
   const solvedCountByContestId = new Map<number, number>();
   for (const row of problemRows) {
@@ -166,8 +172,8 @@ export const getUpsolvingOverview = (database: DatabaseService): UpsolvingOvervi
     summary: {
       contestCount: contestIdsWithSubmissions.size,
       problemCount: rows.length,
-      solvedCount: rows.filter((row) => row.status === "solved").length,
-      attemptedCount: rows.filter((row) => row.status === "attempted").length
+      solvedCount: rows.filter((row) => row.status === UPSOLVING_PROBLEM_STATUSES.Solved).length,
+      attemptedCount: rows.filter((row) => row.status === UPSOLVING_PROBLEM_STATUSES.Attempted).length
     }
   };
 };

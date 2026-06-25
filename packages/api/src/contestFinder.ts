@@ -1,16 +1,24 @@
 import type { initTRPC } from "@trpc/server";
+import {
+  CONTEST_FINDER_REFRESH_EVENT_TYPES,
+  CONTEST_FINDER_REFRESH_STEPS,
+  PROVIDER_STATE_EVENT_TYPES,
+  type JudgeProvider,
+  type RunStatus
+} from "@icpc-trainer/shared";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { getContestFinderOverview } from "./contestFinderReadModel.js";
 import type { ApiContext } from "./index.js";
+import { judgeProviderSchema } from "./judgeProvider.js";
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
   ? T
   : never;
 
 export interface ContestFinderRefreshWarning {
-  readonly judge: "codeforces" | "qoj";
+  readonly judge: JudgeProvider;
   readonly message: string;
 }
 
@@ -21,11 +29,11 @@ export interface ContestFinderRefreshResult {
 }
 
 export const contestFinderRefreshInputSchema = z.object({
-  provider: z.enum(["codeforces", "qoj"])
+  provider: judgeProviderSchema
 });
 
 export type ContestFinderRefreshInput = z.infer<typeof contestFinderRefreshInputSchema>;
-export type ContestFinderRefreshStatus = "idle" | "running" | "completed" | "error";
+export type ContestFinderRefreshStatus = RunStatus;
 
 interface ContestFinderRefreshEventBase {
   readonly provider: ContestFinderRefreshInput["provider"];
@@ -35,44 +43,44 @@ interface ContestFinderRefreshEventBase {
 
 export type ContestFinderRefreshEvent =
   | (ContestFinderRefreshEventBase & {
-      readonly type: "started";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "catalog.syncing";
-      readonly step: "catalog";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSyncing;
+      readonly step: CONTEST_FINDER_REFRESH_STEPS.Catalog;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "catalog.synced";
-      readonly step: "catalog";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSynced;
+      readonly step: CONTEST_FINDER_REFRESH_STEPS.Catalog;
       readonly contestsUpserted: number;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "friends.syncing";
-      readonly step: "friends";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing;
+      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
       readonly friendsTotal: number;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "friends.friendSyncing";
-      readonly step: "friends";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing;
+      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
       readonly userHandle: string;
       readonly friendIndex: number;
       readonly friendsTotal: number;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "friends.friendSynced";
-      readonly step: "friends";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced;
+      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
       readonly userHandle: string;
       readonly friendIndex: number;
       readonly friendsTotal: number;
       readonly friendsProcessed: number;
     })
   | (ContestFinderRefreshEventBase & {
-      readonly type: "warning";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning;
       readonly message: string;
       readonly userHandle?: string;
     })
   | {
-      readonly type: "completed";
+      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed;
       readonly provider: ContestFinderRefreshInput["provider"];
       readonly stepsTotal: number;
       readonly stepsLeft: 0;
@@ -80,7 +88,7 @@ export type ContestFinderRefreshEvent =
     };
 
 export interface ContestFinderRefreshProviderState {
-  readonly type: "state";
+  readonly type: PROVIDER_STATE_EVENT_TYPES.State;
   readonly provider: ContestFinderRefreshInput["provider"];
   readonly status: ContestFinderRefreshStatus;
   readonly progress: number;

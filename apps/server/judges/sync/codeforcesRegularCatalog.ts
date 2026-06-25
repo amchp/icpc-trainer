@@ -1,8 +1,9 @@
 import {
-  type JudgeSyncInput
+  type JudgeSyncInput,
+  JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES } from "@icpc-trainer/shared";
+import { JUDGES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -74,14 +75,19 @@ export const upsertCodeforcesRegularCatalog = (
         }
 
         for (const problem of problemCatalog) {
-          if (!contestCatalogById.has(problem.judgeContestId) || seenProblemIds.has(problem.judgeId)) {
+          const contestJudgeId = problem.judgeContestId;
+          if (
+            contestJudgeId === undefined ||
+            !contestCatalogById.has(contestJudgeId) ||
+            seenProblemIds.has(problem.judgeId)
+          ) {
             continue;
           }
 
           seenProblemIds.add(problem.judgeId);
-          const contestProblems = problemsByContest.get(problem.judgeContestId) ?? [];
+          const contestProblems = problemsByContest.get(contestJudgeId) ?? [];
           contestProblems.push(problem);
-          problemsByContest.set(problem.judgeContestId, contestProblems);
+          problemsByContest.set(contestJudgeId, contestProblems);
         }
 
         let problemsImported = 0;
@@ -216,7 +222,7 @@ export const upsertCodeforcesRegularCatalog = (
               }
 
               tx.delete(problemTags).where(eq(problemTags.problemId, problemRow.id)).run();
-              for (const tag of [...new Set(problem.tags.map((value) => value.trim()).filter(Boolean))]) {
+              for (const tag of [...new Set((problem.tags ?? []).map((value) => value.trim()).filter(Boolean))]) {
                 tx.insert(problemTags).values({
                   problemId: problemRow.id,
                   tag
@@ -236,8 +242,8 @@ export const upsertCodeforcesRegularCatalog = (
       },
       catch: (cause) => new SyncOperationError({
         provider,
-        phase: "regularCatalog",
-        step: "regularCatalog",
+        phase: SYNC_OPERATION_PHASES.RegularCatalog,
+        step: JudgeSyncStep.RegularCatalog,
         action: "regular catalog import",
         cause
       })

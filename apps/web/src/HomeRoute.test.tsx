@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type {
-  JudgeSyncEventType as JudgeSyncEventTypeValue,
-  JudgeSyncStep as JudgeSyncStepValue,
-  SyncRunStatus as SyncRunStatusValue,
-  SyncStepStatus as SyncStepStatusValue
+import {
+  JudgeSyncEventType,
+  JudgeSyncStep,
+  SyncRunStatus,
+  SyncStepStatus
 } from "@icpc-trainer/api";
+import { PROVIDER_STATE_EVENT_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,7 +32,7 @@ const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
   }
 })));
 const accountDataStatusMock = vi.hoisted(() =>
-  vi.fn<() => Promise<{ readonly hasSyncedContests: boolean; readonly syncedContestJudges: readonly ("codeforces" | "qoj")[] }>>(async () => ({
+  vi.fn<() => Promise<{ readonly hasSyncedContests: boolean; readonly syncedContestJudges: readonly JudgeProvider[] }>>(async () => ({
     hasSyncedContests: false,
     syncedContestJudges: []
   }))
@@ -43,41 +44,14 @@ const syncSnapshots = vi.hoisted(() =>
   new Map<string, any>()
 );
 
-const JudgeSyncEventType = {
-  Started: "started" as JudgeSyncEventTypeValue,
-  Step: "step" as JudgeSyncEventTypeValue,
-  Error: "error" as JudgeSyncEventTypeValue,
-  Completed: "completed" as JudgeSyncEventTypeValue
-};
-
-const JudgeSyncStep = {
-  Submissions: "submissions" as JudgeSyncStepValue,
-  Contests: "contests" as JudgeSyncStepValue,
-  RegularCatalog: "regularCatalog" as JudgeSyncStepValue
-};
-
-const SyncRunStatus = {
-  Idle: "idle" as SyncRunStatusValue,
-  Running: "running" as SyncRunStatusValue,
-  Completed: "completed" as SyncRunStatusValue,
-  Error: "error" as SyncRunStatusValue
-};
-
-const SyncStepStatus = {
-  Pending: "pending" as SyncStepStatusValue,
-  Running: "running" as SyncStepStatusValue,
-  Completed: "completed" as SyncStepStatusValue,
-  Error: "error" as SyncStepStatusValue
-};
-
 const emptySyncStep = () => ({
   status: SyncStepStatus.Pending,
   total: 0,
   processed: 0
 });
 
-const emptyProviderState = (provider: "codeforces" | "qoj") => ({
-  type: "state" as const,
+const emptyProviderState = (provider: JudgeProvider) => ({
+  type: PROVIDER_STATE_EVENT_TYPES.State,
   provider,
   status: SyncRunStatus.Idle,
   stepsTotal: 0,
@@ -153,10 +127,10 @@ const applySyncEvent = (state: any, event: any) => {
   return base;
 };
 
-const syncStateFromFixtureEvents = (provider: "codeforces" | "qoj", events: readonly any[]) =>
+const syncStateFromFixtureEvents = (provider: JudgeProvider, events: readonly any[]) =>
   events.reduce(applySyncEvent, emptyProviderState(provider));
 
-const syncEvents = (provider: "codeforces" | "qoj") => [
+const syncEvents = (provider: JudgeProvider) => [
   {
     type: JudgeSyncEventType.Started,
     provider,
@@ -331,7 +305,7 @@ vi.mock("./trpc", () => ({
       },
       replace: {
         mutate: vi.fn(async (input) => ({
-          users: input.users.map((user: { readonly username: string; readonly judge: "codeforces" | "qoj" }) => ({
+          users: input.users.map((user: { readonly username: string; readonly judge: JudgeProvider }) => ({
             ...user,
             type: "team"
           })),
@@ -341,7 +315,7 @@ vi.mock("./trpc", () => ({
     },
     judges: {
       startSync: {
-        mutate: vi.fn(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
+        mutate: vi.fn(async ({ provider }: { readonly provider: JudgeProvider }) => {
           queueMicrotask(() => {
             for (const observer of syncObservers.get(provider) ?? []) {
               let state = emptyProviderState(provider);
@@ -354,7 +328,7 @@ vi.mock("./trpc", () => ({
         })
       },
       observeSync: {
-        subscribe: vi.fn((input: { readonly provider: "codeforces" | "qoj" }, options) => {
+        subscribe: vi.fn((input: { readonly provider: JudgeProvider }, options) => {
           const observers = syncObservers.get(input.provider) ?? [];
           observers.push(options);
           syncObservers.set(input.provider, observers);
@@ -463,6 +437,18 @@ describe("app shell", () => {
     await waitFor(() => expect(accountDataStatusMock).toHaveBeenCalledTimes(2));
   });
 
+  it("shows a sync completion toast with changed data counts", async () => {
+    renderWithQuery(<ProtectedLayout />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
+
+    const toast = await screen.findByRole("alert");
+    expect(toast).toHaveTextContent("Codeforces sync complete");
+    expect(toast).toHaveTextContent("Contests: 1 new/updated contest");
+    expect(toast).toHaveTextContent("Problems: 0 imported problems");
+    expect(toast).toHaveTextContent("Submissions: 2 new submissions, 1 updated submission");
+  });
+
   it("starts all authenticated judge syncs from the navbar", async () => {
     credentialStatusMock.mockResolvedValue({
       codeforces: {
@@ -496,7 +482,7 @@ describe("app shell", () => {
       expect(trpc.judges.startSync.mutate).toHaveBeenCalledWith({ provider: "codeforces" })
     );
     expect(trpc.judges.startSync.mutate).not.toHaveBeenCalledWith({ provider: "qoj" });
-    expect(await screen.findByRole("alert")).toHaveTextContent("QOJ authentication is not connected");
+    expect(await screen.findByText("QOJ authentication is not connected")).toBeInTheDocument();
   });
 
   it("syncs a newly connected judge even when other judges have local synced contests", async () => {
@@ -524,15 +510,15 @@ describe("app shell", () => {
       });
       return { unsubscribe: vi.fn() };
     });
-    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
+    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: JudgeProvider }) => {
       queueMicrotask(() => {
         for (const observer of syncObservers.get(provider) ?? []) {
           let state = emptyProviderState(provider);
           state = applySyncEvent(state, {
-          type: "error",
+          type: JudgeSyncEventType.Error,
           provider,
-          phase: "contests",
-          step: "contests",
+          phase: JudgeSyncStep.Contests,
+          step: JudgeSyncStep.Contests,
           message: "Contest 100566 failed",
           contestJudgeId: "100566",
           stepsTotal: 1,
@@ -540,7 +526,7 @@ describe("app shell", () => {
         });
           observer.onData?.(state);
           state = applySyncEvent(state, {
-          type: "completed",
+          type: JudgeSyncEventType.Completed,
           provider,
           stepsTotal: 1,
           stepsLeft: 0,
@@ -571,16 +557,16 @@ describe("app shell", () => {
   });
 
   it("stacks sync error toasts and removes the oldest when the stack is full", async () => {
-    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: "codeforces" | "qoj" }) => {
+    vi.mocked(trpc.judges.startSync.mutate as any).mockImplementationOnce(async ({ provider }: { readonly provider: JudgeProvider }) => {
       queueMicrotask(() => {
         for (const observer of syncObservers.get(provider) ?? []) {
           let state = emptyProviderState(provider);
           for (const index of Array.from({ length: 8 }, (_, value) => value + 1)) {
             state = applySyncEvent(state, {
-            type: "error",
+            type: JudgeSyncEventType.Error,
             provider,
-            phase: "contests",
-            step: "contests",
+            phase: JudgeSyncStep.Contests,
+            step: JudgeSyncStep.Contests,
             message: `Contest ${index} failed`,
             contestJudgeId: String(index),
             stepsTotal: 8,
@@ -589,7 +575,7 @@ describe("app shell", () => {
             observer.onData?.(state);
           }
           state = applySyncEvent(state, {
-          type: "completed",
+          type: JudgeSyncEventType.Completed,
           provider,
           stepsTotal: 8,
           stepsLeft: 0,

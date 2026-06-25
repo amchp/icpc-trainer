@@ -1,4 +1,5 @@
 import type { ContestFinderRefreshInput } from "@icpc-trainer/api";
+import { CONTEST_FINDER_TABS, JUDGES, JUDGE_PROVIDERS, RUN_STATUSES } from "@icpc-trainer/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -29,11 +30,11 @@ import { useToaster } from "./Toaster.js";
 
 type ContestFinderRefreshProvider = ContestFinderRefreshInput["provider"];
 
-const refreshProviders: readonly ContestFinderRefreshProvider[] = ["codeforces", "qoj"];
+const refreshProviders: readonly ContestFinderRefreshProvider[] = JUDGE_PROVIDERS;
 
 const emptyRefreshState = (provider: ContestFinderRefreshProvider): ContestFinderRefreshState => ({
   provider,
-  status: "idle",
+  status: RUN_STATUSES.Idle,
   progress: 0,
   stepsLeft: 0,
   stepsTotal: 0,
@@ -44,14 +45,14 @@ const emptyRefreshState = (provider: ContestFinderRefreshProvider): ContestFinde
 });
 
 const emptyRefreshStates = (): Record<ContestFinderRefreshProvider, ContestFinderRefreshState> => ({
-  codeforces: emptyRefreshState("codeforces"),
-  qoj: emptyRefreshState("qoj")
+  codeforces: emptyRefreshState(JUDGES.Codeforces),
+  qoj: emptyRefreshState(JUDGES.Qoj)
 });
 
 export function ContestFinderPage(): React.JSX.Element {
   const toaster = useToaster();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<ContestFinderTabId>("contest");
+  const [activeTab, setActiveTab] = useState<ContestFinderTabId>(CONTEST_FINDER_TABS.Contest);
   const [searchQuery, setSearchQuery] = useState("");
   const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
     defaultJudgeSourceFilters

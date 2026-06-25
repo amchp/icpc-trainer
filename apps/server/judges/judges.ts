@@ -1,6 +1,6 @@
 
 import { Context, Data, Effect } from "effect";
-import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
+import { SUBMISSION_STATUSES, type JudgeResource } from "@icpc-trainer/shared";
 import type { DatabaseServiceTag } from "@icpc-trainer/db";
 import type {
   ContestFinderRefreshEvent,
@@ -12,7 +12,7 @@ import type { SyncOperationError } from "./sync/sync.js";
 import type { SyncUser } from "./sync/sync.js";
 
 export class JudgeNotFoundError extends Data.TaggedError("JudgeNotFoundError")<{
-  readonly resource: "contest" | "user";
+  readonly resource: JudgeResource;
   readonly judgeId: string;
 }> {}
 
@@ -37,18 +37,27 @@ export type JudgeError =
   | JudgeAPIError
   | JudgeCredentialError;
 
-export interface JudgePreviewContest {
+export interface JudgeCatalogContest {
   readonly judgeId: string;
   readonly name: string;
   readonly link?: string;
 }
 
-export interface Problem {
+export type JudgePreviewContest = JudgeCatalogContest;
+export type JudgeRegularCatalogContest = JudgeCatalogContest;
+
+export interface JudgeProblem {
   readonly judgeId: string;
+  readonly judgeContestId?: string;
   readonly name: string;
   readonly solves: number;
   readonly link: string;
+  readonly rating?: number;
+  readonly tags?: readonly string[];
 }
+
+export type Problem = JudgeProblem;
+export type JudgeRegularCatalogProblem = JudgeProblem;
 
 export interface JudgeContest {
   readonly judgeId: string;
@@ -70,22 +79,6 @@ export interface JudgeSubmission {
   readonly problemName: string;
   readonly verdict: SUBMISSION_STATUSES;
   readonly submittedAt: Date;
-}
-
-export interface JudgeRegularCatalogContest {
-  readonly judgeId: string;
-  readonly name: string;
-  readonly link?: string;
-}
-
-export interface JudgeRegularCatalogProblem {
-  readonly judgeId: string;
-  readonly judgeContestId: string;
-  readonly name: string;
-  readonly link: string;
-  readonly solves: number;
-  readonly rating?: number;
-  readonly tags: readonly string[];
 }
 
 export interface GetContestsOptions {

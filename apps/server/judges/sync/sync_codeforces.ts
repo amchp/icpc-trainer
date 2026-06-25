@@ -4,16 +4,16 @@ import {
   JudgeSyncStep,
   SyncStepStatus
 } from "@icpc-trainer/api";
-import { type DatabaseService } from "@icpc-trainer/db";
-import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
+import { type DatabaseService, type DatabaseServiceTag } from "@icpc-trainer/db";
+import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type {
   JudgeContest,
   JudgeRegularCatalogContest,
+  JudgeRegularCatalogProblem,
   JudgeSubmission
 } from "../judges.js";
-import type { CodeforcesPlaygroundClient } from "../codeforces.js";
 import {
   upsertExistingContestParticipations,
   type ExistingContestParticipationInput
@@ -49,6 +49,15 @@ const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
 const CODEFORCES_GYM_CONTEST_URL = "https://codeforces.com/gym";
 const CODEFORCES_REGULAR_CONTEST_URL = "https://codeforces.com/contest";
+
+export interface CodeforcesSyncOperations {
+  readonly getContest: (contestId: string) => Effect.Effect<JudgeContest, unknown, DatabaseServiceTag>;
+  readonly getSubmissions: (
+    options?: { readonly userHandle: string }
+  ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, unknown, DatabaseServiceTag>;
+  readonly getRegularContests: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, unknown, DatabaseServiceTag>;
+  readonly getRegularProblems: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, unknown, DatabaseServiceTag>;
+}
 
 const isGymContestJudgeId = (contestJudgeId: string): boolean => {
   const contestId = Number(contestJudgeId);
@@ -93,16 +102,16 @@ const pendingContestParticipations = (
 const getUserSubmissions = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  judge: CodeforcesPlaygroundClient,
+  operations: CodeforcesSyncOperations,
   userHandle: string
 ): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
   runJudgeOperation(database, {
     provider,
-    phase: "submissions",
-    step: "submissions",
+    phase: SYNC_OPERATION_PHASES.Submissions,
+    step: JudgeSyncStep.Submissions,
     action: `submissions for user ${userHandle}`,
     userHandle
-  }, judge.getSubmissions({ userHandle }));
+  }, operations.getSubmissions({ userHandle }));
 
 const codeforcesContestLink = (contestJudgeId: string): string =>
   isGymContestJudgeId(contestJudgeId)
@@ -124,17 +133,17 @@ const withCodeforcesRegularContestLink = (
 export const syncCodeforcesContest = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
-  judge: CodeforcesPlaygroundClient,
-  contestJudgeId: string
+  contestJudgeId: string,
+  operations: CodeforcesSyncOperations
 ): Effect.Effect<number, SyncOperationError> =>
   Effect.gen(function* () {
     const contest = yield* runJudgeOperation(database, {
       provider,
-      phase: "contests",
-      step: "contests",
+      phase: SYNC_OPERATION_PHASES.Contests,
+      step: JudgeSyncStep.Contests,
       action: `contest ${contestJudgeId}`,
       contestJudgeId
-    }, judge.getContest(contestJudgeId));
+    }, operations.getContest(contestJudgeId));
 
     return yield* upsertFetchedContest(database, provider, JUDGES.Codeforces, withCodeforcesContestLink(contest));
   });
@@ -142,7 +151,7 @@ export const syncCodeforcesContest = (
 const runCodeforcesSyncProgram = (
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: CodeforcesPlaygroundClient,
+  operations: CodeforcesSyncOperations,
   emit: EmitSyncEvent
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
@@ -175,7 +184,7 @@ const runCodeforcesSyncProgram = (
       yield* submissionProgress.running(index, user.username);
 
       const userSubmissionsResult = yield* Effect.either(
-        getUserSubmissions(database, provider, judge, user.username)
+        getUserSubmissions(database, provider, operations, user.username)
       );
 
       if (userSubmissionsResult._tag === "Left") {
@@ -245,7 +254,7 @@ const runCodeforcesSyncProgram = (
       yield* contestProgress.running(index, contestJudgeId);
 
       const contestSyncResult = yield* Effect.either(
-        syncCodeforcesContest(database, provider, judge, contestJudgeId)
+        syncCodeforcesContest(database, provider, contestJudgeId, operations)
       );
 
       if (contestSyncResult._tag === "Left") {
@@ -258,9 +267,6 @@ const runCodeforcesSyncProgram = (
         ));
         continue;
       }
-
-      summary.contestsSynced += 1;
-      yield* contestProgress.completeCurrent(contestJudgeId);
 
       const pendingSubmissions = pendingSubmissionsByContest.get(contestJudgeId) ?? [];
       pendingSubmissionsByContest.delete(contestJudgeId);
@@ -294,6 +300,9 @@ const runCodeforcesSyncProgram = (
           summary.submissionsSkipped = Math.max(summary.submissionsSkipped - 1, 0);
         }
       }
+
+      summary.contestsSynced += 1;
+      yield* contestProgress.completeCurrent(contestJudgeId);
     }
 
     const regularContestIds = [...missingProblemIdsByContest.entries()]
@@ -324,11 +333,11 @@ const runCodeforcesSyncProgram = (
         database,
         {
           provider,
-          phase: "regularCatalog",
-          step: "regularCatalog",
+          phase: SYNC_OPERATION_PHASES.RegularCatalog,
+          step: JudgeSyncStep.RegularCatalog,
           action: "regular contest list"
         },
-        judge.getRegularContests()
+        operations.getRegularContests()
       )
     );
 
@@ -365,11 +374,11 @@ const runCodeforcesSyncProgram = (
         database,
         {
           provider,
-          phase: "regularCatalog",
-          step: "regularCatalog",
+          phase: SYNC_OPERATION_PHASES.RegularCatalog,
+          step: JudgeSyncStep.RegularCatalog,
           action: "regular problem catalog"
         },
-        judge.getRegularProblems()
+        operations.getRegularProblems()
       )
     );
 
@@ -466,9 +475,9 @@ const runCodeforcesSyncProgram = (
 export async function* createCodeforcesJudgeSync(
   database: DatabaseService,
   input: JudgeSyncInput,
-  judge: CodeforcesPlaygroundClient
+  operations: CodeforcesSyncOperations
 ): AsyncIterable<JudgeSyncEvent> {
   yield* createJudgeSyncRunner((emit) =>
-    runCodeforcesSyncProgram(database, input, judge, emit)
+    runCodeforcesSyncProgram(database, input, operations, emit)
   );
 }

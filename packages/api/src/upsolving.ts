@@ -1,4 +1,5 @@
 import { schema } from "@icpc-trainer/db";
+import type { JudgeProvider } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
@@ -10,7 +11,7 @@ import { getUpsolvingOverview } from "./upsolvingReadModel.js";
 const { contests } = schema;
 
 export interface RefetchContestInput {
-  readonly provider: "codeforces" | "qoj";
+  readonly provider: JudgeProvider;
   readonly contestJudgeId: string;
 }
 

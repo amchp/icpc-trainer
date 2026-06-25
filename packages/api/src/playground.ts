@@ -1,7 +1,14 @@
 import { TRPCError, type initTRPC } from "@trpc/server";
+import {
+  JUDGE_RESOURCES,
+  PLAYGROUND_OPERATION_VALUES,
+  type JudgeResource,
+  type PlaygroundOperation
+} from "@icpc-trainer/shared";
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { judgeProviderSchema } from "./judgeProvider.js";
 
 const optionalTrimmedString = z.preprocess(
   (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
@@ -9,15 +16,15 @@ const optionalTrimmedString = z.preprocess(
 );
 
 export const playgroundInputSchema = z.object({
-  provider: z.enum(["codeforces", "qoj"]),
-  operation: z.enum(["contests", "contest", "user", "submissions"]),
+  provider: judgeProviderSchema,
+  operation: z.enum(PLAYGROUND_OPERATION_VALUES),
   contestId: optionalTrimmedString,
   userHandle: optionalTrimmedString
 });
 
 export type PlaygroundInput = z.infer<typeof playgroundInputSchema>;
 export type PlaygroundProvider = PlaygroundInput["provider"];
-export type PlaygroundOperation = PlaygroundInput["operation"];
+export type { PlaygroundOperation };
 
 export interface JudgePlaygroundService {
   readonly run: (input: PlaygroundInput) => Promise<PlaygroundResult>;
@@ -37,11 +44,13 @@ export interface PlaygroundError {
   readonly message: string;
   readonly tag?: string;
   readonly judgeId?: string;
-  readonly resource?: "contest" | "user";
+  readonly resource?: JudgeResource;
   readonly cause?: string;
   readonly causeType?: string;
   readonly raw?: unknown;
 }
+
+export { JUDGE_RESOURCES as JudgeResource };
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
   ? T

@@ -1,6 +1,6 @@
 import { providerCredentials, users } from "@icpc-trainer/db";
 import type { DatabaseService } from "@icpc-trainer/db";
-import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, USER_TYPES, judgeFromProvider } from "@icpc-trainer/shared";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { PlaygroundProvider } from "./playground.js";
@@ -41,9 +41,6 @@ const credentialTypeFor = (provider: PlaygroundProvider): string =>
 
 const normalizeProviderUserKey = (value: string | undefined): string =>
   value?.trim().toLowerCase() || DEFAULT_PROVIDER_USER_KEY;
-
-const providerJudge = (provider: PlaygroundProvider): JUDGES =>
-  provider === JUDGES.Codeforces ? JUDGES.Codeforces : JUDGES.Qoj;
 
 const qojUsernameFromCookieJar = (cookieJar: string | undefined): string | null => {
   if (cookieJar === undefined) {
@@ -107,7 +104,7 @@ export const saveEncryptedCredential = (
 ): CredentialStatus => {
   const now = new Date();
   const teamUsername = trackedTeamUsername(input);
-  const judge = providerJudge(input.provider);
+  const judge = judgeFromProvider(input.provider);
 
   ctx.database.db
     .insert(providerCredentials)
@@ -169,7 +166,7 @@ export const createEncryptedCredential = (
 
   const now = new Date();
   const teamUsername = trackedTeamUsername(input);
-  const judge = providerJudge(input.provider);
+  const judge = judgeFromProvider(input.provider);
 
   ctx.database.db
     .insert(providerCredentials)

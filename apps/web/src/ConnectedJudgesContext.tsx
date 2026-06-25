@@ -1,4 +1,5 @@
 import type { CredentialStatus } from "@icpc-trainer/api";
+import { CONNECTED_JUDGES_STATUSES, type ConnectedJudgesStatus } from "@icpc-trainer/shared";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { connectedJudgesFromCredentialStatus, emptyCredentialStatus, type JudgeProvider } from "./judgeConfig.js";
@@ -10,7 +11,7 @@ export interface ConnectedJudge {
 }
 
 interface ConnectedJudgesContextValue {
-  readonly status: "loading" | "ready" | "error";
+  readonly status: ConnectedJudgesStatus;
   readonly credentialStatus: CredentialStatus;
   readonly connectedJudges: readonly ConnectedJudge[];
   readonly hasConnectedJudge: boolean;
@@ -22,11 +23,11 @@ const ConnectedJudgesContext = createContext<ConnectedJudgesContextValue | null>
 
 export function ConnectedJudgesProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
   const [credentialStatus, setCredentialStatusState] = useState<CredentialStatus>(emptyCredentialStatus);
-  const [status, setStatus] = useState<ConnectedJudgesContextValue["status"]>("loading");
+  const [status, setStatus] = useState<ConnectedJudgesContextValue["status"]>(CONNECTED_JUDGES_STATUSES.Loading);
 
   const setCredentialStatus = useCallback((nextStatus: CredentialStatus) => {
     setCredentialStatusState(nextStatus);
-    setStatus("ready");
+    setStatus(CONNECTED_JUDGES_STATUSES.Ready);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -45,7 +46,7 @@ export function ConnectedJudgesProvider({ children }: { readonly children: React
       },
       onError: () => {
         if (active) {
-          setStatus("error");
+          setStatus(CONNECTED_JUDGES_STATUSES.Error);
         }
       }
     });

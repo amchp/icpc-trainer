@@ -4,7 +4,7 @@ import {
   JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES } from "@icpc-trainer/shared";
+import { JUDGES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -48,8 +48,8 @@ const getUserContestIds = (
 ): Effect.Effect<ReadonlyArray<JudgePreviewContest>, SyncOperationError> =>
   runJudgeOperation(database, {
     provider,
-    phase: "contests",
-    step: "contests",
+    phase: SYNC_OPERATION_PHASES.Contests,
+    step: JudgeSyncStep.Contests,
     action: `contests for user ${user.username}`,
     userHandle: user.username
   }, judge.getContests({ userHandle: user.username }));
@@ -62,8 +62,8 @@ const getUserSubmissions = (
 ): Effect.Effect<ReadonlyArray<JudgeSubmission>, SyncOperationError> =>
   runJudgeOperation(database, {
     provider,
-    phase: "submissions",
-    step: "submissions",
+    phase: SYNC_OPERATION_PHASES.Submissions,
+    step: JudgeSyncStep.Submissions,
     action: `submissions for user ${user.username}`,
     userHandle: user.username
   }, judge.getSubmissions({ userHandle: user.username }));
@@ -106,8 +106,8 @@ export const syncQojContest = (
   Effect.gen(function* () {
     const contest = yield* runJudgeOperation(database, {
       provider,
-      phase: "contests",
-      step: "contests",
+      phase: SYNC_OPERATION_PHASES.Contests,
+      step: JudgeSyncStep.Contests,
       action: `contest ${contestJudgeId}`,
       contestJudgeId
     }, judge.getContest(contestJudgeId));

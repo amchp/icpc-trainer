@@ -8,6 +8,7 @@ import {
   SyncRunStatus
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
+import { JUDGE_PROVIDERS, SYNC_ERROR_PHASES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type { Judge } from "../judges.js";
@@ -31,7 +32,7 @@ export async function* notImplementedJudgeSync(input: JudgeSyncInput): AsyncIter
   yield {
     type: JudgeSyncEventType.Error,
     provider: input.provider,
-    phase: "database",
+    phase: SYNC_ERROR_PHASES.Database,
     message: `${input.provider} sync is not implemented yet.`,
     stepsTotal: 0,
     stepsLeft: 0
@@ -123,7 +124,7 @@ const syncFailureEvent = (
 ): JudgeSyncEvent => ({
   type: JudgeSyncEventType.Error,
   provider,
-  phase: "database",
+    phase: SYNC_ERROR_PHASES.Database,
   message: error instanceof Error ? error.message : String(error),
   stepsTotal: 0,
   stepsLeft: 0
@@ -148,7 +149,7 @@ export const createJudgeSyncService = (
     JudgeSyncInput["provider"],
     JudgeSyncEvent,
     JudgeSyncProviderState
-  >(["codeforces", "qoj"], emptyProviderState, applyJudgeSyncEventToState);
+  >(JUDGE_PROVIDERS, emptyProviderState, applyJudgeSyncEventToState);
 
   return {
     start: async (input) => {

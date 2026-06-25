@@ -1,6 +1,6 @@
 import { type JudgeSyncInput } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
-import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
+import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -135,7 +135,7 @@ export const upsertContestParticipations = (
   entries: ReadonlyArray<ContestParticipationInput>
 ): Effect.Effect<number, SyncOperationError> => syncEffect({
   provider,
-  phase: "database",
+  phase: SYNC_OPERATION_PHASES.Database,
   action: "contest participation"
 }, () => {
   let upserted = 0;
@@ -143,7 +143,7 @@ export const upsertContestParticipations = (
   for (const entry of entries) {
     const contestId = Effect.runSync(ensureCatalogContest(database, judge, entry.contestJudgeId, entry.contestName, entry.contestLink, {
       provider,
-      phase: "database",
+      phase: SYNC_OPERATION_PHASES.Database,
       action: `contest ${entry.contestJudgeId} participation`,
       userHandle: entry.user.username,
       contestJudgeId: entry.contestJudgeId
@@ -163,7 +163,7 @@ export const upsertExistingContestParticipations = (
   entries: ReadonlyArray<ExistingContestParticipationInput>
 ): Effect.Effect<number, SyncOperationError> => syncEffect({
   provider,
-  phase: "database",
+  phase: SYNC_OPERATION_PHASES.Database,
   action: "existing contest participation"
 }, () => {
   let upserted = 0;

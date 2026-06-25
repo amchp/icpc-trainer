@@ -1,12 +1,13 @@
+import { JUDGE_SOURCE_FILTERS, type JudgeProvider, type JudgeSourceFilterId } from "@icpc-trainer/shared";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { DropdownContent, DropdownItem, DropdownTrigger } from "./components/ui.js";
 
-export type JudgeSourceFilterId = "codeforces-contest" | "codeforces-gym" | "qoj";
+export type { JudgeSourceFilterId };
 
 export interface JudgeSourceClassifiable {
-  readonly judge: "codeforces" | "qoj";
+  readonly judge: JudgeProvider;
   readonly link: string;
 }
 
@@ -14,18 +15,18 @@ export const judgeSourceFilterOptions: Array<{
   readonly value: JudgeSourceFilterId;
   readonly label: string;
 }> = [
-  { value: "codeforces-contest", label: "Codeforces Contest" },
-  { value: "codeforces-gym", label: "Codeforces Gym" },
-  { value: "qoj", label: "QOJ" }
+  { value: JUDGE_SOURCE_FILTERS.CodeforcesContest, label: "Codeforces Contest" },
+  { value: JUDGE_SOURCE_FILTERS.CodeforcesGym, label: "Codeforces Gym" },
+  { value: JUDGE_SOURCE_FILTERS.Qoj, label: "QOJ" }
 ];
 
 export const defaultJudgeSourceFilters: readonly JudgeSourceFilterId[] =
   judgeSourceFilterOptions.map((option) => option.value);
 
 export const emptyJudgeSourceCounts = (): Record<JudgeSourceFilterId, number> => ({
-  "codeforces-contest": 0,
-  "codeforces-gym": 0,
-  qoj: 0
+  [JUDGE_SOURCE_FILTERS.CodeforcesContest]: 0,
+  [JUDGE_SOURCE_FILTERS.CodeforcesGym]: 0,
+  [JUDGE_SOURCE_FILTERS.Qoj]: 0
 });
 
 export const judgeSourceFor = (row: JudgeSourceClassifiable): JudgeSourceFilterId => {
@@ -36,11 +37,11 @@ export const judgeSourceForLink = (
   judge: JudgeSourceClassifiable["judge"],
   link: string
 ): JudgeSourceFilterId => {
-  if (judge === "qoj") {
-    return "qoj";
+  if (judge === JUDGE_SOURCE_FILTERS.Qoj) {
+    return JUDGE_SOURCE_FILTERS.Qoj;
   }
 
-  return link.includes("/gym/") ? "codeforces-gym" : "codeforces-contest";
+  return link.includes("/gym/") ? JUDGE_SOURCE_FILTERS.CodeforcesGym : JUDGE_SOURCE_FILTERS.CodeforcesContest;
 };
 
 export function JudgeSourceFilterDropdown({

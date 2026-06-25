@@ -6,19 +6,19 @@ import {
   SyncStepStatus
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseLive, DatabaseServiceTag, schema } from "@icpc-trainer/db";
-import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import { JUDGES, SUBMISSION_STATUSES, USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { makeCodeforcesJudge, type CodeforcesPlaygroundClient } from "../judges/codeforces.js";
+import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import {
   JudgeAPIError,
   type Judge,
   type RefreshContestFinderResult
 } from "../judges/judges.js";
 import type { QojPlaygroundClient } from "../judges/qoj.js";
-import { createCodeforcesJudgeSync } from "../judges/sync/sync_codeforces.js";
+import { createCodeforcesJudgeSync, type CodeforcesSyncOperations } from "../judges/sync/sync_codeforces.js";
 import { createQojJudgeSync } from "../judges/sync/sync_qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 
@@ -116,11 +116,11 @@ const codeforcesResponse = (result: unknown): Response =>
   jsonResponse({ status: "OK", result });
 
 type CodeforcesTestJudge =
-  Omit<CodeforcesPlaygroundClient, "getRegularContests" | "getRegularProblems"> &
-  Partial<Pick<CodeforcesPlaygroundClient, "getRegularContests" | "getRegularProblems">>;
+  Omit<CodeforcesSyncOperations, "getRegularContests" | "getRegularProblems"> &
+  Partial<Pick<CodeforcesSyncOperations, "getRegularContests" | "getRegularProblems">>;
 type TestJudge = CodeforcesTestJudge | QojPlaygroundClient;
 
-const codeforcesTestJudge = (judge: CodeforcesTestJudge): CodeforcesPlaygroundClient => ({
+const codeforcesTestJudge = (judge: CodeforcesTestJudge): CodeforcesSyncOperations => ({
   ...judge,
   getRegularContests: judge.getRegularContests ?? (() => Effect.succeed([])),
   getRegularProblems: judge.getRegularProblems ?? (() => Effect.succeed([]))
@@ -128,7 +128,7 @@ const codeforcesTestJudge = (judge: CodeforcesTestJudge): CodeforcesPlaygroundCl
 
 const withTestSync = (
   database: DatabaseService,
-  provider: "codeforces" | "qoj",
+  provider: JudgeProvider,
   judge: TestJudge | Judge
 ): Judge => {
   if ("sync" in judge) {
@@ -152,13 +152,13 @@ const withTestSync = (
 
 const createSyncService = (
   database: DatabaseService,
-  registry: Partial<Record<"codeforces" | "qoj", TestJudge | Judge>> = {}
+  registry: Partial<Record<JudgeProvider, TestJudge | Judge>> = {}
 ) => createJudgeSyncService({
   codeforces: makeCodeforcesJudge(database),
   ...Object.fromEntries(
     Object.entries(registry).map(([provider, judge]) => [
       provider,
-      withTestSync(database, provider as "codeforces" | "qoj", judge)
+      withTestSync(database, provider as JudgeProvider, judge)
     ])
   )
 });

@@ -1,7 +1,16 @@
 import { TRPCError, type initTRPC } from "@trpc/server";
+import {
+  JUDGE_SYNC_EVENT_TYPES as JudgeSyncEventType,
+  JUDGE_SYNC_STEPS as JudgeSyncStep,
+  PROVIDER_STATE_EVENT_TYPES,
+  RUN_STATUSES as SyncRunStatus,
+  SYNC_ERROR_PHASES,
+  SYNC_STEP_STATUSES as SyncStepStatus
+} from "@icpc-trainer/shared";
 import { z } from "zod";
 
 import type { ApiContext } from "./index.js";
+import { judgeProviderSchema } from "./judgeProvider.js";
 import type { RefetchContestInput } from "./upsolving.js";
 
 type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] extends () => infer T
@@ -9,7 +18,7 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
   : never;
 
 export const judgeSyncInputSchema = z.object({
-  provider: z.enum(["codeforces", "qoj"])
+  provider: judgeProviderSchema
 });
 
 export type JudgeSyncInput = z.infer<typeof judgeSyncInputSchema>;
@@ -27,32 +36,12 @@ export interface JudgeSyncSummary {
   readonly errors: number;
 }
 
-export enum JudgeSyncStep {
-  Submissions = "submissions",
-  Contests = "contests",
-  RegularCatalog = "regularCatalog"
-}
-
-export enum SyncRunStatus {
-  Idle = "idle",
-  Running = "running",
-  Completed = "completed",
-  Error = "error"
-}
-
-export enum SyncStepStatus {
-  Pending = "pending",
-  Running = "running",
-  Completed = "completed",
-  Error = "error"
-}
-
-export enum JudgeSyncEventType {
-  Started = "started",
-  Step = "step",
-  Error = "error",
-  Completed = "completed"
-}
+export {
+  JudgeSyncEventType,
+  JudgeSyncStep,
+  SyncRunStatus,
+  SyncStepStatus
+};
 
 export interface JudgeSyncStepState {
   readonly status: SyncStepStatus;
@@ -81,7 +70,7 @@ export type JudgeSyncEvent =
     })
   | (JudgeSyncEventBase & {
       readonly type: JudgeSyncEventType.Error;
-      readonly phase: JudgeSyncStep | "database" | "concurrency";
+      readonly phase: JudgeSyncStep | SYNC_ERROR_PHASES;
       readonly step?: JudgeSyncStep;
       readonly message: string;
       readonly userHandle?: string;
@@ -97,7 +86,7 @@ export type JudgeSyncEvent =
     };
 
 export interface JudgeSyncProviderState {
-  readonly type: "state";
+  readonly type: PROVIDER_STATE_EVENT_TYPES.State;
   readonly provider: JudgeSyncInput["provider"];
   readonly status: SyncRunStatus;
   readonly stepsTotal: number;

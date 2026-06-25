@@ -8,11 +8,15 @@ import {
   type SaveCredentialsInput
 } from "@icpc-trainer/api";
 import { DatabaseServiceTag, type DatabaseService } from "@icpc-trainer/db";
+import { JUDGE_RESOURCES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import {
-  makeCodeforcesCredentialValidator,
-  makeCodeforcesPlaygroundClient
+  getCodeforcesContest,
+  getCodeforcesContests,
+  getCodeforcesSubmissions,
+  getCodeforcesUser,
+  makeCodeforcesCredentialValidator
 } from "../judges/codeforces.js";
 import type { JudgeAuthenticationInput, JudgeError } from "../judges/judges.js";
 import {
@@ -66,7 +70,7 @@ export const formatJudgeError = (error: JudgeError): string => {
     case "JudgeCredentialError":
       return `Credential error for ${error.judgeId}.${suffix}`;
     case "JudgeNotFoundError":
-      return `${error.resource === "contest" ? "Contest" : "User"} not found on judge: ${error.judgeId}.`;
+      return `${error.resource === JUDGE_RESOURCES.Contest ? "Contest" : "User"} not found on judge: ${error.judgeId}.`;
     case "JudgeAPIError":
       return `Judge API rejected the request for ${error.judgeId}.${suffix}`;
     case "JudgeUnavailableError":
@@ -134,17 +138,15 @@ const runCodeforcesPlayground = async (
   database: DatabaseService,
   input: PlaygroundInput
 ): Promise<PlaygroundResult> => {
-  const judge = makeCodeforcesPlaygroundClient();
-
   if (input.operation === "contests") {
-    return await runPlaygroundEffect(database, input, judge.getContests({ userHandle: input.userHandle }));
+    return await runPlaygroundEffect(database, input, getCodeforcesContests({ userHandle: input.userHandle }));
   }
 
   if (input.operation === "contest") {
     return await runPlaygroundEffect(
       database,
       input,
-      judge.getContest(requiredInput(input.contestId, "Contest ID"))
+      getCodeforcesContest(requiredInput(input.contestId, "Contest ID"))
     );
   }
 
@@ -152,14 +154,14 @@ const runCodeforcesPlayground = async (
     return await runPlaygroundEffect(
       database,
       input,
-      judge.getUser(requiredInput(input.userHandle, "User handle"))
+      getCodeforcesUser(requiredInput(input.userHandle, "User handle"))
     );
   }
 
   return await runPlaygroundEffect(
     database,
     input,
-    judge.getSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
+    getCodeforcesSubmissions({ userHandle: requiredInput(input.userHandle, "User handle") })
   );
 };
 

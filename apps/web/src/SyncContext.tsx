@@ -1,41 +1,26 @@
 import type {
   JudgeSyncEvent,
-  JudgeSyncEventType as JudgeSyncEventTypeEnum,
   JudgeSyncInput,
   JudgeSyncProviderState,
-  SyncRunStatus as SyncRunStatusEnum,
   JudgeSyncStepState,
-  SyncStepStatus as SyncStepStatusEnum,
   JudgeSyncSummary
 } from "@icpc-trainer/api";
+import {
+  JudgeSyncEventType,
+  SyncRunStatus,
+  SyncStepStatus
+} from "@icpc-trainer/api";
+import { PROVIDER_STATE_EVENT_TYPES, SYNC_ERROR_PHASES, type RunStatus } from "@icpc-trainer/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useProviderStateSubscriptions } from "./providerRunObserver.js";
 import { invalidateAfterJudgeSync } from "./queryKeys.js";
-import { syncObservableProviders } from "./judgeConfig.js";
+import { judgeLabel, syncObservableProviders } from "./judgeConfig.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
-const JudgeSyncEventType = {
-  Error: "error" as JudgeSyncEventTypeEnum.Error,
-  Completed: "completed" as JudgeSyncEventTypeEnum.Completed
-};
-
-const SyncRunStatus = {
-  Running: "running" as SyncRunStatusEnum.Running,
-  Completed: "completed" as SyncRunStatusEnum.Completed,
-  Error: "error" as SyncRunStatusEnum.Error
-};
-
-const SyncStepStatus = {
-  Pending: "pending" as SyncStepStatusEnum.Pending,
-  Running: "running" as SyncStepStatusEnum.Running,
-  Completed: "completed" as SyncStepStatusEnum.Completed,
-  Error: "error" as SyncStepStatusEnum.Error
-};
-
-type SyncStatus = "idle" | "running" | "completed" | "error";
+type SyncStatus = RunStatus;
 
 interface SyncStepProgress extends JudgeSyncStepState {
   readonly progress: number;
@@ -106,6 +91,36 @@ const addSummary = (left: JudgeSyncSummary, right: JudgeSyncSummary): JudgeSyncS
   errors: left.errors + right.errors
 });
 
+const countLabel = (count: number, singular: string, plural = `${singular}s`): string =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const completionSummaryDescription = (summary: JudgeSyncSummary): string => {
+  const changedContests = summary.contestsSynced + summary.regularContestsImported;
+
+  return [
+    `Contests: ${countLabel(changedContests, "new/updated contest", "new/updated contests")}`,
+    `Problems: ${countLabel(summary.regularProblemsImported, "imported problem", "imported problems")}`,
+    `Submissions: ${countLabel(summary.submissionsInserted, "new submission", "new submissions")}, ${countLabel(summary.submissionsUpdated, "updated submission", "updated submissions")}`
+  ].join(". ");
+};
+
+const completionKey = (
+  provider: JudgeSyncInput["provider"],
+  summary: JudgeSyncSummary
+): string => [
+  provider,
+  summary.usersProcessed,
+  summary.submissionsFetched,
+  summary.submissionsInserted,
+  summary.submissionsUpdated,
+  summary.submissionsSkipped,
+  summary.contestsSynced,
+  summary.regularContestsImported,
+  summary.regularProblemsImported,
+  summary.regularPendingSubmissionsRetried,
+  summary.errors
+].join(":");
+
 const stepProgress = (processed: number, total: number): number =>
   total === 0 ? 0 : Math.round((processed / total) * 100);
 
@@ -172,7 +187,7 @@ const providerProgress = (state: JudgeSyncProviderState): ProviderSyncProgress =
 });
 
 const optimisticProviderState = (provider: JudgeSyncInput["provider"]): JudgeSyncProviderState => ({
-  type: "state",
+  type: PROVIDER_STATE_EVENT_TYPES.State,
   provider,
   status: SyncRunStatus.Running,
   stepsTotal: 0,
@@ -193,7 +208,7 @@ const errorProviderState = (
   const latestEvent: JudgeSyncEvent = {
     type: JudgeSyncEventType.Error,
     provider,
-    phase: "database",
+    phase: SYNC_ERROR_PHASES.Database,
     message,
     stepsTotal: 0,
     stepsLeft: 0
@@ -219,6 +234,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
   const [latestEvent, setLatestEvent] = useState<JudgeSyncEvent | null>(null);
   const shownErrorsRef = useRef(new Set<string>());
   const invalidatedCompletionsRef = useRef(new Set<string>());
+  const runningProvidersRef = useRef(new Set<JudgeSyncInput["provider"]>());
 
   const setProviderState = useCallback((state: JudgeSyncProviderState) => {
     setProviderStates((current) => {
@@ -229,6 +245,10 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
 
     if (state.latestEvent !== null) {
       setLatestEvent(state.latestEvent);
+    }
+
+    if (state.status === SyncRunStatus.Running) {
+      runningProvidersRef.current.add(state.provider);
     }
 
     if (state.latestEvent?.type === JudgeSyncEventType.Error) {
@@ -243,11 +263,21 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     }
 
     if (state.latestEvent?.type === JudgeSyncEventType.Completed) {
-      const key = `${state.provider}:${state.latestEvent.stepsTotal}:${state.latestEvent.summary.errors}`;
+      const key = completionKey(state.provider, state.latestEvent.summary);
       if (!invalidatedCompletionsRef.current.has(key)) {
         invalidatedCompletionsRef.current.add(key);
         invalidateAfterJudgeSync(queryClient);
+        if (state.latestEvent.summary.errors === 0 && runningProvidersRef.current.has(state.provider)) {
+          toaster.success({
+            title: `${judgeLabel(state.provider)} sync complete`,
+            description: completionSummaryDescription(state.latestEvent.summary)
+          });
+        }
       }
+    }
+
+    if (state.status === SyncRunStatus.Completed || state.status === SyncRunStatus.Error) {
+      runningProvidersRef.current.delete(state.provider);
     }
   }, [queryClient, toaster]);
 
@@ -285,6 +315,9 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
 
     shownErrorsRef.current.clear();
     invalidatedCompletionsRef.current.clear();
+    for (const provider of uniqueProviders) {
+      runningProvidersRef.current.add(provider);
+    }
     setProviderStates((current) => {
       const next = new Map(current);
       for (const provider of uniqueProviders) {

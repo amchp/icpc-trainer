@@ -1,15 +1,16 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
-import { JUDGES } from "@icpc-trainer/shared";
+import { CONTEST_FINDER_TABS, JUDGES, isJudgeProvider } from "@icpc-trainer/shared";
 
 import type { JudgeProvider } from "./judgeConfig.js";
 
-export type ContestFinderTabId = "contest" | "friends";
+export type { ContestFinderTabId } from "@icpc-trainer/shared";
+export { CONTEST_FINDER_TABS as ContestFinderTab };
 
 export const toJudge = (value: JudgeProvider | JUDGES): JUDGES =>
   value === JUDGES.Qoj ? JUDGES.Qoj : JUDGES.Codeforces;
 
 const isContestFinderJudge = (value: unknown): value is ContestFinderRow["judge"] =>
-  value === "codeforces" || value === "qoj";
+  typeof value === "string" && isJudgeProvider(value);
 
 const finiteNumberOrNull = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
