@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  JudgeSyncEventType,
-  JudgeSyncStep,
-  SyncRunStatus,
-  SyncStepStatus
-} from "@icpc-trainer/api";
-import { PROVIDER_STATE_EVENT_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
+  JUDGE_SYNC_EVENT_TYPES as JudgeSyncEventType,
+  JUDGE_SYNC_STEPS as JudgeSyncStep,
+  PROVIDER_STATE_EVENT_TYPES,
+  RUN_STATUSES as SyncRunStatus,
+  SYNC_STEP_STATUSES as SyncStepStatus,
+  type JudgeProvider
+} from "@icpc-trainer/shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

@@ -6,11 +6,13 @@ import type {
   JudgeSyncSummary
 } from "@icpc-trainer/api";
 import {
-  JudgeSyncEventType,
-  SyncRunStatus,
-  SyncStepStatus
-} from "@icpc-trainer/api";
-import { PROVIDER_STATE_EVENT_TYPES, SYNC_ERROR_PHASES, type RunStatus } from "@icpc-trainer/shared";
+  JUDGE_SYNC_EVENT_TYPES as JudgeSyncEventType,
+  PROVIDER_STATE_EVENT_TYPES,
+  RUN_STATUSES as SyncRunStatus,
+  SYNC_ERROR_PHASES,
+  SYNC_STEP_STATUSES as SyncStepStatus,
+  type RunStatus
+} from "@icpc-trainer/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
