@@ -246,4 +246,100 @@ describe("upsolving router", () => {
       attemptedCount: 0
     });
   });
+
+  it("rejects refetching regular Codeforces rounds", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const [contest] = yield* Effect.promise(() =>
+        database.db.insert(contests).values({
+          judgeId: "566",
+          judge: JUDGES.Codeforces,
+          name: "Codeforces Round 566 (Div. 2)",
+          link: "https://codeforces.com/contest/566",
+          participants: null,
+          stars: null,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }).returning().all()
+      );
+      if (contest === undefined) {
+        throw new Error("Expected seeded contest.");
+      }
+
+      let refetchCalls = 0;
+      const caller = appRouter.createCaller({
+        database,
+        appUser,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined,
+          refetchContest: async () => {
+            refetchCalls += 1;
+          }
+        }
+      });
+
+      yield* Effect.promise(() =>
+        expect(caller.upsolving.refetchContest({ contestId: contest.id }))
+          .rejects.toThrow("Codeforces rounds are refreshed by the catalog sync and cannot be refetched individually.")
+      );
+      return refetchCalls;
+    });
+
+    await expect(
+      Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))))
+    ).resolves.toBe(0);
+  });
+
+  it("allows refetching Codeforces Gym contests", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const [contest] = yield* Effect.promise(() =>
+        database.db.insert(contests).values({
+          judgeId: "100566",
+          judge: JUDGES.Codeforces,
+          name: "ICPC Training Camp Invitational",
+          link: "https://codeforces.com/gym/100566",
+          participants: null,
+          stars: null,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }).returning().all()
+      );
+      if (contest === undefined) {
+        throw new Error("Expected seeded contest.");
+      }
+
+      const refetchInputs: unknown[] = [];
+      const caller = appRouter.createCaller({
+        database,
+        appUser,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined,
+          refetchContest: async (input) => {
+            refetchInputs.push(input);
+          }
+        }
+      });
+
+      yield* Effect.promise(() => caller.upsolving.refetchContest({ contestId: contest.id }));
+      return refetchInputs;
+    });
+
+    await expect(
+      Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))))
+    ).resolves.toEqual([
+      expect.objectContaining({
+        provider: "codeforces",
+        contestJudgeId: "100566"
+      })
+    ]);
+  });
 });

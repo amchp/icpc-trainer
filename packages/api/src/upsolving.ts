@@ -1,5 +1,5 @@
 import { schema } from "@icpc-trainer/db";
-import type { JudgeProvider } from "@icpc-trainer/shared";
+import { JUDGES, type JudgeProvider } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
@@ -10,6 +10,20 @@ import { requireAppUser } from "./appUsers.js";
 import { getUpsolvingOverview } from "./upsolvingReadModel.js";
 
 const { contests } = schema;
+
+const linkPath = (link: string): string => {
+  try {
+    return new URL(link, "https://codeforces.com").pathname.toLowerCase();
+  } catch {
+    return link.toLowerCase();
+  }
+};
+
+const canRefetchContest = (contest: {
+  readonly judge: JudgeProvider;
+  readonly link: string;
+}): boolean =>
+  !(contest.judge === JUDGES.Codeforces && linkPath(contest.link).startsWith("/contest/"));
 
 export interface RefetchContestInput {
   readonly provider: JudgeProvider;
@@ -30,7 +44,8 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
       const contest = await ctx.database.db
         .select({
           judge: contests.judge,
-          judgeId: contests.judgeId
+          judgeId: contests.judgeId,
+          link: contests.link
         })
         .from(contests)
         .where(eq(contests.id, input.contestId))
@@ -47,6 +62,13 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Contest refetch is not configured."
+        });
+      }
+
+      if (!canRefetchContest(contest)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Codeforces rounds are refreshed by the catalog sync and cannot be refetched individually."
         });
       }
 

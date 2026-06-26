@@ -57,6 +57,11 @@ const testJudge = (
 ): Judge => ({
   sync: async function* () {},
   findContest,
+  syncContestFinderCatalog: () => Effect.succeed({
+    contestsUpserted: 0,
+    regularContestsImported: 0,
+    regularProblemsImported: 0
+  }),
   refetchContest: () => Effect.void
 });
 

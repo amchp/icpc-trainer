@@ -1,5 +1,6 @@
-import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
+import { type DatabaseService, DatabaseServiceTag, schema } from "@icpc-trainer/db";
 import { JUDGES, SYNC_OPERATION_PHASES, type JudgeProvider } from "@icpc-trainer/shared";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import {
@@ -12,7 +13,9 @@ import {
   upsertContestParticipations,
   type ContestParticipationInput
 } from "../contestParticipation.js";
-import { type SyncOperationError } from "../sync/sync.js";
+import { syncEffect, type SyncOperationError } from "../sync/sync.js";
+
+const { contests } = schema;
 
 export type ContestFinderProvider = JudgeProvider;
 
@@ -59,6 +62,38 @@ export const upsertContestFinderCatalog = (
     });
 
     return catalogEntries.length;
+  });
+
+export const getContestFinderCatalog = (
+  database: DatabaseService,
+  provider: ContestFinderProvider,
+  judge: JUDGES
+): Effect.Effect<ReadonlyMap<string, JudgePreviewContest>, SyncOperationError> =>
+  syncEffect({
+    provider,
+    phase: SYNC_OPERATION_PHASES.Database,
+    action: "contest finder catalog"
+  }, async () => {
+    const rows = await database.db
+      .select({
+        judgeId: contests.judgeId,
+        name: contests.name,
+        link: contests.link
+      })
+      .from(contests)
+      .where(eq(contests.judge, judge))
+      .all();
+
+    return new Map(
+      rows.map((contest): [string, JudgePreviewContest] => [
+        contest.judgeId,
+        {
+          judgeId: contest.judgeId,
+          name: contest.name,
+          link: contest.link
+        }
+      ])
+    );
   });
 
 export const upsertContestFinderParticipations = (

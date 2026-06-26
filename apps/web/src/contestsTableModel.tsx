@@ -1,4 +1,5 @@
 import type { UpsolvingContestRow } from "@icpc-trainer/api";
+import { JUDGES, type JudgeProvider } from "@icpc-trainer/shared";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
 
@@ -23,6 +24,20 @@ export const toSearchableContestRow = (contest: UpsolvingContestRow): Searchable
   ...contest,
   searchText: searchableText(contest)
 });
+
+const linkPath = (link: string): string => {
+  try {
+    return new URL(link, "https://codeforces.com").pathname.toLowerCase();
+  } catch {
+    return link.toLowerCase();
+  }
+};
+
+const canRefetchContest = (contest: {
+  readonly judge: JudgeProvider;
+  readonly link: string;
+}): boolean =>
+  !(contest.judge === JUDGES.Codeforces && linkPath(contest.link).startsWith("/contest/"));
 
 export const createContestColumns = ({
   refreshingContestIds,
@@ -76,6 +91,7 @@ export const createContestColumns = ({
     enableSorting: false,
     cell: ({ row }) => {
       const refreshing = refreshingContestIds.includes(row.original.id);
+      const refetchable = canRefetchContest(row.original);
 
       return (
         <div className="flex justify-end">
@@ -83,7 +99,9 @@ export const createContestColumns = ({
             type="button"
             variant="secondary"
             className="h-8"
-            disabled={refreshing}
+            disabled={refreshing || !refetchable}
+            title={refetchable ? undefined : "Codeforces rounds refresh through catalog sync"}
+            aria-label={refetchable ? undefined : "Codeforces rounds cannot be refetched individually"}
             onClick={() => onRefetchContest(row.original)}
           >
             {refreshing ? (

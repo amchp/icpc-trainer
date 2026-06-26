@@ -37,10 +37,13 @@ pnpm test
 pnpm build
 pnpm dev
 pnpm dev:reset
+pnpm catalog:sync
 pnpm test:e2e
 ```
 
 `pnpm dev` starts the server on `http://127.0.0.1:3774` and the web app on Vite's local dev URL. The backend default is `http://127.0.0.1:3773` when run directly.
+
+`pnpm catalog:sync` refreshes the shared Contest Finder catalog for all judges and imports regular Codeforces contest/problem rows. Run it from cron or your scheduler once per day so user-triggered Contest Finder refreshes only update friend participation.
 
 ## Environment
 

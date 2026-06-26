@@ -156,16 +156,8 @@ const attachTeamUser = async (
 const codeforcesResponse = (result: unknown): Response =>
   jsonResponse({ status: "OK", result });
 
-type CodeforcesTestJudge =
-  Omit<CodeforcesSyncOperations, "getRegularContests" | "getRegularProblems"> &
-  Partial<Pick<CodeforcesSyncOperations, "getRegularContests" | "getRegularProblems">>;
+type CodeforcesTestJudge = CodeforcesSyncOperations;
 type TestJudge = CodeforcesTestJudge | QojPlaygroundClient;
-
-const codeforcesTestJudge = (judge: CodeforcesTestJudge): CodeforcesSyncOperations => ({
-  ...judge,
-  getRegularContests: judge.getRegularContests ?? (() => Effect.succeed([])),
-  getRegularProblems: judge.getRegularProblems ?? (() => Effect.succeed([]))
-});
 
 const withTestSync = (
   database: DatabaseService,
@@ -179,12 +171,17 @@ const withTestSync = (
   let syncedJudge: Judge;
   syncedJudge = {
     sync: (input) => provider === "codeforces"
-      ? createCodeforcesJudgeSync(database, input, codeforcesTestJudge(judge as CodeforcesTestJudge))
+      ? createCodeforcesJudgeSync(database, input, judge as CodeforcesTestJudge)
       : createQojJudgeSync(database, input, judge as QojPlaygroundClient),
     findContest: () => Effect.succeed({
       contestsUpserted: 0,
       friendsProcessed: 0
     } satisfies RefreshContestFinderResult),
+    syncContestFinderCatalog: () => Effect.succeed({
+      contestsUpserted: 0,
+      regularContestsImported: 0,
+      regularProblemsImported: 0
+    }),
     refetchContest: () => Effect.void
   };
 
@@ -288,6 +285,11 @@ describe("createJudgeSyncService", () => {
         contestsUpserted: 0,
         friendsProcessed: 0
       }),
+      syncContestFinderCatalog: () => Effect.succeed({
+        contestsUpserted: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0
+      }),
       refetchContest: () => Effect.void
     };
 
@@ -354,6 +356,11 @@ describe("createJudgeSyncService", () => {
       findContest: () => Effect.succeed({
         contestsUpserted: 0,
         friendsProcessed: 0
+      }),
+      syncContestFinderCatalog: () => Effect.succeed({
+        contestsUpserted: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0
       }),
       refetchContest: () => Effect.void
     };
@@ -429,6 +436,11 @@ describe("createJudgeSyncService", () => {
       findContest: () => Effect.succeed({
         contestsUpserted: 0,
         friendsProcessed: 0
+      }),
+      syncContestFinderCatalog: () => Effect.succeed({
+        contestsUpserted: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0
       }),
       refetchContest: () => Effect.void
     };
@@ -648,9 +660,7 @@ describe("createJudgeSyncService", () => {
           problemName: `A. Known ${index}`,
           verdict: SUBMISSION_STATUSES.AC,
           submittedAt: new Date(timestamp.getTime() + index * 1000)
-        }))),
-        getRegularContests: () => Effect.succeed([]),
-        getRegularProblems: () => Effect.succeed([])
+        })))
       };
 
       queryCount = 0;
@@ -664,73 +674,6 @@ describe("createJudgeSyncService", () => {
         }
       });
       expect(queryCount).toBeLessThanOrEqual(12);
-    }, {
-      onQuery: () => {
-        queryCount += 1;
-      }
-    });
-  });
-
-  it("keeps regular catalog import query count bounded by chunks instead of contests", async () => {
-    let queryCount = 0;
-
-    await withDatabase(async (database, appUserId) => {
-      const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      const contestIds = ["566", "567", "570"];
-      const problemIndexes = ["A", "B"] as const;
-      const regularSubmissions = contestIds.flatMap((contestId, contestIndex) =>
-        problemIndexes.map((problemIndex, problemIndexIndex) => ({
-          judgeId: `regular-${contestId}-${problemIndex}`,
-          judgeContestId: contestId,
-          judgeProblemId: `${contestId}${problemIndex}`,
-          problemName: `${problemIndex}. Regular ${contestId}`,
-          verdict: problemIndex === "A" ? SUBMISSION_STATUSES.AC : SUBMISSION_STATUSES.WA,
-          submittedAt: new Date(timestamp.getTime() + (contestIndex * 2 + problemIndexIndex) * 1000)
-        }))
-      );
-      const judge: TestJudge = {
-        getContest: (contestId) => Effect.fail(new Error(`Contest ${contestId} should not be fetched.`)),
-        getSubmissions: () => Effect.succeed(regularSubmissions),
-        getRegularContests: () => Effect.succeed(contestIds.map((contestId, index) => ({
-          judgeId: contestId,
-          name: `Codeforces Round ${contestId} (Div. ${index % 2 === 0 ? 2 : 3})`
-        }))),
-        getRegularProblems: () => Effect.succeed(contestIds.flatMap((contestId, contestIndex) =>
-          problemIndexes.map((problemIndex, problemIndexIndex) => ({
-            judgeId: `${contestId}${problemIndex}`,
-            judgeContestId: contestId,
-            name: `${problemIndex}. Regular ${contestId}`,
-            link: `https://codeforces.com/contest/${contestId}/problem/${problemIndex}`,
-            solves: 100 - contestIndex * 10 - problemIndexIndex,
-            rating: 800 + contestIndex * 100 + problemIndexIndex * 100,
-            tags: [`tag-${contestIndex}`, `problem-${problemIndex.toLowerCase()}`]
-          }))
-        ))
-      };
-
-      queryCount = 0;
-      const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces", appUserId }));
-      const syncQueryCount = queryCount;
-      const contestRows = await database.db.select().from(contests).all();
-      const problemRows = await database.db.select().from(problems).all();
-      const tagRows = await database.db.select().from(problemTags).all();
-
-      expect(events.at(-1)).toMatchObject({
-        type: "completed",
-        summary: {
-          submissionsInserted: 6,
-          submissionsSkipped: 0,
-          contestsSynced: 0,
-          regularContestsImported: 3,
-          regularProblemsImported: 6,
-          regularPendingSubmissionsRetried: 6,
-          errors: 0
-        }
-      });
-      expect(contestRows).toHaveLength(3);
-      expect(problemRows).toHaveLength(6);
-      expect(tagRows).toHaveLength(12);
-      expect(syncQueryCount).toBeLessThanOrEqual(28);
     }, {
       onQuery: () => {
         queryCount += 1;
@@ -1207,7 +1150,7 @@ describe("createJudgeSyncService", () => {
     expect(result.problemRows).toHaveLength(0);
   });
 
-  it("stores Codeforces Contest Finder rows with names from contest.list", async () => {
+  it("stores Codeforces catalog rows and regular contest problems from Codeforces catalogs", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/contest.list") {
@@ -1233,6 +1176,106 @@ describe("createJudgeSyncService", () => {
         ]);
       }
 
+      if (url.pathname === "/api/problemset.problems") {
+        return codeforcesResponse({
+          problems: [
+            {
+              contestId: 566,
+              index: "A",
+              name: "Regular First",
+              rating: 1200,
+              tags: ["dp", "math"]
+            },
+            {
+              contestId: 566,
+              index: "B",
+              name: "Regular Second",
+              tags: ["greedy"]
+            },
+            {
+              contestId: 568,
+              index: "A",
+              name: "Skipped Challenge",
+              rating: 800,
+              tags: ["weird"]
+            }
+          ],
+          problemStatistics: [
+            { contestId: 566, index: "A", solvedCount: 100 },
+            { contestId: 566, index: "B", solvedCount: 25 },
+            { contestId: 568, index: "A", solvedCount: 40 }
+          ]
+        });
+      }
+
+      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await withDatabase(async (database) => {
+      const syncResult = await Effect.runPromise(
+        makeCodeforcesJudge(database).syncContestFinderCatalog().pipe(
+          Effect.provideService(DatabaseServiceTag, database)
+        )
+      );
+
+      return {
+        syncResult,
+        contestRows: await database.db.select().from(contests).all(),
+        problemRows: await database.db.select().from(problems).all(),
+        tagRows: await database.db.select().from(problemTags).all()
+      };
+    });
+
+    expect(result.syncResult).toEqual({
+      contestsUpserted: 2,
+      regularContestsImported: 1,
+      regularProblemsImported: 2
+    });
+    expect(result.contestRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        judgeId: "566",
+        name: "Codeforces Round 566 (Div. 2)",
+        link: "https://codeforces.com/contest/566"
+      }),
+      expect.objectContaining({
+        judgeId: "100566",
+        name: "ICPC Training Camp Invitational"
+      })
+    ]));
+    expect(result.contestRows.map((contest) => contest.judgeId)).not.toContain("568");
+    expect(result.problemRows).toEqual([
+      expect.objectContaining({
+        judgeId: "566A",
+        name: "A. Regular First",
+        link: "https://codeforces.com/contest/566/problem/A",
+        solves: 100,
+        rating: 1200
+      }),
+      expect.objectContaining({
+        judgeId: "566B",
+        name: "B. Regular Second",
+        link: "https://codeforces.com/contest/566/problem/B",
+        solves: 25
+      })
+    ]);
+    const problemIdByJudgeId = new Map(result.problemRows.map((problem) => [problem.judgeId, problem.id]));
+    expect(result.tagRows).toEqual(expect.arrayContaining([
+      { problemId: problemIdByJudgeId.get("566A"), tag: "dp" },
+      { problemId: problemIdByJudgeId.get("566A"), tag: "math" },
+      { problemId: problemIdByJudgeId.get("566B"), tag: "greedy" }
+    ]));
+    expect(fetchMock.mock.calls
+      .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
+      .map((call) => new URL(String(call[0])).searchParams.get("gym"))
+    ).toEqual(["true", null]);
+    expect(fetchMock.mock.calls.filter((call) => new URL(String(call[0])).pathname === "/api/problemset.problems"))
+      .toHaveLength(1);
+  });
+
+  it("refreshes Codeforces friend participations from the cached Contest Finder catalog", async () => {
+    const fetchMock = vi.fn(async (value: unknown) => {
+      const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
         return codeforcesResponse([
           {
@@ -1272,6 +1315,28 @@ describe("createJudgeSyncService", () => {
 
     const result = await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      await database.db.insert(contests).values([
+        {
+          judgeId: "100566",
+          judge: JUDGES.Codeforces,
+          name: "ICPC Training Camp Invitational",
+          link: "https://codeforces.com/gym/100566",
+          participants: null,
+          stars: null,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          judgeId: "566",
+          judge: JUDGES.Codeforces,
+          name: "Codeforces Round 566 (Div. 2)",
+          link: "https://codeforces.com/contest/566",
+          participants: null,
+          stars: null,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]).run();
       const [friend] = await database.db.insert(users).values({
         username: "friend",
         judge: JUDGES.Codeforces,
@@ -1328,7 +1393,7 @@ describe("createJudgeSyncService", () => {
     expect(fetchMock.mock.calls
       .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
       .map((call) => new URL(String(call[0])).searchParams.get("gym"))
-    ).toEqual(["true", null]);
+    ).toEqual([]);
   });
 
   it("does not sync a contest when submissions only cover one unique missing problem", async () => {
@@ -1507,7 +1572,7 @@ describe("createJudgeSyncService", () => {
     });
   });
 
-  it("imports regular Codeforces catalog data after existing Gym sync and retries matching regular pending submissions", async () => {
+  it("syncs regular Codeforces submissions from the daily catalog without catalog requests", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -1529,113 +1594,62 @@ describe("createJudgeSyncService", () => {
         ]);
       }
 
-      if (url.pathname === "/api/contest.list") {
-        expect(url.searchParams.has("gym")).toBe(false);
-        return codeforcesResponse([
-          {
-            id: 566,
-            name: "Codeforces Round 566 (Div. 2)",
-            type: "CF",
-            phase: "FINISHED"
-          },
-          {
-            id: 567,
-            name: "Codeforces Round 567 (Div. 3)",
-            type: "CF",
-            phase: "FINISHED"
-          },
-          {
-            id: 568,
-            name: "Huawei Challenge",
-            type: "CF",
-            phase: "FINISHED"
-          },
-          {
-            id: 569,
-            name: "Codeforces Global Round 1",
-            type: "CF",
-            phase: "FINISHED"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/problemset.problems") {
-        return codeforcesResponse({
-          problems: [
-            {
-              contestId: 566,
-              index: "A",
-              name: "Regular First",
-              rating: 1200,
-              tags: ["dp", "math"]
-            },
-            {
-              contestId: 566,
-              index: "B",
-              name: "Regular Second",
-              tags: ["greedy"]
-            },
-            {
-              contestId: 567,
-              index: "A",
-              name: "Other Contest",
-              rating: 900,
-              tags: ["implementation"]
-            },
-            {
-              contestId: 568,
-              index: "A",
-              name: "Skipped Challenge",
-              rating: 800,
-              tags: ["weird"]
-            },
-            {
-              contestId: 569,
-              index: "A",
-              name: "Skipped Global",
-              rating: 1000,
-              tags: ["weird"]
-            }
-          ],
-          problemStatistics: [
-            { contestId: 566, index: "A", solvedCount: 100 },
-            { contestId: 566, index: "B", solvedCount: 25 },
-            { contestId: 567, index: "A", solvedCount: 50 },
-            { contestId: 568, index: "A", solvedCount: 40 },
-            { contestId: 569, index: "A", solvedCount: 30 }
-          ]
-        });
-      }
-
-      if (url.pathname === "/api/contest.standings") {
-        throw new Error("Regular Codeforces contests must not call contest.standings.");
-      }
-
       throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     await withDatabase(async (database, appUserId) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      await database.db.insert(contests).values({
+        judgeId: "566",
+        judge: JUDGES.Codeforces,
+        name: "Codeforces Round 566 (Div. 2)",
+        link: "https://codeforces.com/contest/566",
+        participants: null,
+        stars: 4,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
+      const contest = await database.db.select().from(contests).get();
+      if (contest === undefined) {
+        throw new Error("Expected seeded contest.");
+      }
+      await database.db.insert(problems).values([
+        {
+          judgeId: "566A",
+          judge: JUDGES.Codeforces,
+          name: "A. Regular First",
+          link: "https://codeforces.com/contest/566/problem/A",
+          contestId: contest.id,
+          solves: 100,
+          solvePercentage: 100,
+          rating: 1200,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          judgeId: "566B",
+          judge: JUDGES.Codeforces,
+          name: "B. Regular Second",
+          link: "https://codeforces.com/contest/566/problem/B",
+          contestId: contest.id,
+          solves: 25,
+          solvePercentage: 25,
+          rating: 1100,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]).run();
+
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
       const contestRows = await database.db.select().from(contests).all();
       const problemRows = await database.db.select().from(problems).all();
       const submissionRows = await database.db.select().from(submissions).all();
-      const tagRows = await database.db.select().from(problemTags).all();
 
-      expect(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.Contests)))
-        .toBeLessThan(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.RegularCatalog)));
-      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
-        stepStatus: SyncStepStatus.Running,
-        current: "2 contests",
-        processed: 1,
-        total: 2
-      }));
-      expect(events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
-        stepStatus: SyncStepStatus.Completed,
-        current: "2 problems",
-        processed: 2,
-        total: 2
+      expect(events).not.toContainEqual(expect.objectContaining({
+        type: JudgeSyncEventType.Step,
+        step: JudgeSyncStep.RegularCatalog
       }));
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -1643,9 +1657,9 @@ describe("createJudgeSyncService", () => {
           submissionsInserted: 2,
           submissionsSkipped: 0,
           contestsSynced: 0,
-          regularContestsImported: 1,
-          regularProblemsImported: 2,
-          regularPendingSubmissionsRetried: 2,
+          regularContestsImported: 0,
+          regularProblemsImported: 0,
+          regularPendingSubmissionsRetried: 0,
           errors: 0
         }
       });
@@ -1676,20 +1690,18 @@ describe("createJudgeSyncService", () => {
           judgeId: "566B",
           name: "B. Regular Second",
           solves: 25,
-          solvePercentage: 25
+          solvePercentage: 25,
+          rating: 1100
         })
       ]);
       expect(submissionRows).toHaveLength(2);
-      expect(tagRows.map((row) => row.tag).sort()).toEqual(["dp", "greedy", "math"]);
       expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
-        "/api/user.status",
-        "/api/contest.list",
-        "/api/problemset.problems"
+        "/api/user.status"
       ]);
     });
   });
 
-  it("does not retry regular pending submissions when their contest was not imported", async () => {
+  it("does not request regular Codeforces catalogs for missing regular submissions", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -1711,176 +1723,7 @@ describe("createJudgeSyncService", () => {
         ]);
       }
 
-      if (url.pathname === "/api/contest.list") {
-        return codeforcesResponse([
-          {
-            id: 566,
-            name: "Codeforces Round 566 (Div. 2)",
-            type: "CF",
-            phase: "FINISHED"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/problemset.problems") {
-        return codeforcesResponse({
-          problems: [
-            {
-              contestId: 566,
-              index: "A",
-              name: "Regular First",
-              tags: []
-            }
-          ],
-          problemStatistics: [
-            { contestId: 566, index: "A", solvedCount: 100 }
-          ]
-        });
-      }
-
-      if (url.pathname === "/api/contest.standings") {
-        throw new Error("Regular Codeforces contests must not call contest.standings.");
-      }
-
       throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await withDatabase(async (database, appUserId) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
-      return {
-        events,
-        submissions: await database.db.select().from(submissions).all(),
-        contests: await database.db.select().from(contests).all(),
-        problems: await database.db.select().from(problems).all()
-      };
-    });
-
-    expect(result.events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
-      stepStatus: SyncStepStatus.Completed,
-      current: "0 problems",
-      processed: 2,
-      total: 2
-    }));
-    expect(result.events.at(-1)).toMatchObject({
-      type: "completed",
-      summary: {
-        submissionsInserted: 0,
-        submissionsSkipped: 2,
-        regularPendingSubmissionsRetried: 0,
-        errors: 0
-      }
-    });
-    expect(result.submissions).toHaveLength(0);
-    expect(result.contests).toHaveLength(0);
-    expect(result.problems).toHaveLength(0);
-  });
-
-  it("imports regular Codeforces contests from one accepted pending problem", async () => {
-    const fetchMock = vi.fn(async (value: unknown) => {
-      const url = new URL(String(value));
-      if (url.pathname === "/api/user.status") {
-        return codeforcesResponse([
-          {
-            id: 49644212,
-            contestId: 566,
-            creationTimeSeconds: 1450000000,
-            problem: { contestId: 566, index: "A", name: "Regular First" },
-            verdict: "OK"
-          },
-          {
-            id: 49644213,
-            contestId: 566,
-            creationTimeSeconds: 1450000300,
-            problem: { contestId: 566, index: "A", name: "Regular First" },
-            verdict: "WRONG_ANSWER"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/contest.list") {
-        return codeforcesResponse([
-          {
-            id: 566,
-            name: "Codeforces Round 566 (Div. 2)",
-            type: "CF",
-            phase: "FINISHED"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/problemset.problems") {
-        return codeforcesResponse({
-          problems: [
-            {
-              contestId: 566,
-              index: "A",
-              name: "Regular First",
-              rating: 1200,
-              tags: ["implementation"]
-            }
-          ],
-          problemStatistics: [
-            { contestId: 566, index: "A", solvedCount: 100 }
-          ]
-        });
-      }
-
-      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await withDatabase(async (database, appUserId) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
-      return {
-        events,
-        submissions: await database.db.select().from(submissions).all(),
-        contests: await database.db.select().from(contests).all(),
-        problems: await database.db.select().from(problems).all()
-      };
-    });
-
-    expect(result.events).toContainEqual(expectStepEvent(JudgeSyncStep.RegularCatalog, {
-      stepStatus: SyncStepStatus.Completed,
-      current: "1 problems",
-      processed: 2,
-      total: 2
-    }));
-    expect(result.events.at(-1)).toMatchObject({
-      type: "completed",
-      summary: {
-        submissionsInserted: 2,
-        submissionsSkipped: 0,
-        regularContestsImported: 1,
-        regularPendingSubmissionsRetried: 2,
-        errors: 0
-      }
-    });
-    expect(result.submissions).toHaveLength(2);
-    expect(result.contests).toEqual([
-      expect.objectContaining({ judgeId: "566" })
-    ]);
-    expect(result.problems).toEqual([
-      expect.objectContaining({ judgeId: "566A", rating: 1200 })
-    ]);
-  });
-
-  it("does not import regular Codeforces contests from one non-accepted pending problem", async () => {
-    const fetchMock = vi.fn(async (value: unknown) => {
-      const url = new URL(String(value));
-      if (url.pathname === "/api/user.status") {
-        return codeforcesResponse([
-          {
-            id: 49644213,
-            contestId: 566,
-            creationTimeSeconds: 1450000300,
-            problem: { contestId: 566, index: "A", name: "Regular First" },
-            verdict: "WRONG_ANSWER"
-          }
-        ]);
-      }
-
-      throw new Error("Regular catalog should not be requested for one non-accepted pending problem.");
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1902,8 +1745,7 @@ describe("createJudgeSyncService", () => {
       type: "completed",
       summary: {
         submissionsInserted: 0,
-        submissionsSkipped: 1,
-        regularContestsImported: 0,
+        submissionsSkipped: 2,
         regularPendingSubmissionsRetried: 0,
         errors: 0
       }
@@ -1911,86 +1753,8 @@ describe("createJudgeSyncService", () => {
     expect(result.submissions).toHaveLength(0);
     expect(result.contests).toHaveLength(0);
     expect(result.problems).toHaveLength(0);
-  });
-
-  it("does not error when a regular pending problem is missing from an imported catalog contest", async () => {
-    const fetchMock = vi.fn(async (value: unknown) => {
-      const url = new URL(String(value));
-      if (url.pathname === "/api/user.status") {
-        return codeforcesResponse([
-          {
-            id: 243987789,
-            contestId: 569,
-            creationTimeSeconds: 1450000000,
-            problem: { contestId: 569, index: "E", name: "Missing From Problemset" },
-            verdict: "OK"
-          },
-          {
-            id: 243987790,
-            contestId: 569,
-            creationTimeSeconds: 1450000300,
-            problem: { contestId: 569, index: "F", name: "Also Missing From Problemset" },
-            verdict: "WRONG_ANSWER"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/contest.list") {
-        return codeforcesResponse([
-          {
-            id: 569,
-            name: "Codeforces Round 569 (Div. 2)",
-            type: "CF",
-            phase: "FINISHED"
-          }
-        ]);
-      }
-
-      if (url.pathname === "/api/problemset.problems") {
-        return codeforcesResponse({
-          problems: [
-            {
-              contestId: 569,
-              index: "A",
-              name: "Catalog First",
-              tags: []
-            }
-          ],
-          problemStatistics: [
-            { contestId: 569, index: "A", solvedCount: 100 }
-          ]
-        });
-      }
-
-      throw new Error(`Unexpected Codeforces API path: ${url.pathname}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await withDatabase(async (database, appUserId) => {
-      const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
-      return {
-        events,
-        submissions: await database.db.select().from(submissions).all(),
-        problems: await database.db.select().from(problems).all()
-      };
-    });
-
-    expect(result.events).not.toContainEqual(expect.objectContaining({
-      type: "error",
-      judgeId: "243987789"
-    }));
-    expect(result.events.at(-1)).toMatchObject({
-      type: "completed",
-      summary: {
-        submissionsInserted: 0,
-        submissionsSkipped: 2,
-        regularPendingSubmissionsRetried: 0,
-        errors: 0
-      }
-    });
-    expect(result.submissions).toHaveLength(0);
-    expect(result.problems).toEqual([
-      expect.objectContaining({ judgeId: "569A" })
+    expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).pathname)).toEqual([
+      "/api/user.status"
     ]);
   });
 

@@ -100,6 +100,12 @@ export interface RefreshContestFinderResult {
   readonly friendsProcessed: number;
 }
 
+export interface SyncContestFinderCatalogResult {
+  readonly contestsUpserted: number;
+  readonly regularContestsImported: number;
+  readonly regularProblemsImported: number;
+}
+
 export type JudgeEffectContext = DatabaseServiceTag | AppUserIdTag;
 
 export type JudgeAuthenticationInput =
@@ -124,6 +130,8 @@ export interface Judge {
   readonly findContest: (
     input: RefreshContestFinderInput,
   ) => Effect.Effect<RefreshContestFinderResult, JudgeError, JudgeEffectContext>;
+  readonly syncContestFinderCatalog: (
+  ) => Effect.Effect<SyncContestFinderCatalogResult, JudgeError | SyncOperationError, DatabaseServiceTag>;
   readonly refetchContest: (
     input: RefetchContestInput,
   ) => Effect.Effect<void, JudgeError | SyncOperationError, JudgeEffectContext>;

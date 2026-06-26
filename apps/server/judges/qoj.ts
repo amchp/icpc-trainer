@@ -152,6 +152,54 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
     });
 };
 
+const createPublicQojRequester = (baseUrl = QOJ_BASE_URL) => {
+  let requestChain: Promise<void> = Promise.resolve();
+  let nextAvailableAt = 0;
+
+  return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError> =>
+    Effect.tryPromise({
+      try: () => {
+        const run = async (): Promise<string> => {
+          for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt += 1) {
+            const waitMs = Math.max(0, nextAvailableAt - Date.now());
+            if (waitMs > 0) {
+              await delay(waitMs);
+            }
+
+            nextAvailableAt = Date.now() + OUTBOUND_INTERVAL_MS;
+
+            try {
+              return await fetchQojText(buildUrl(path, params, baseUrl), undefined);
+            } catch (error) {
+              const normalizedError = toQojRequestError(error);
+
+              if (attempt + 1 < MAX_RETRY_ATTEMPTS && shouldRetryQojError(normalizedError)) {
+                nextAvailableAt = Math.max(
+                  nextAvailableAt,
+                  Date.now() + OUTBOUND_INTERVAL_MS * (attempt + 1)
+                );
+                continue;
+              }
+
+              throw normalizedError;
+            }
+          }
+
+          throw new QojRequestError("QOJ request failed after retries.", JUDGE_REQUEST_ERROR_KINDS.Api, true);
+        };
+
+        const scheduled = requestChain.then(run, run);
+        requestChain = scheduled.then(
+          () => undefined,
+          () => undefined
+        );
+
+        return scheduled;
+      },
+      catch: (error) => toJudgeRequestError(toQojRequestError(error))
+    });
+};
+
 const fetchQojText = async (
   url: string,
   cookieJar: string | undefined
@@ -621,6 +669,7 @@ const validateQojAuthentication = (
 
 export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL) => {
   const requestQoj = createQojRequester(baseUrl);
+  const requestPublicQoj = createPublicQojRequester(baseUrl);
   const requestProfile = (
     options?: GetContestsOptions | GetSubmissionsOptions
   ): Effect.Effect<string, JudgeError, DatabaseServiceTag | AppUserIdTag> =>
@@ -643,12 +692,16 @@ export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL) => {
 
       return yield* requestQoj(`/user/profile/${encodeURIComponent(handle)}`);
     });
+  const getContestCatalog = (): Effect.Effect<ReadonlyArray<JudgePreviewContest>, JudgeError> =>
+    requestPublicQoj("/contests").pipe(Effect.map(parseContestCatalogList));
 
   return {
+    getContestCatalog,
+
     getContests: (options?: GetContestsOptions) =>
       options?.userHandle !== undefined && options.userHandle.trim() !== ""
         ? requestProfile(options).pipe(Effect.map(parseProfileContestList))
-        : requestQoj("/contests").pipe(Effect.map(parseContestCatalogList)),
+        : getContestCatalog(),
 
     getContest: (contestId: string) => {
       const normalizedContestId = normalizeContestId(contestId);
@@ -719,13 +772,34 @@ export const makeQojCredentialValidator = (baseUrl = QOJ_BASE_URL): JudgeCredent
   validateAuthentication: (input) => validateQojAuthentication(input, baseUrl)
 });
 
+export const syncQojContestFinderCatalog = (
+  database: DatabaseService,
+  client: QojPlaygroundClient
+): ReturnType<Judge["syncContestFinderCatalog"]> => Effect.gen(function* () {
+  const catalog = (yield* client.getContestCatalog()).map(withQojContestLink);
+  const contestsUpserted = yield* upsertContestFinderCatalog(
+    database,
+    "qoj",
+    JUDGES.Qoj,
+    catalog
+  ).pipe(
+    Effect.mapError((error) => new JudgeAPIError({ judgeId: "qoj", cause: error }))
+  );
+
+  return {
+    contestsUpserted,
+    regularContestsImported: 0,
+    regularProblemsImported: 0
+  };
+});
+
 export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL): Judge => {
   const client = makeQojPlaygroundClient(baseUrl);
 
   return {
     findContest: (input) => Effect.gen(function* () {
       const emit = input.emit ?? (() => Effect.void);
-      const stepsTotal = input.friends.length + 1;
+      const stepsTotal = input.friends.length;
       let stepsDone = 0;
 
       yield* emit({
@@ -734,31 +808,7 @@ export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL):
         stepsTotal,
         stepsLeft: stepsTotal
       });
-      yield* emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSyncing,
-        provider: "qoj",
-        step: CONTEST_FINDER_REFRESH_STEPS.Catalog,
-        stepsTotal,
-        stepsLeft: stepsTotal - stepsDone
-      });
-      const catalog = (yield* client.getContests()).map(withQojContestLink);
-      const contestsUpserted = yield* upsertContestFinderCatalog(
-        database,
-        "qoj",
-        JUDGES.Qoj,
-        catalog
-      ).pipe(
-        Effect.mapError((error) => new JudgeAPIError({ judgeId: "qoj", cause: error }))
-      );
-      stepsDone += 1;
-      yield* emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSynced,
-        provider: "qoj",
-        step: CONTEST_FINDER_REFRESH_STEPS.Catalog,
-        contestsUpserted,
-        stepsTotal,
-        stepsLeft: stepsTotal - stepsDone
-      });
+      const contestsUpserted = 0;
       let friendsProcessed = 0;
 
       yield* emit({
@@ -809,6 +859,8 @@ export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL):
         friendsProcessed
       };
     }),
+
+    syncContestFinderCatalog: () => syncQojContestFinderCatalog(database, client),
 
     refetchContest: (input) =>
       syncQojContest(database, input.provider, client, input.contestJudgeId).pipe(

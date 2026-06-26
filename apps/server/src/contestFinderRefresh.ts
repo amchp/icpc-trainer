@@ -119,7 +119,7 @@ export const createContestFinderRefreshService = (
     let latestEvent: ContestFinderRefreshEvent | undefined;
     const judge = registry[provider];
     const friends = await friendsForProvider(database, appUserId, judgeFromProvider(provider));
-    const emptyStepsTotal = friends.length + 1;
+    const emptyStepsTotal = friends.length;
     const emit = (event: ContestFinderRefreshEvent): void => {
       latestEvent = event;
       publish(event);

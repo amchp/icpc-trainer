@@ -3,17 +3,14 @@ import {
   type AppScopedJudgeSyncInput,
   type JudgeSyncEvent,
   type JudgeSyncInput,
-  JudgeSyncStep,
-  SyncStepStatus
+  JudgeSyncStep
 } from "@icpc-trainer/api";
 import { type DatabaseService, type DatabaseServiceTag } from "@icpc-trainer/db";
-import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
+import { JUDGES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type {
   JudgeContest,
-  JudgeRegularCatalogContest,
-  JudgeRegularCatalogProblem,
   JudgeSubmission
 } from "../judges.js";
 import {
@@ -41,10 +38,8 @@ import {
 import {
   createSyncStepProgress,
   startedEvent,
-  syncStepEvent,
   type EmitSyncEvent
 } from "./progress.js";
-import { upsertCodeforcesRegularCatalog } from "./codeforcesRegularCatalog.js";
 
 const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
@@ -56,8 +51,6 @@ export interface CodeforcesSyncOperations {
   readonly getSubmissions: (
     options?: { readonly userHandle: string }
   ) => Effect.Effect<ReadonlyArray<JudgeSubmission>, unknown, DatabaseServiceTag | AppUserIdTag>;
-  readonly getRegularContests: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogContest>, unknown, DatabaseServiceTag | AppUserIdTag>;
-  readonly getRegularProblems: () => Effect.Effect<ReadonlyArray<JudgeRegularCatalogProblem>, unknown, DatabaseServiceTag | AppUserIdTag>;
 }
 
 const isGymContestJudgeId = (contestJudgeId: string): boolean => {
@@ -66,14 +59,6 @@ const isGymContestJudgeId = (contestJudgeId: string): boolean => {
     contestId >= CODEFORCES_GYM_CONTEST_ID_MIN &&
     contestId <= CODEFORCES_GYM_CONTEST_ID_MAX;
 };
-
-const hasAcceptedPendingSubmission = (
-  pendingSubmissionsByContest: ReadonlyMap<string, readonly PendingSubmission[]>,
-  contestJudgeId: string
-): boolean =>
-  (pendingSubmissionsByContest.get(contestJudgeId) ?? []).some(
-    (pending) => pending.submission.verdict === SUBMISSION_STATUSES.AC
-  );
 
 const pendingContestParticipations = (
   contestJudgeId: string,
@@ -120,13 +105,6 @@ const codeforcesContestLink = (contestJudgeId: string): string =>
     : `${CODEFORCES_REGULAR_CONTEST_URL}/${encodeURIComponent(contestJudgeId)}`;
 
 const withCodeforcesContestLink = (contest: JudgeContest): JudgeContest => ({
-  ...contest,
-  link: contest.link ?? codeforcesContestLink(contest.judgeId)
-});
-
-const withCodeforcesRegularContestLink = (
-  contest: JudgeRegularCatalogContest
-): JudgeRegularCatalogContest => ({
   ...contest,
   link: contest.link ?? codeforcesContestLink(contest.judgeId)
 });
@@ -314,159 +292,7 @@ const runCodeforcesSyncProgram = (
       yield* contestProgress.completeCurrent(contestJudgeId);
     }
 
-    const regularContestIds = [...missingProblemIdsByContest.entries()]
-      .filter(([contestJudgeId]) => !isGymContestJudgeId(contestJudgeId))
-      .filter(([contestJudgeId, problemIds]) =>
-        problemIds.size >= 2 || hasAcceptedPendingSubmission(pendingSubmissionsByContest, contestJudgeId)
-      )
-      .map(([contestJudgeId]) => contestJudgeId);
-    const regularContestIdSet = new Set(regularContestIds);
-
-    if (syncUsers.length === 0 || regularContestIds.length === 0) {
-      yield* emit(finalEvent(provider, contestProgress.stepsTotal, summary));
-      return;
-    }
-
-    let completedRegularSteps = 0;
-    const regularStepsTotal = 2;
-    const regularStepsLeft = (): number => Math.max(regularStepsTotal - completedRegularSteps, 0);
-    yield* emit(syncStepEvent(
-      provider,
-      JudgeSyncStep.RegularCatalog,
-      SyncStepStatus.Running,
-      { processed: 0, total: 2, current: "contests", stepsTotal: regularStepsTotal, stepsLeft: regularStepsLeft() }
-    ));
-
-    const regularContestCatalogResult = yield* Effect.either(
-      runJudgeOperation(
-        database,
-        {
-          provider,
-          phase: SYNC_OPERATION_PHASES.RegularCatalog,
-          step: JudgeSyncStep.RegularCatalog,
-          action: "regular contest list"
-        },
-        operations.getRegularContests()
-      )
-    );
-
-    if (regularContestCatalogResult._tag === "Left") {
-      summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularContestCatalogResult.left, regularStepsTotal, regularStepsLeft()));
-      yield* emit(finalEvent(provider, regularStepsTotal, summary));
-      return;
-    }
-
-    const regularContestCatalog = regularContestCatalogResult.right;
-    completedRegularSteps += 1;
-    yield* emit(syncStepEvent(
-      provider,
-      JudgeSyncStep.RegularCatalog,
-      SyncStepStatus.Running,
-      {
-        processed: 1,
-        total: 2,
-        current: `${regularContestCatalog.length} contests`,
-        stepsTotal: regularStepsTotal,
-        stepsLeft: regularStepsLeft()
-      }
-    ));
-    yield* emit(syncStepEvent(
-      provider,
-      JudgeSyncStep.RegularCatalog,
-      SyncStepStatus.Running,
-      { processed: 1, total: 2, current: "problems", stepsTotal: regularStepsTotal, stepsLeft: regularStepsLeft() }
-    ));
-
-    const regularProblemCatalogResult = yield* Effect.either(
-      runJudgeOperation(
-        database,
-        {
-          provider,
-          phase: SYNC_OPERATION_PHASES.RegularCatalog,
-          step: JudgeSyncStep.RegularCatalog,
-          action: "regular problem catalog"
-        },
-        operations.getRegularProblems()
-      )
-    );
-
-    if (regularProblemCatalogResult._tag === "Left") {
-      summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularProblemCatalogResult.left, regularStepsTotal, regularStepsLeft()));
-      yield* emit(finalEvent(provider, regularStepsTotal, summary));
-      return;
-    }
-
-    const regularImportResult = yield* Effect.either(
-      upsertCodeforcesRegularCatalog(
-        database,
-        provider,
-        regularContestIdSet,
-        regularContestCatalog.map(withCodeforcesRegularContestLink),
-        regularProblemCatalogResult.right
-      )
-    );
-    completedRegularSteps += 1;
-
-    if (regularImportResult._tag === "Left") {
-      summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(regularImportResult.left, regularStepsTotal, regularStepsLeft()));
-      yield* emit(finalEvent(provider, regularStepsTotal, summary));
-      return;
-    }
-
-    summary.regularContestsImported += regularImportResult.right.contestsImported;
-    summary.regularProblemsImported += regularImportResult.right.problemsImported;
-
-    const regularParticipationEntries: ExistingContestParticipationInput[] = [];
-    const regularPendingSubmissions: PendingSubmission[] = [];
-
-    for (const contestJudgeId of regularImportResult.right.importedContestIds) {
-      const pendingSubmissions = pendingSubmissionsByContest.get(contestJudgeId) ?? [];
-      pendingSubmissionsByContest.delete(contestJudgeId);
-      regularParticipationEntries.push(...pendingContestParticipations(contestJudgeId, pendingSubmissions));
-      regularPendingSubmissions.push(...pendingSubmissions);
-    }
-
-    const participationResult = yield* Effect.either(upsertExistingContestParticipations(
-      database,
-      provider,
-      judgeId,
-      regularParticipationEntries
-    ));
-    if (participationResult._tag === "Left") {
-      summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(participationResult.left, regularStepsTotal, regularStepsLeft()));
-    }
-
-    const retryResult = yield* Effect.either(
-      retryPendingSubmissions(database, provider, judgeId, regularPendingSubmissions)
-    );
-    if (retryResult._tag === "Left") {
-      summary.errors += 1;
-      yield* emit(syncOperationErrorEvent(retryResult.left, regularStepsTotal, regularStepsLeft()));
-    } else {
-      summary.regularPendingSubmissionsRetried += retryResult.right.processed;
-      summary.submissionsInserted += retryResult.right.inserted;
-      summary.submissionsUpdated += retryResult.right.updated;
-      summary.submissionsSkipped = Math.max(summary.submissionsSkipped - retryResult.right.processed, 0);
-    }
-
-    yield* emit(syncStepEvent(
-      provider,
-      JudgeSyncStep.RegularCatalog,
-      SyncStepStatus.Completed,
-      {
-        processed: 2,
-        total: 2,
-        current: `${regularImportResult.right.problemsImported} problems`,
-        stepsTotal: regularStepsTotal,
-        stepsLeft: regularStepsLeft()
-      }
-    ));
-
-    yield* emit(finalEvent(provider, regularStepsTotal, summary));
+    yield* emit(finalEvent(provider, contestProgress.stepsTotal, summary));
   });
 
 export async function* createCodeforcesJudgeSync(
