@@ -11,6 +11,7 @@ import { JUDGES, SUBMISSION_STATUSES, USER_TYPES, type JudgeProvider } from "@ic
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { Buffer } from "node:buffer";
+import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";

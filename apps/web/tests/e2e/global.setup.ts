@@ -3,6 +3,7 @@ import { clerk, clerkSetup } from "@clerk/testing/playwright";
 import { expect, test as setup } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import process from "node:process";
 
 const authStatePath = "playwright/.clerk/user.json";
 

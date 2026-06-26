@@ -28,10 +28,9 @@ import {
   type SyncOperationError
 } from "./events.js";
 import {
-  findProblem,
   getSyncUsers,
   retryPendingSubmission,
-  submissionContext,
+  retryPendingSubmissions,
   syncUserSubmissions,
   upsertFetchedContest,
   type PendingSubmission
@@ -412,50 +411,38 @@ const runCodeforcesSyncProgram = (
     summary.regularContestsImported += regularImportResult.right.contestsImported;
     summary.regularProblemsImported += regularImportResult.right.problemsImported;
 
+    const regularParticipationEntries: ExistingContestParticipationInput[] = [];
+    const regularPendingSubmissions: PendingSubmission[] = [];
+
     for (const contestJudgeId of regularImportResult.right.importedContestIds) {
       const pendingSubmissions = pendingSubmissionsByContest.get(contestJudgeId) ?? [];
       pendingSubmissionsByContest.delete(contestJudgeId);
-      const participationResult = yield* Effect.either(upsertExistingContestParticipations(
-        database,
-        provider,
-        judgeId,
-        pendingContestParticipations(contestJudgeId, pendingSubmissions)
-      ));
-      if (participationResult._tag === "Left") {
-        summary.errors += 1;
-        yield* emit(syncOperationErrorEvent(participationResult.left, regularStepsTotal, regularStepsLeft()));
-      }
+      regularParticipationEntries.push(...pendingContestParticipations(contestJudgeId, pendingSubmissions));
+      regularPendingSubmissions.push(...pendingSubmissions);
+    }
 
-      for (const pending of pendingSubmissions) {
-        const problemResult = yield* Effect.either(
-          findProblem(
-            database,
-            judgeId,
-            pending.submission.judgeProblemId,
-            submissionContext(provider, pending.user, pending.submission)
-          )
-        );
-        if (problemResult._tag === "Left") {
-          summary.errors += 1;
-          yield* emit(syncOperationErrorEvent(problemResult.left, regularStepsTotal, regularStepsLeft()));
-          continue;
-        }
+    const participationResult = yield* Effect.either(upsertExistingContestParticipations(
+      database,
+      provider,
+      judgeId,
+      regularParticipationEntries
+    ));
+    if (participationResult._tag === "Left") {
+      summary.errors += 1;
+      yield* emit(syncOperationErrorEvent(participationResult.left, regularStepsTotal, regularStepsLeft()));
+    }
 
-        if (problemResult.right === undefined) {
-          continue;
-        }
-
-        const retryResult = yield* Effect.either(retryPendingSubmission(database, provider, judgeId, pending));
-        if (retryResult._tag === "Left") {
-          summary.errors += 1;
-          yield* emit(syncOperationErrorEvent(retryResult.left, regularStepsTotal, regularStepsLeft()));
-        } else {
-          summary.regularPendingSubmissionsRetried += 1;
-          summary.submissionsInserted += retryResult.right.inserted;
-          summary.submissionsUpdated += retryResult.right.updated;
-          summary.submissionsSkipped = Math.max(summary.submissionsSkipped - 1, 0);
-        }
-      }
+    const retryResult = yield* Effect.either(
+      retryPendingSubmissions(database, provider, judgeId, regularPendingSubmissions)
+    );
+    if (retryResult._tag === "Left") {
+      summary.errors += 1;
+      yield* emit(syncOperationErrorEvent(retryResult.left, regularStepsTotal, regularStepsLeft()));
+    } else {
+      summary.regularPendingSubmissionsRetried += retryResult.right.processed;
+      summary.submissionsInserted += retryResult.right.inserted;
+      summary.submissionsUpdated += retryResult.right.updated;
+      summary.submissionsSkipped = Math.max(summary.submissionsSkipped - retryResult.right.processed, 0);
     }
 
     yield* emit(syncStepEvent(

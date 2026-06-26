@@ -4,7 +4,7 @@ import {
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, count, countDistinct, eq, max, sum } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, max, sum } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { JudgeContest, JudgeSubmission } from "../judges.js";
@@ -16,6 +16,7 @@ import {
 } from "./events.js";
 
 const { appUserJudgeUsers, contests, problems, submissions, userContestStates, users } = schema;
+const SQLITE_BINDING_CHUNK_SIZE = 500;
 
 export type SyncUser = typeof users.$inferSelect;
 type ProblemRow = typeof problems.$inferSelect;
@@ -38,6 +39,10 @@ export interface UserSubmissionSyncResult {
   readonly skipped: number;
   readonly missingProblems: number;
   readonly pendingSubmissions: ReadonlyArray<PendingSubmission>;
+}
+
+export interface PendingSubmissionRetryResult extends UpsertSubmissionResult {
+  readonly processed: number;
 }
 
 const now = (): Date => new Date();
@@ -88,6 +93,45 @@ export const findProblem = (
       .get()
   );
 
+const chunks = <T>(values: ReadonlyArray<T>, size: number): T[][] => {
+  const result: T[][] = [];
+
+  for (let index = 0; index < values.length; index += size) {
+    result.push([...values.slice(index, index + size)]);
+  }
+
+  return result;
+};
+
+export const findProblemsByJudgeId = (
+  database: DatabaseService,
+  judge: JUDGES,
+  judgeProblemIds: ReadonlyArray<string>,
+  context: SyncOperationContext
+): Effect.Effect<ReadonlyMap<string, ProblemRow>, SyncOperationError> =>
+  syncEffect(context, async () => {
+    const uniqueProblemIds = [...new Set(judgeProblemIds)];
+    const rowsByJudgeId = new Map<string, ProblemRow>();
+
+    for (const problemIdChunk of chunks(uniqueProblemIds, SQLITE_BINDING_CHUNK_SIZE)) {
+      if (problemIdChunk.length === 0) {
+        continue;
+      }
+
+      const rows = await database.db
+        .select()
+        .from(problems)
+        .where(and(eq(problems.judge, judge), inArray(problems.judgeId, problemIdChunk)))
+        .all();
+
+      for (const row of rows) {
+        rowsByJudgeId.set(row.judgeId, row);
+      }
+    }
+
+    return rowsByJudgeId;
+  });
+
 interface ExistingSubmissionRow {
   readonly judgeId: string;
   readonly problemId: number;
@@ -134,6 +178,7 @@ export const insertSubmission = (
   const timestamp = now();
   const existing = await database.db
     .select({
+      judgeId: submissions.judgeId,
       problemId: submissions.problemId,
       userId: submissions.userId,
       status: submissions.status,
@@ -147,6 +192,18 @@ export const insertSubmission = (
     ))
     .get();
 
+  return await upsertSubmissionRow(database, judge, user, submission, problem, existing, timestamp);
+});
+
+const upsertSubmissionRow = async (
+  database: DatabaseService,
+  judge: JUDGES,
+  user: SyncUser,
+  submission: JudgeSubmission,
+  problem: ProblemRow,
+  existing: ExistingSubmissionRow | undefined,
+  timestamp: Date
+): Promise<UpsertSubmissionResult> => {
   if (
     existing !== undefined &&
     existing.problemId === problem.id &&
@@ -183,7 +240,20 @@ export const insertSubmission = (
   return existing === undefined
     ? { inserted: 1, updated: 0, skipped: 0 }
     : { inserted: 0, updated: 1, skipped: 0 };
-});
+};
+
+const insertSubmissionWithExisting = (
+  database: DatabaseService,
+  judge: JUDGES,
+  user: SyncUser,
+  submission: JudgeSubmission,
+  problem: ProblemRow,
+  existing: ExistingSubmissionRow | undefined,
+  context: SyncOperationContext
+): Effect.Effect<UpsertSubmissionResult, SyncOperationError> =>
+  syncEffect(context, () =>
+    upsertSubmissionRow(database, judge, user, submission, problem, existing, now())
+  );
 
 export const refreshUserContestStateFromSubmissions = (
   database: DatabaseService,
@@ -368,33 +438,64 @@ export const submissionContext = (
   contestJudgeId: submission.judgeContestId
 });
 
-export const syncUserSubmissions = (
+const userSubmissionBatchContext = (
+  provider: JudgeSyncInput["provider"],
+  user: SyncUser
+): SyncOperationContext => ({
+  provider,
+  phase: SYNC_OPERATION_PHASES.Database,
+  action: `known problems for user ${user.username}`,
+  userHandle: user.username
+});
+
+const userContestStateContext = (
+  provider: JudgeSyncInput["provider"],
+  user: SyncUser,
+  contestId: number
+): SyncOperationContext => ({
+  provider,
+  phase: SYNC_OPERATION_PHASES.Database,
+  action: `contest state ${contestId} for user ${user.username}`,
+  userHandle: user.username
+});
+
+const syncUserSubmissionRows = (
   database: DatabaseService,
   provider: JudgeSyncInput["provider"],
   judge: JUDGES,
   user: SyncUser,
   options: {
-    readonly queueMissingSubmissions: boolean;
     readonly userSubmissions: ReadonlyArray<JudgeSubmission>;
+    readonly queueMissingSubmissions: boolean;
+    readonly countMissingAsSkipped: boolean;
   }
 ): Effect.Effect<UserSubmissionSyncResult, SyncOperationError> =>
   Effect.gen(function* () {
     const userSubmissions = options.userSubmissions;
-    const existingSubmissions = yield* existingSubmissionsByJudgeId(database, judge, user, provider);
+    const existingSubmissions = new Map(yield* existingSubmissionsByJudgeId(database, judge, user, provider));
+    const problemRows = yield* findProblemsByJudgeId(
+      database,
+      judge,
+      userSubmissions.map((submission) => submission.judgeProblemId),
+      userSubmissionBatchContext(provider, user)
+    );
 
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
     const missingProblems = new Set<string>();
     const pendingSubmissions: PendingSubmission[] = [];
+    const affectedContestIds = new Set<number>();
 
     for (const submission of userSubmissions) {
       const context = submissionContext(provider, user, submission);
-      const problem = yield* findProblem(database, judge, submission.judgeProblemId, context);
+      const problem = problemRows.get(submission.judgeProblemId);
 
       if (problem === undefined) {
         if (existingSubmissions.has(submission.judgeId)) {
-          skipped += 1;
+          if (options.countMissingAsSkipped) {
+            skipped += 1;
+          }
           continue;
         }
 
@@ -402,15 +503,41 @@ export const syncUserSubmissions = (
           pendingSubmissions.push({ user, submission });
           missingProblems.add(submission.judgeProblemId);
         }
-        skipped += 1;
+        if (options.countMissingAsSkipped) {
+          skipped += 1;
+        }
         continue;
       }
 
-      const result = yield* insertSubmission(database, judge, user, submission, problem, context);
-      yield* refreshUserContestStateFromSubmissions(database, user, problem.contestId, context);
+      const result = yield* insertSubmissionWithExisting(
+        database,
+        judge,
+        user,
+        submission,
+        problem,
+        existingSubmissions.get(submission.judgeId),
+        context
+      );
+      affectedContestIds.add(problem.contestId);
+      existingSubmissions.set(submission.judgeId, {
+        judgeId: submission.judgeId,
+        problemId: problem.id,
+        userId: user.id,
+        status: submission.verdict,
+        submittedAt: submission.submittedAt
+      });
       inserted += result.inserted;
       updated += result.updated;
       skipped += result.skipped;
+    }
+
+    for (const contestId of affectedContestIds) {
+      yield* refreshUserContestStateFromSubmissions(
+        database,
+        user,
+        contestId,
+        userContestStateContext(provider, user, contestId)
+      );
     }
 
     return {
@@ -421,6 +548,21 @@ export const syncUserSubmissions = (
       missingProblems: missingProblems.size,
       pendingSubmissions
     };
+  });
+
+export const syncUserSubmissions = (
+  database: DatabaseService,
+  provider: JudgeSyncInput["provider"],
+  judge: JUDGES,
+  user: SyncUser,
+  options: {
+    readonly queueMissingSubmissions: boolean;
+    readonly userSubmissions: ReadonlyArray<JudgeSubmission>;
+  }
+): Effect.Effect<UserSubmissionSyncResult, SyncOperationError> =>
+  syncUserSubmissionRows(database, provider, judge, user, {
+    ...options,
+    countMissingAsSkipped: true
   });
 
 export const retryPendingSubmission = (
@@ -447,4 +589,46 @@ export const retryPendingSubmission = (
     const result = yield* insertSubmission(database, judge, pending.user, pending.submission, problem, context);
     yield* refreshUserContestStateFromSubmissions(database, pending.user, problem.contestId, context);
     return result;
+  });
+
+export const retryPendingSubmissions = (
+  database: DatabaseService,
+  provider: JudgeSyncInput["provider"],
+  judge: JUDGES,
+  pendingSubmissions: ReadonlyArray<PendingSubmission>
+): Effect.Effect<PendingSubmissionRetryResult, SyncOperationError> =>
+  Effect.gen(function* () {
+    const pendingByUser = new Map<number, { readonly user: SyncUser; readonly submissions: JudgeSubmission[] }>();
+
+    for (const pending of pendingSubmissions) {
+      const entry = pendingByUser.get(pending.user.id) ?? {
+        user: pending.user,
+        submissions: []
+      };
+      entry.submissions.push(pending.submission);
+      pendingByUser.set(pending.user.id, entry);
+    }
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const { user, submissions: userSubmissions } of pendingByUser.values()) {
+      const result = yield* syncUserSubmissionRows(database, provider, judge, user, {
+        userSubmissions,
+        queueMissingSubmissions: false,
+        countMissingAsSkipped: false
+      });
+
+      inserted += result.inserted;
+      updated += result.updated;
+      skipped += result.skipped;
+    }
+
+    return {
+      inserted,
+      updated,
+      skipped,
+      processed: inserted + updated + skipped
+    };
   });
