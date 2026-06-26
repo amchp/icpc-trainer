@@ -1,9 +1,11 @@
-import { type DatabaseService, schema } from "@icpc-trainer/db";
+import { chunks, SQLITE_BINDING_CHUNK_SIZE, type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 const { appUserJudgeUsers, users } = schema;
+const USER_LOOKUP_BINDINGS_PER_ROW = 2;
+const USER_LOOKUP_CHUNK_SIZE = Math.max(1, Math.floor(SQLITE_BINDING_CHUNK_SIZE / USER_LOOKUP_BINDINGS_PER_ROW));
 
 export interface RosterUser<Type extends USER_TYPES> {
   readonly username: string;
@@ -23,6 +25,9 @@ interface RosterInputUser {
 
 const userKey = (judge: JUDGES, username: string): string =>
   `${judge}:${username.toLowerCase()}`;
+
+const judgeUserCondition = (row: RosterInputUser) =>
+  and(eq(users.judge, row.judge), sql`lower(${users.username}) = ${row.username.toLowerCase()}`);
 
 const normalizedUsers = <Type extends USER_TYPES>(
   rows: readonly RosterInputUser[],
@@ -221,31 +226,68 @@ export const replaceUserRoster = async <Type extends USER_TYPES>(
     )).run();
   }
 
-  for (const rosterUser of rosterUsers) {
-    const existing = existingByUser.get(userKey(rosterUser.judge, rosterUser.username));
-    if (existing !== undefined) {
-      await database.db
-        .update(appUserJudgeUsers)
-        .set({ role: type, updatedAt: timestamp })
-        .where(and(
-          eq(appUserJudgeUsers.appUserId, appUserId),
-          eq(appUserJudgeUsers.userId, existing.id)
-        ))
-        .run();
+  const newRosterUsers = rosterUsers.filter((rosterUser) =>
+    existingByUser.get(userKey(rosterUser.judge, rosterUser.username)) === undefined
+  );
+  for (const rosterUserChunk of chunks(newRosterUsers, SQLITE_BINDING_CHUNK_SIZE)) {
+    if (rosterUserChunk.length === 0) {
       continue;
     }
 
-    const user = await ensureJudgeUser(database, rosterUser.username, rosterUser.judge, timestamp);
+    await database.db
+      .insert(users)
+      .values(rosterUserChunk.map((rosterUser) => ({
+        username: rosterUser.username,
+        judge: rosterUser.judge,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      })))
+      .onConflictDoNothing()
+      .run();
+  }
+
+  const usersByKey = new Map<string, { readonly id: number; readonly username: string; readonly judge: JUDGES }>();
+
+  for (const rosterUserChunk of chunks(rosterUsers, USER_LOOKUP_CHUNK_SIZE)) {
+    const condition = or(...rosterUserChunk.map(judgeUserCondition));
+    if (condition === undefined) {
+      continue;
+    }
+
+    const userRows = await database.db
+      .select({ id: users.id, username: users.username, judge: users.judge })
+      .from(users)
+      .where(condition)
+      .all();
+
+    for (const row of userRows) {
+      usersByKey.set(userKey(row.judge, row.username), row);
+    }
+  }
+
+  const rosterLinks = rosterUsers.map((rosterUser) => {
+    const user = usersByKey.get(userKey(rosterUser.judge, rosterUser.username));
+    if (user === undefined) {
+      throw new Error(`Could not find judge user ${rosterUser.username}.`);
+    }
+
+    return {
+      appUserId,
+      userId: user.id,
+      role: type,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+  });
+
+  for (const rosterLinkChunk of chunks(rosterLinks, SQLITE_BINDING_CHUNK_SIZE)) {
+    if (rosterLinkChunk.length === 0) {
+      continue;
+    }
 
     await database.db
       .insert(appUserJudgeUsers)
-      .values({
-        appUserId,
-        userId: user.id,
-        role: type,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      })
+      .values(rosterLinkChunk)
       .onConflictDoUpdate({
         target: [appUserJudgeUsers.appUserId, appUserJudgeUsers.userId],
         set: {

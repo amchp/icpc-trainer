@@ -2,7 +2,7 @@ import {
   type JudgeSyncInput,
   JudgeSyncStep
 } from "@icpc-trainer/api";
-import { type DatabaseService, schema } from "@icpc-trainer/db";
+import { chunks, excludedColumn, SQLITE_BINDING_CHUNK_SIZE, type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SYNC_OPERATION_PHASES } from "@icpc-trainer/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
@@ -90,87 +90,175 @@ export const upsertCodeforcesRegularCatalog = (
           problemsByContest.set(contestJudgeId, contestProblems);
         }
 
-        let problemsImported = 0;
-        const importedContestIds = new Set<string>();
+        const contestJudgeIds = [...problemsByContest.entries()]
+          .filter(([contestJudgeId, contestProblems]) =>
+            contestCatalogById.has(contestJudgeId) && contestProblems.length > 0
+          )
+          .map(([contestJudgeId]) => contestJudgeId);
+        const importedContestIds = new Set<string>(contestJudgeIds);
+        const existingContestsByJudgeId = new Map<string, {
+          readonly id: number;
+          readonly judgeId: string;
+          readonly participants: number | null;
+          readonly stars: number | null;
+        }>();
 
-        for (const [contestJudgeId, contestProblems] of problemsByContest.entries()) {
-          const contest = contestCatalogById.get(contestJudgeId);
-          if (contest === undefined || contestProblems.length === 0) {
+        for (const contestJudgeIdChunk of chunks(contestJudgeIds, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (contestJudgeIdChunk.length === 0) {
             continue;
           }
 
-          const existingContest = await database.db
+          const rows = await database.db
             .select({
               id: contests.id,
+              judgeId: contests.judgeId,
               participants: contests.participants,
               stars: contests.stars
             })
             .from(contests)
-            .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-            .get();
+            .where(and(eq(contests.judge, JUDGES.Codeforces), inArray(contests.judgeId, contestJudgeIdChunk)))
+            .all();
+
+          for (const row of rows) {
+            existingContestsByJudgeId.set(row.judgeId, row);
+          }
+        }
+
+        const contestRows = contestJudgeIds.map((contestJudgeId) => {
+          const contest = contestCatalogById.get(contestJudgeId);
+          if (contest === undefined) {
+            throw new Error(`Regular Codeforces contest ${contestJudgeId} was not found in catalog.`);
+          }
+
+          const existingContest = existingContestsByJudgeId.get(contestJudgeId);
           const standingsGrade = existingContest?.participants !== null && existingContest?.participants !== undefined;
           const stars = standingsGrade && existingContest?.stars !== null && existingContest?.stars !== undefined
             ? existingContest.stars
             : regularContestStars(contest.name);
-          const link = regularContestLink(contest);
+
+          return {
+            judgeId: contestJudgeId,
+            judge: JUDGES.Codeforces,
+            name: contest.name,
+            link: regularContestLink(contest),
+            participants: existingContest?.participants ?? null,
+            stars,
+            createdAt: timestamp,
+            updatedAt: timestamp
+          };
+        });
+        const contestInputRowsByJudgeId = new Map(contestRows.map((row) => [row.judgeId, row]));
+
+        for (const contestRowChunk of chunks(contestRows, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (contestRowChunk.length === 0) {
+            continue;
+          }
 
           await database.db
             .insert(contests)
-            .values({
-              judgeId: contestJudgeId,
-              judge: JUDGES.Codeforces,
-              name: contest.name,
-              link,
-              participants: existingContest?.participants ?? null,
-              stars,
-              createdAt: timestamp,
-              updatedAt: timestamp
-            })
+            .values(contestRowChunk)
             .onConflictDoUpdate({
               target: [contests.judgeId, contests.judge],
               set: {
-                name: contest.name,
-                link,
-                participants: existingContest?.participants ?? null,
-                stars,
-                updatedAt: timestamp
+                name: excludedColumn("name"),
+                link: excludedColumn("link"),
+                participants: excludedColumn("participants"),
+                stars: excludedColumn("stars"),
+                updatedAt: excludedColumn("updated_at")
               }
             })
             .run();
+        }
 
-          const contestRow = await database.db
+        const contestRowsByJudgeId = new Map<string, {
+          readonly id: number;
+          readonly judgeId: string;
+          readonly participants: number | null;
+        }>();
+
+        for (const contestJudgeIdChunk of chunks(contestJudgeIds, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (contestJudgeIdChunk.length === 0) {
+            continue;
+          }
+
+          const rows = await database.db
             .select({
               id: contests.id,
+              judgeId: contests.judgeId,
               participants: contests.participants
             })
             .from(contests)
-            .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-            .get();
+            .where(and(eq(contests.judge, JUDGES.Codeforces), inArray(contests.judgeId, contestJudgeIdChunk)))
+            .all();
 
-          if (contestRow === undefined) {
+          for (const row of rows) {
+            contestRowsByJudgeId.set(row.judgeId, row);
+          }
+        }
+
+        for (const contestJudgeId of contestJudgeIds) {
+          if (contestRowsByJudgeId.get(contestJudgeId) === undefined) {
             throw new Error(`Regular Codeforces contest ${contestJudgeId} was not found after upsert.`);
           }
+        }
 
-          const problemJudgeIds = contestProblems.map((problem) => problem.judgeId);
-          const existingProblems = problemJudgeIds.length === 0
-            ? []
-            : await database.db
-              .select({
-                id: problems.id,
-                judgeId: problems.judgeId,
-                solvePercentage: problems.solvePercentage,
-                rating: problems.rating
-              })
-              .from(problems)
-              .where(and(
-                eq(problems.judge, JUDGES.Codeforces),
-                inArray(problems.judgeId, problemJudgeIds)
-              ))
-              .all();
-          const existingProblemsByJudgeId = new Map(existingProblems.map((problem) => [problem.judgeId, problem]));
+        const problemJudgeIds = contestJudgeIds.flatMap((contestJudgeId) =>
+          problemsByContest.get(contestJudgeId)?.map((problem) => problem.judgeId) ?? []
+        );
+        const existingProblemsByJudgeId = new Map<string, {
+          readonly id: number;
+          readonly judgeId: string;
+          readonly solvePercentage: number;
+          readonly rating: number;
+        }>();
+
+        for (const problemJudgeIdChunk of chunks(problemJudgeIds, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (problemJudgeIdChunk.length === 0) {
+            continue;
+          }
+
+          const rows = await database.db
+            .select({
+              id: problems.id,
+              judgeId: problems.judgeId,
+              solvePercentage: problems.solvePercentage,
+              rating: problems.rating
+            })
+            .from(problems)
+            .where(and(eq(problems.judge, JUDGES.Codeforces), inArray(problems.judgeId, problemJudgeIdChunk)))
+            .all();
+
+          for (const row of rows) {
+            existingProblemsByJudgeId.set(row.judgeId, row);
+          }
+        }
+
+        const problemRows: {
+          readonly judgeId: string;
+          readonly judge: JUDGES.Codeforces;
+          readonly name: string;
+          readonly link: string;
+          readonly contestId: number;
+          readonly solves: number;
+          readonly solvePercentage: number;
+          readonly rating: number;
+          readonly createdAt: Date;
+          readonly updatedAt: Date;
+        }[] = [];
+        const tagsByProblemJudgeId = new Map<string, readonly string[]>();
+
+        for (const contestJudgeId of contestJudgeIds) {
+          const contest = contestCatalogById.get(contestJudgeId);
+          const contestRow = contestRowsByJudgeId.get(contestJudgeId);
+          const contestProblems = problemsByContest.get(contestJudgeId) ?? [];
+
+          if (contest === undefined || contestRow === undefined) {
+            continue;
+          }
+
+          const stars = contestInputRowsByJudgeId.get(contestJudgeId)?.stars ?? regularContestStars(contest.name);
           const maxSolvesInContest = Math.max(0, ...contestProblems.map((problem) => problem.solves));
           const preserveSolvePercentage = contestRow.participants !== null;
-          importedContestIds.add(contestJudgeId);
 
           for (const problem of contestProblems) {
             const existingProblem = existingProblemsByJudgeId.get(problem.judgeId);
@@ -185,55 +273,101 @@ export const upsertCodeforcesRegularCatalog = (
               ? existingProblem.solvePercentage
               : regularSolvePercentage(problem.solves, maxSolvesInContest);
 
-            const [problemRow] = await database.db
-              .insert(problems)
-              .values({
-                judgeId: problem.judgeId,
-                judge: JUDGES.Codeforces,
-                name: problem.name,
-                link: problem.link,
-                contestId: contestRow.id,
-                solves: problem.solves,
-                solvePercentage,
-                rating,
-                createdAt: timestamp,
-                updatedAt: timestamp
-              })
-              .onConflictDoUpdate({
-                target: [problems.judgeId, problems.judge],
-                set: {
-                  name: problem.name,
-                  link: problem.link,
-                  contestId: contestRow.id,
-                  solves: problem.solves,
-                  solvePercentage,
-                  rating,
-                  updatedAt: timestamp
-                }
-              })
-              .returning({ id: problems.id })
-              .all();
-
-            if (problemRow === undefined) {
-              throw new Error(`Regular Codeforces problem ${problem.judgeId} was not found after upsert.`);
-            }
-
-            await database.db.delete(problemTags).where(eq(problemTags.problemId, problemRow.id)).run();
-            for (const tag of [...new Set((problem.tags ?? []).map((value) => value.trim()).filter(Boolean))]) {
-              await database.db.insert(problemTags).values({
-                problemId: problemRow.id,
-                tag
-              }).onConflictDoNothing().run();
-            }
-
-            problemsImported += 1;
+            problemRows.push({
+              judgeId: problem.judgeId,
+              judge: JUDGES.Codeforces,
+              name: problem.name,
+              link: problem.link,
+              contestId: contestRow.id,
+              solves: problem.solves,
+              solvePercentage,
+              rating,
+              createdAt: timestamp,
+              updatedAt: timestamp
+            });
+            tagsByProblemJudgeId.set(problem.judgeId, [
+              ...new Set((problem.tags ?? []).map((value) => value.trim()).filter(Boolean))
+            ]);
           }
+        }
+
+        for (const problemRowChunk of chunks(problemRows, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (problemRowChunk.length === 0) {
+            continue;
+          }
+
+          await database.db
+            .insert(problems)
+            .values(problemRowChunk)
+            .onConflictDoUpdate({
+              target: [problems.judgeId, problems.judge],
+              set: {
+                name: excludedColumn("name"),
+                link: excludedColumn("link"),
+                contestId: excludedColumn("contest_id"),
+                solves: excludedColumn("solves"),
+                solvePercentage: excludedColumn("solve_percentage"),
+                rating: excludedColumn("rating"),
+                updatedAt: excludedColumn("updated_at")
+              }
+            })
+            .run();
+        }
+
+        const problemIdsByJudgeId = new Map<string, number>();
+        for (const problemJudgeIdChunk of chunks(problemJudgeIds, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (problemJudgeIdChunk.length === 0) {
+            continue;
+          }
+
+          const rows = await database.db
+            .select({ id: problems.id, judgeId: problems.judgeId })
+            .from(problems)
+            .where(and(eq(problems.judge, JUDGES.Codeforces), inArray(problems.judgeId, problemJudgeIdChunk)))
+            .all();
+
+          for (const row of rows) {
+            problemIdsByJudgeId.set(row.judgeId, row.id);
+          }
+        }
+
+        for (const problemJudgeId of problemJudgeIds) {
+          if (problemIdsByJudgeId.get(problemJudgeId) === undefined) {
+            throw new Error(`Regular Codeforces problem ${problemJudgeId} was not found after upsert.`);
+          }
+        }
+
+        const problemIds = [...problemIdsByJudgeId.values()];
+        for (const problemIdChunk of chunks(problemIds, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (problemIdChunk.length === 0) {
+            continue;
+          }
+
+          await database.db.delete(problemTags).where(inArray(problemTags.problemId, problemIdChunk)).run();
+        }
+
+        const tagRows = problemRows.flatMap((problem) => {
+          const problemId = problemIdsByJudgeId.get(problem.judgeId);
+          return problemId === undefined
+            ? []
+            : (tagsByProblemJudgeId.get(problem.judgeId) ?? []).map((tag) => ({
+                problemId,
+                tag
+              }));
+        });
+
+        for (const tagRowChunk of chunks(tagRows, SQLITE_BINDING_CHUNK_SIZE)) {
+          if (tagRowChunk.length === 0) {
+            continue;
+          }
+
+          await database.db.insert(problemTags).values(tagRowChunk).onConflictDoNothing().run();
         }
 
         return {
           importedContestIds,
           contestsImported: importedContestIds.size,
-          problemsImported
+          problemsImported: problemRows.length
         };
       },
       catch: (cause) => new SyncOperationError({

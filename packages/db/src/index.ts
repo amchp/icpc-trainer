@@ -18,6 +18,15 @@ import {
 } from "./schema.js";
 
 export {
+  chunks,
+  SQLITE_BINDING_CHUNK_SIZE
+} from "./chunks.js";
+
+export {
+  excludedColumn
+} from "./sql.js";
+
+export {
   schema,
   appUserJudgeUsers,
   appUsers,
@@ -32,6 +41,7 @@ export type DatabaseClient = LibSQLDatabase<typeof schema>;
 export interface DatabaseConfig {
   readonly url: string;
   readonly authToken?: string;
+  readonly onQuery?: () => void;
 }
 
 export interface DatabaseService {
@@ -96,6 +106,24 @@ const migrationsFolder = resolve(packageRoot, "drizzle");
 export const migrateDatabase = (db: DatabaseClient): Effect.Effect<void> =>
   Effect.promise(() => migrate(db, { migrationsFolder }));
 
+const instrumentClient = (client: Client, onQuery: () => void): Client =>
+  new Proxy(client, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (
+        (property === "execute" || property === "batch" || property === "executeMultiple") &&
+        typeof value === "function"
+      ) {
+        return (...args: unknown[]) => {
+          onQuery();
+          return value.apply(target, args);
+        };
+      }
+
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  }) as Client;
+
 export const makeDatabaseService = (
   config: DatabaseConfig,
 ): Effect.Effect<DatabaseService, never, Scope.Scope> =>
@@ -106,7 +134,10 @@ export const makeDatabaseService = (
         url: config.url,
         authToken: config.authToken
       });
-      const db = drizzle(client, { schema });
+      const dbClient = config.onQuery === undefined
+        ? client
+        : instrumentClient(client, config.onQuery);
+      const db = drizzle(dbClient, { schema });
 
       const service: DatabaseService = {
         url: config.url,

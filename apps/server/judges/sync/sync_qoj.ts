@@ -12,7 +12,10 @@ import { Effect } from "effect";
 
 import type { JudgeContest, JudgePreviewContest, JudgeSubmission } from "../judges.js";
 import type { QojPlaygroundClient } from "../qoj.js";
-import { upsertExistingContestParticipations } from "../contestParticipation.js";
+import {
+  upsertExistingContestParticipations,
+  type ExistingContestParticipationInput
+} from "../contestParticipation.js";
 import {
   emptySummary,
   finalEvent,
@@ -235,6 +238,7 @@ const runQojSyncProgram = (
       userSyncData.length,
       emit
     );
+    const participationEntries: ExistingContestParticipationInput[] = [];
     yield* importProgress.start();
 
     for (const [index, userData] of userSyncData.entries()) {
@@ -247,17 +251,14 @@ const runQojSyncProgram = (
           userSubmissions: userData.submissions
         })
       );
-      const participationResult = yield* Effect.either(upsertExistingContestParticipations(
-        database,
-        provider,
-        judgeId,
-        userData.contests.map((contest) => ({
+      participationEntries.push(
+        ...userData.contests.map((contest) => ({
           user,
           contestJudgeId: contest.judgeId,
           contestName: contest.name,
           submissions: []
         }))
-      ));
+      );
 
       if (userSyncResult._tag === "Left") {
         summary.errors += 1;
@@ -273,16 +274,23 @@ const runQojSyncProgram = (
         summary.submissionsUpdated += userSyncResult.right.updated;
         summary.submissionsSkipped += userSyncResult.right.skipped;
       }
-      if (participationResult._tag === "Left") {
-        summary.errors += 1;
-        yield* emit(syncOperationErrorEvent(
-          participationResult.left,
-          importProgress.stepsTotal,
-          importProgress.stepsLeft()
-        ));
-      }
 
       yield* importProgress.completeCurrent(user.username);
+    }
+
+    const participationResult = yield* Effect.either(upsertExistingContestParticipations(
+      database,
+      provider,
+      judgeId,
+      participationEntries
+    ));
+    if (participationResult._tag === "Left") {
+      summary.errors += 1;
+      yield* emit(syncOperationErrorEvent(
+        participationResult.left,
+        importProgress.stepsTotal,
+        importProgress.stepsLeft()
+      ));
     }
 
     yield* emit(finalEvent(provider, importProgress.stepsTotal, summary));

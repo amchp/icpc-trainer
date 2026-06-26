@@ -95,4 +95,37 @@ describe("user roster module", () => {
       { username: "Tourist", judge: JUDGES.Codeforces, type: USER_TYPES.Team }
     ]);
   });
+
+  it("keeps roster replacement query count bounded by chunks instead of rows", async () => {
+    let queryCount = 0;
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const database = yield* DatabaseServiceTag;
+        yield* database.migrate;
+        const appUser = yield* Effect.promise(() => createTestAppUser(database));
+        const rows = Array.from({ length: 50 }, (_, index) => ({
+          username: `team-${index}`,
+          judge: index % 2 === 0 ? JUDGES.Codeforces : JUDGES.Qoj
+        }));
+
+        queryCount = 0;
+        const roster = yield* Effect.promise(() =>
+          replaceUserRoster(database, appUser.id, USER_TYPES.Team, rows, "team user")
+        );
+
+        return {
+          roster,
+          queryCount
+        };
+      }).pipe(Effect.provide(DatabaseLive({
+        url: ":memory:",
+        onQuery: () => {
+          queryCount += 1;
+        }
+      })))
+    );
+
+    expect(result.roster.users).toHaveLength(50);
+    expect(result.queryCount).toBeLessThanOrEqual(8);
+  });
 });

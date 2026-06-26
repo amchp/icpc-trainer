@@ -8,7 +8,7 @@ import {
   type JudgePreviewContest
 } from "../judges.js";
 import {
-  ensureCatalogContest,
+  ensureCatalogContests,
   upsertContestParticipations,
   type ContestParticipationInput
 } from "../contestParticipation.js";
@@ -37,20 +37,28 @@ export const upsertContestFinderCatalog = (
   contests: readonly JudgePreviewContest[]
 ): Effect.Effect<number, JudgeError | SyncOperationError, DatabaseServiceTag> =>
   Effect.gen(function* () {
-    let upserted = 0;
+    const catalogEntries: {
+      readonly contestJudgeId: string;
+      readonly contestName: string | undefined;
+      readonly contestLink: string;
+    }[] = [];
 
     for (const contest of contests) {
       const link = yield* requiredContestLink(provider, contest);
-      yield* ensureCatalogContest(database, judge, contest.judgeId, contest.name, link, {
-        provider,
-        phase: SYNC_OPERATION_PHASES.Database,
-        action: `catalog contest ${contest.judgeId}`,
-        contestJudgeId: contest.judgeId
+      catalogEntries.push({
+        contestJudgeId: contest.judgeId,
+        contestName: contest.name,
+        contestLink: link
       });
-      upserted += 1;
     }
 
-    return upserted;
+    yield* ensureCatalogContests(database, judge, catalogEntries, {
+      provider,
+      phase: SYNC_OPERATION_PHASES.Database,
+      action: "contest finder catalog"
+    });
+
+    return catalogEntries.length;
   });
 
 export const upsertContestFinderParticipations = (

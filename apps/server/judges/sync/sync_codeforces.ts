@@ -29,7 +29,7 @@ import {
 } from "./events.js";
 import {
   getSyncUsers,
-  retryPendingSubmission,
+  missingProblemAfterContestSyncError,
   retryPendingSubmissions,
   syncUserSubmissions,
   upsertFetchedContest,
@@ -286,19 +286,27 @@ const runCodeforcesSyncProgram = (
         ));
       }
 
-      for (const pending of pendingSubmissions) {
-        const retryResult = yield* Effect.either(retryPendingSubmission(database, provider, judgeId, pending));
-        if (retryResult._tag === "Left") {
+      const retryResult = yield* Effect.either(
+        retryPendingSubmissions(database, provider, judgeId, pendingSubmissions)
+      );
+      if (retryResult._tag === "Left") {
+        summary.errors += 1;
+        yield* emit(syncOperationErrorEvent(
+          retryResult.left,
+          contestProgress.stepsTotal,
+          contestProgress.stepsLeft()
+        ));
+      } else {
+        summary.submissionsInserted += retryResult.right.inserted;
+        summary.submissionsUpdated += retryResult.right.updated;
+        summary.submissionsSkipped = Math.max(summary.submissionsSkipped - retryResult.right.processed, 0);
+        for (const missing of retryResult.right.missingSubmissions) {
           summary.errors += 1;
           yield* emit(syncOperationErrorEvent(
-            retryResult.left,
+            missingProblemAfterContestSyncError(provider, missing),
             contestProgress.stepsTotal,
             contestProgress.stepsLeft()
           ));
-        } else {
-          summary.submissionsInserted += retryResult.right.inserted;
-          summary.submissionsUpdated += retryResult.right.updated;
-          summary.submissionsSkipped = Math.max(summary.submissionsSkipped - 1, 0);
         }
       }
 

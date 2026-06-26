@@ -83,7 +83,10 @@ const nextTick = async (): Promise<void> => {
 
 const withDatabase = async <A>(
   run: (database: DatabaseService, appUserId: number) => Promise<A>,
-  options: { readonly saveCredentials?: boolean } = {}
+  options: {
+    readonly saveCredentials?: boolean;
+    readonly onQuery?: () => void;
+  } = {}
 ): Promise<A> => {
   process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
 
@@ -115,7 +118,10 @@ const withDatabase = async <A>(
     return yield* Effect.promise(() => run(database, appUser.id));
   });
 
-  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({
+    url: ":memory:",
+    onQuery: options.onQuery
+  }))));
 };
 
 const attachTeamUser = async (
@@ -601,6 +607,134 @@ describe("createJudgeSyncService", () => {
       expect(rows).toHaveLength(2);
       expect(rows.map((row) => row.judgeId)).toEqual(["49644212", "49644212"]);
       expect(new Set(rows.map((row) => row.userId)).size).toBe(2);
+    });
+  });
+
+  it("keeps known submission import query count bounded by chunks instead of rows", async () => {
+    let queryCount = 0;
+
+    await withDatabase(async (database, appUserId) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      const contestInputs = Array.from({ length: 20 }, (_, index) => ({
+        judgeId: String(2000 + index),
+        judge: JUDGES.Codeforces,
+        name: `Known Contest ${index}`,
+        link: `https://codeforces.com/gym/${2000 + index}`,
+        participants: 10,
+        stars: 2,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }));
+      await database.db.insert(contests).values(contestInputs).run();
+      const contestRows = await database.db.select().from(contests).all();
+      await database.db.insert(problems).values(contestRows.map((contest, index) => ({
+        judgeId: `${contest.judgeId}A`,
+        judge: JUDGES.Codeforces,
+        name: `A. Known ${index}`,
+        link: `${contest.link}/problem/A`,
+        contestId: contest.id,
+        solves: 1,
+        rating: 800,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }))).run();
+
+      const judge: TestJudge = {
+        getContest: (contestId) => Effect.fail(new Error(`Contest ${contestId} should not be fetched.`)),
+        getSubmissions: () => Effect.succeed(contestRows.map((contest, index) => ({
+          judgeId: `known-${index}`,
+          judgeContestId: contest.judgeId,
+          judgeProblemId: `${contest.judgeId}A`,
+          problemName: `A. Known ${index}`,
+          verdict: SUBMISSION_STATUSES.AC,
+          submittedAt: new Date(timestamp.getTime() + index * 1000)
+        }))),
+        getRegularContests: () => Effect.succeed([]),
+        getRegularProblems: () => Effect.succeed([])
+      };
+
+      queryCount = 0;
+      const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces", appUserId }));
+
+      expect(events.at(-1)).toMatchObject({
+        type: "completed",
+        summary: {
+          submissionsInserted: 20,
+          errors: 0
+        }
+      });
+      expect(queryCount).toBeLessThanOrEqual(12);
+    }, {
+      onQuery: () => {
+        queryCount += 1;
+      }
+    });
+  });
+
+  it("keeps regular catalog import query count bounded by chunks instead of contests", async () => {
+    let queryCount = 0;
+
+    await withDatabase(async (database, appUserId) => {
+      const timestamp = new Date("2025-01-01T00:00:00.000Z");
+      const contestIds = ["566", "567", "570"];
+      const problemIndexes = ["A", "B"] as const;
+      const regularSubmissions = contestIds.flatMap((contestId, contestIndex) =>
+        problemIndexes.map((problemIndex, problemIndexIndex) => ({
+          judgeId: `regular-${contestId}-${problemIndex}`,
+          judgeContestId: contestId,
+          judgeProblemId: `${contestId}${problemIndex}`,
+          problemName: `${problemIndex}. Regular ${contestId}`,
+          verdict: problemIndex === "A" ? SUBMISSION_STATUSES.AC : SUBMISSION_STATUSES.WA,
+          submittedAt: new Date(timestamp.getTime() + (contestIndex * 2 + problemIndexIndex) * 1000)
+        }))
+      );
+      const judge: TestJudge = {
+        getContest: (contestId) => Effect.fail(new Error(`Contest ${contestId} should not be fetched.`)),
+        getSubmissions: () => Effect.succeed(regularSubmissions),
+        getRegularContests: () => Effect.succeed(contestIds.map((contestId, index) => ({
+          judgeId: contestId,
+          name: `Codeforces Round ${contestId} (Div. ${index % 2 === 0 ? 2 : 3})`
+        }))),
+        getRegularProblems: () => Effect.succeed(contestIds.flatMap((contestId, contestIndex) =>
+          problemIndexes.map((problemIndex, problemIndexIndex) => ({
+            judgeId: `${contestId}${problemIndex}`,
+            judgeContestId: contestId,
+            name: `${problemIndex}. Regular ${contestId}`,
+            link: `https://codeforces.com/contest/${contestId}/problem/${problemIndex}`,
+            solves: 100 - contestIndex * 10 - problemIndexIndex,
+            rating: 800 + contestIndex * 100 + problemIndexIndex * 100,
+            tags: [`tag-${contestIndex}`, `problem-${problemIndex.toLowerCase()}`]
+          }))
+        ))
+      };
+
+      queryCount = 0;
+      const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces", appUserId }));
+      const syncQueryCount = queryCount;
+      const contestRows = await database.db.select().from(contests).all();
+      const problemRows = await database.db.select().from(problems).all();
+      const tagRows = await database.db.select().from(problemTags).all();
+
+      expect(events.at(-1)).toMatchObject({
+        type: "completed",
+        summary: {
+          submissionsInserted: 6,
+          submissionsSkipped: 0,
+          contestsSynced: 0,
+          regularContestsImported: 3,
+          regularProblemsImported: 6,
+          regularPendingSubmissionsRetried: 6,
+          errors: 0
+        }
+      });
+      expect(contestRows).toHaveLength(3);
+      expect(problemRows).toHaveLength(6);
+      expect(tagRows).toHaveLength(12);
+      expect(syncQueryCount).toBeLessThanOrEqual(28);
+    }, {
+      onQuery: () => {
+        queryCount += 1;
+      }
     });
   });
 
