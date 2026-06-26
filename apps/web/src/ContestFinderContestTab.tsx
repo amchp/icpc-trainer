@@ -6,7 +6,8 @@ import {
   Card,
   Input,
   Label,
-  Skeleton
+  Skeleton,
+  TableCount
 } from "./components/ui.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
 import {
@@ -63,11 +64,14 @@ export function ContestFinderContestTab({
             className="pl-9"
           />
         </Label>
-        <JudgeSourceFilterDropdown
-          selectedSources={judgeSourceFilters}
-          counts={judgeSourceCounts}
-          onChange={onJudgeSourceFiltersChange}
-        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <JudgeSourceFilterDropdown
+            selectedSources={judgeSourceFilters}
+            counts={judgeSourceCounts}
+            onChange={onJudgeSourceFiltersChange}
+          />
+          <TableCount count={contests.length} itemName="contest" />
+        </div>
       </div>
 
       {isLoading ? (

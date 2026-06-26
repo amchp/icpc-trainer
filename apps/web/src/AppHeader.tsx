@@ -90,7 +90,7 @@ export function AppHeader(): React.JSX.Element {
           >
             Judges
           </Link>
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
           <Button
             type="button"
             variant="ghost"

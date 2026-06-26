@@ -88,6 +88,7 @@ export function ContestsTable({
         searchQuery={searchQuery}
         judgeSourceFilters={judgeSourceFilters}
         judgeSourceCounts={judgeSourceCounts}
+        visibleCount={visibleRows.length}
         onSearchQueryChange={setSearchQuery}
         onJudgeSourceFiltersChange={setJudgeSourceFilters}
       />

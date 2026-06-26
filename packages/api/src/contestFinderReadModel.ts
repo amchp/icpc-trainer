@@ -1,6 +1,6 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
-import { and, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, notInArray } from "drizzle-orm";
 
 const { appUserJudgeUsers, contests, userContestStates, users } = schema;
 
@@ -41,6 +41,7 @@ export const getContestFinderOverview = (database: DatabaseService, appUserId: n
   const contestFinderFilter = attemptedContestIdList.length === 0
     ? undefined
     : notInArray(contests.id, attemptedContestIdList);
+  const friendCount = count(users.id);
 
   const contestRows = database.db
     .select({
@@ -51,7 +52,7 @@ export const getContestFinderOverview = (database: DatabaseService, appUserId: n
       link: contests.link,
       participants: contests.participants,
       stars: contests.stars,
-      friendCount: sql<number>`count(${users.id})`
+      friendCount
     })
     .from(userContestStates)
     .innerJoin(contests, eq(contests.id, userContestStates.contestId))
@@ -66,7 +67,7 @@ export const getContestFinderOverview = (database: DatabaseService, appUserId: n
     )
     .where(contestFinderFilter)
     .groupBy(contests.id)
-    .orderBy(desc(sql<number>`count(${users.id})`), contests.judge, contests.name)
+    .orderBy(desc(friendCount), contests.judge, contests.name)
     .all();
 
   const handleRows = database.db

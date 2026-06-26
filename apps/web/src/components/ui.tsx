@@ -215,6 +215,32 @@ export function Table({
   return <table className={cn("w-full caption-bottom text-sm", className)} {...props} />;
 }
 
+export function TableCount({
+  className,
+  count,
+  itemName,
+  pluralItemName = `${itemName}s`
+}: {
+  readonly className?: string;
+  readonly count: number;
+  readonly itemName: string;
+  readonly pluralItemName?: string;
+}): React.JSX.Element {
+  const countLabel = count === 1 ? itemName : pluralItemName;
+
+  return (
+    <div
+      aria-label={`${count.toLocaleString()} ${countLabel}`}
+      className={cn(
+        "inline-flex h-9 min-w-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900/70 px-3 text-xs font-medium tabular-nums text-zinc-300",
+        className
+      )}
+    >
+      {count.toLocaleString()}
+    </div>
+  );
+}
+
 export function TableHeader({
   className,
   ...props

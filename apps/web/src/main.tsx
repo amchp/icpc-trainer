@@ -8,13 +8,13 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { AuthGate } from "./AuthGate.js";
 import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
+import { env } from "./env.js";
 import { router } from "./router.js";
 import { SyncProvider } from "./SyncContext.js";
 import { ToasterProvider } from "./Toaster.js";
 
 const queryClient = new QueryClient();
 const root = document.getElementById("root");
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? import.meta.env.CLERK_PUBLISHABLE_KEY;
 const clerkAppearance = {
   theme: shadcn,
   variables: {
@@ -107,13 +107,9 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
-if (typeof publishableKey !== "string" || publishableKey.trim() === "") {
-  throw new Error("VITE_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY is required.");
-}
-
 createRoot(root).render(
   <StrictMode>
-    <ClerkProvider publishableKey={publishableKey} appearance={clerkAppearance}>
+    <ClerkProvider publishableKey={env.VITE_CLERK_PUBLISHABLE_KEY} appearance={clerkAppearance} afterSignOutUrl="/">
       <QueryClientProvider client={queryClient}>
         <ToasterProvider>
           <AuthGate>

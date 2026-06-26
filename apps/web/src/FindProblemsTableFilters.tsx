@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Button, DropdownContent, DropdownItem, DropdownTrigger, Input, Label } from "./components/ui.js";
+import { Button, DropdownContent, DropdownItem, DropdownTrigger, Input, Label, TableCount } from "./components/ui.js";
 
 export interface FindProblemTagOption {
   readonly name: string;
@@ -81,6 +81,7 @@ export function FindProblemsTableFilters({
         >
           Random
         </Button>
+        <TableCount count={visibleCount} itemName="problem" />
       </div>
     </div>
   );

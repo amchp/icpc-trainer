@@ -40,4 +40,9 @@ describe("loadServerConfig", () => {
       }
     });
   });
+
+  it("uses the Vite Clerk publishable key when the legacy server key is absent", () => {
+    expect(loadServerConfig({ VITE_CLERK_PUBLISHABLE_KEY: "pk_test_public" }).clerk.publishableKey)
+      .toBe("pk_test_public");
+  });
 });

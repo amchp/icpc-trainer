@@ -100,6 +100,7 @@ describe("FindProblemsTable", () => {
   it("renders rows sorted by rating inside the default rating range", () => {
     render(<FindProblemsTable overview={overview} />);
 
+    expect(screen.getByLabelText("5 problems")).toBeInTheDocument();
     const rows = bodyRows();
     expect(rows).toHaveLength(5);
     expect(within(rows[0]!).getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
@@ -117,6 +118,7 @@ describe("FindProblemsTable", () => {
       target: { value: "implementation" }
     });
 
+    expect(screen.getByLabelText("1 problem")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "A. Implementation" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
   });
@@ -127,6 +129,7 @@ describe("FindProblemsTable", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: /search problems/i }), {
       target: { value: "300A" }
     });
+    expect(screen.getByLabelText("0 problems")).toBeInTheDocument();
     expect(screen.getByText("No problems match the current filters.")).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("searchbox", { name: /search problems/i }), {

@@ -13,6 +13,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableCount,
   TableHead,
   TableHeader,
   TableRow
@@ -55,11 +56,14 @@ export function StarterTable(): React.JSX.Element {
 
   return (
     <Card className="overflow-hidden">
-      <div className="px-5 py-4">
-        <h2 className="text-sm font-medium text-zinc-100">Starter wiring</h2>
-        <p className="mt-1 text-sm text-zinc-500">Static rows proving TanStack Table setup.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+        <div>
+          <h2 className="text-sm font-medium text-zinc-100">Starter wiring</h2>
+          <p className="mt-1 text-sm text-zinc-500">Static rows proving TanStack Table setup.</p>
+        </div>
+        <TableCount count={table.getRowModel().rows.length} itemName="row" />
       </div>
-      <Table>
+      <Table className="border-t border-zinc-800">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

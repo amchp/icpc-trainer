@@ -75,6 +75,7 @@ describe("UpsolvingProblemTable", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
     expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("New(1)");
+    expect(screen.getByLabelText("1 problem")).toBeInTheDocument();
     const bodyRows = screen.getAllByRole("row").slice(1);
     expect(bodyRows).toHaveLength(1);
     expect(within(bodyRows[0]!).getAllByRole("cell")[0]).toHaveTextContent("1");
@@ -94,6 +95,7 @@ describe("UpsolvingProblemTable", () => {
       target: { value: "100C" }
     });
 
+    expect(screen.getByLabelText("1 problem")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();

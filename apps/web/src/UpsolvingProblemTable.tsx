@@ -89,6 +89,7 @@ export function UpsolvingProblemTable({
         judgeSourceFilters={judgeSourceFilters}
         judgeSourceCounts={judgeSourceCounts}
         statusCounts={statusCounts}
+        visibleCount={visibleRows.length}
         onSearchQueryChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}
         onJudgeSourceFiltersChange={setJudgeSourceFilters}

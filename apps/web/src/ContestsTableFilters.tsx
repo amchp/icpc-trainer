@@ -1,18 +1,20 @@
 import { Search } from "lucide-react";
 
-import { Input } from "./components/ui.js";
+import { Input, TableCount } from "./components/ui.js";
 import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSourceFilter.js";
 
 export function ContestsTableFilters({
   searchQuery,
   judgeSourceFilters,
   judgeSourceCounts,
+  visibleCount,
   onSearchQueryChange,
   onJudgeSourceFiltersChange
 }: {
   readonly searchQuery: string;
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
+  readonly visibleCount: number;
   readonly onSearchQueryChange: (value: string) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
@@ -35,6 +37,7 @@ export function ContestsTableFilters({
           counts={judgeSourceCounts}
           onChange={onJudgeSourceFiltersChange}
         />
+        <TableCount count={visibleCount} itemName="contest" />
       </div>
     </div>
   );

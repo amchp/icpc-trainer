@@ -14,6 +14,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableCount,
   TableHead,
   TableHeader,
   TableRow
@@ -129,48 +130,58 @@ export function TeamPage(): React.JSX.Element {
           {query.isLoading ? (
             <Skeleton className="my-4 h-32" />
           ) : roster.users.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Judge</TableHead>
-                  <TableHead className="w-24 text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {roster.users.map((user, index) => (
-                  <TableRow key={`${user.judge}:${user.username}`}>
-                    <TableCell className="font-mono text-xs text-zinc-500">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className="font-mono text-zinc-100">
-                      {user.username}
-                    </TableCell>
-                    <TableCell>
-                      <JudgeDisplay judge={user.judge as JudgeDisplayId} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-8 text-zinc-400 hover:text-red-300"
-                        onClick={() => void removeUser(user.username, user.judge)}
-                        disabled={rosterMutations.saving}
-                        aria-label={`Remove ${user.username}`}
-                      >
-                        <X className="size-3.5" aria-hidden="true" />
-                        Remove
-                      </Button>
-                    </TableCell>
+            <>
+              <div className="mb-2 flex justify-end">
+                <TableCount count={roster.users.length} itemName="user" />
+              </div>
+              <Table className="border-t border-zinc-800">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Judge</TableHead>
+                    <TableHead className="w-24 text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {roster.users.map((user, index) => (
+                    <TableRow key={`${user.judge}:${user.username}`}>
+                      <TableCell className="font-mono text-xs text-zinc-500">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell className="font-mono text-zinc-100">
+                        {user.username}
+                      </TableCell>
+                      <TableCell>
+                        <JudgeDisplay judge={user.judge as JudgeDisplayId} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-8 text-zinc-400 hover:text-red-300"
+                          onClick={() => void removeUser(user.username, user.judge)}
+                          disabled={rosterMutations.saving}
+                          aria-label={`Remove ${user.username}`}
+                        >
+                          <X className="size-3.5" aria-hidden="true" />
+                          Remove
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           ) : (
-            <p className="py-8 text-center text-sm text-zinc-500">
-              No team users added yet. Add the first handle above.
-            </p>
+            <>
+              <div className="mb-2 flex justify-end">
+                <TableCount count={roster.users.length} itemName="user" />
+              </div>
+              <p className="py-8 text-center text-sm text-zinc-500">
+                No team users added yet. Add the first handle above.
+              </p>
+            </>
           )}
         </div>
     </main>

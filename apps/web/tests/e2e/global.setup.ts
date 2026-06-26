@@ -16,9 +16,9 @@ const requiredEnv = (name: string): string => {
 };
 
 const requiredPublishableKey = (): string => {
-  const value = process.env.CLERK_PUBLISHABLE_KEY?.trim() || process.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
+  const value = process.env.VITE_CLERK_PUBLISHABLE_KEY?.trim() || process.env.CLERK_PUBLISHABLE_KEY?.trim();
   if (value === undefined || value === "") {
-    throw new Error("CLERK_PUBLISHABLE_KEY or VITE_CLERK_PUBLISHABLE_KEY is required to run Clerk e2e tests.");
+    throw new Error("VITE_CLERK_PUBLISHABLE_KEY is required to run Clerk e2e tests.");
   }
 
   return value;
@@ -34,8 +34,7 @@ setup.describe.configure({ mode: "serial" });
 
 setup("configure Clerk testing", async () => {
   requiredEnv("CLERK_SECRET_KEY");
-  requiredPublishableKey();
-  await clerkSetup({ dotenv: false });
+  await clerkSetup({ dotenv: false, publishableKey: requiredPublishableKey() });
 });
 
 setup("create Clerk test user", async () => {

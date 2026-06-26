@@ -1,8 +1,8 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, notExists } from "drizzle-orm";
 
-const { appUserJudgeUsers, contests, problems, problemTags, submissions, users } = schema;
+const { appUserJudgeUsers, contests, problems, problemTags, submissions } = schema;
 
 export interface FindProblemRow {
   readonly contestName: string;
@@ -45,16 +45,18 @@ export const getFindProblemsOverview = (database: DatabaseService, appUserId: nu
     .leftJoin(problemTags, eq(problemTags.problemId, problems.id))
     .where(and(
       eq(problems.judge, JUDGES.Codeforces),
-      sql`not exists (
-        select 1
-        from ${submissions}
-        inner join ${users} on ${users.id} = ${submissions.userId}
-        inner join ${appUserJudgeUsers} on ${appUserJudgeUsers.userId} = ${users.id}
-        where ${submissions.problemId} = ${problems.id}
-          and ${appUserJudgeUsers.appUserId} = ${appUserId}
-          and ${appUserJudgeUsers.role} = ${USER_TYPES.Team}
-          and ${submissions.status} = ${SUBMISSION_STATUSES.AC}
-      )`
+      notExists(
+        database.db
+          .select({ id: submissions.id })
+          .from(submissions)
+          .innerJoin(appUserJudgeUsers, eq(appUserJudgeUsers.userId, submissions.userId))
+          .where(and(
+            eq(submissions.problemId, problems.id),
+            eq(appUserJudgeUsers.appUserId, appUserId),
+            eq(appUserJudgeUsers.role, USER_TYPES.Team),
+            eq(submissions.status, SUBMISSION_STATUSES.AC)
+          ))
+      )
     ))
     .orderBy(asc(problems.rating), asc(contests.name), asc(problems.judgeId), asc(problemTags.tag))
     .all();

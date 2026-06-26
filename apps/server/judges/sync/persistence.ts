@@ -4,7 +4,7 @@ import {
 } from "@icpc-trainer/api";
 import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, SYNC_OPERATION_PHASES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, countDistinct, eq, sql } from "drizzle-orm";
+import { and, count, countDistinct, eq, max, sum } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { JudgeContest, JudgeSubmission } from "../judges.js";
@@ -194,10 +194,10 @@ export const refreshUserContestStateFromSubmissions = (
   const timestamp = now();
   const row = database.db
     .select({
-      submissionCount: sql<number>`count(${submissions.id})`,
-      acceptedCount: sql<number>`sum(case when ${submissions.status} = ${SUBMISSION_STATUSES.AC} then 1 else 0 end)`,
+      submissionCount: count(submissions.id),
+      acceptedCount: sum(eq(submissions.status, SUBMISSION_STATUSES.AC)).mapWith(Number),
       distinctProblemCount: countDistinct(submissions.problemId),
-      lastSubmissionAt: sql<number | Date | null>`max(${submissions.submittedAt})`
+      lastSubmissionAt: max(submissions.submittedAt)
     })
     .from(submissions)
     .innerJoin(problems, eq(problems.id, submissions.problemId))

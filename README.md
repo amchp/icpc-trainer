@@ -27,7 +27,7 @@ cp .env.example .env.local
 
 Fill `.env.local` with Clerk test or development keys. Do not commit real `.env` files.
 
-`CLERK_PUBLISHABLE_KEY` is intentionally available to the Vite frontend. `CLERK_SECRET_KEY` is a backend secret and is also required by the Playwright setup so it can create or reuse the e2e test user through Clerk's Backend API.
+`VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY` are both accepted for the public Clerk key; the value is intentionally available to the Vite frontend. `CLERK_SECRET_KEY` is a backend secret and is also required by the Playwright setup so it can create or reuse the e2e test user through Clerk's Backend API.
 
 ## Commands
 
@@ -50,7 +50,8 @@ ICPC_TRAINER_PORT=3773
 ICPC_TRAINER_SQLITE_PATH=.local/icpc-trainer.sqlite
 VITE_API_BASE_URL=http://127.0.0.1:3773
 
-CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+# or CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 # CLERK_JWT_KEY=
 # CLERK_ALLOWED_ORIGINS=http://127.0.0.1:5173
@@ -80,7 +81,7 @@ This deletes `apps/server/.local/icpc-trainer.sqlite` and `apps/server/.local/ic
 Required for e2e:
 
 - `CLERK_SECRET_KEY`
-- `CLERK_PUBLISHABLE_KEY` or `VITE_CLERK_PUBLISHABLE_KEY`
+- `VITE_CLERK_PUBLISHABLE_KEY` or `CLERK_PUBLISHABLE_KEY`
 
 Optional:
 

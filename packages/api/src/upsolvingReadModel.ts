@@ -6,7 +6,7 @@ import {
   type JudgeProvider,
   type UpsolvingProblemStatus
 } from "@icpc-trainer/shared";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, sum } from "drizzle-orm";
 
 const { contests, problems, submissions, users } = schema;
 const { appUserJudgeUsers, userContestStates } = schema;
@@ -85,8 +85,8 @@ export const getUpsolvingOverview = (database: DatabaseService, appUserId: numbe
     .select({
       contestId: contests.id,
       problemId: submissions.problemId,
-      submissionCount: sql<number>`count(*)`,
-      acceptedCount: sql<number>`sum(case when ${submissions.status} = ${SUBMISSION_STATUSES.AC} then 1 else 0 end)`
+      submissionCount: count(),
+      acceptedCount: sum(eq(submissions.status, SUBMISSION_STATUSES.AC)).mapWith(Number)
     })
     .from(submissions)
     .innerJoin(appUserJudgeUsers, and(
@@ -156,8 +156,10 @@ export const getUpsolvingOverview = (database: DatabaseService, appUserId: numbe
       name: contests.name,
       link: contests.link,
       updatedAt: contests.updatedAt,
-      problemCount: sql<number>`count(${problems.id})`,
-      averageSolvePercentage: sql<number | null>`avg(${problems.solvePercentage})`
+      problemCount: count(problems.id),
+      averageSolvePercentage: avg(problems.solvePercentage).mapWith((value) =>
+        value === null ? null : Number(value)
+      )
     })
     .from(contests)
     .leftJoin(problems, eq(problems.contestId, contests.id))

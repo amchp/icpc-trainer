@@ -2,7 +2,7 @@ import type { UpsolvingProblemStatus } from "@icpc-trainer/api";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { DropdownContent, DropdownItem, DropdownTrigger, Input } from "./components/ui.js";
+import { DropdownContent, DropdownItem, DropdownTrigger, Input, TableCount } from "./components/ui.js";
 import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSourceFilter.js";
 import {
   statusLabels,
@@ -15,6 +15,7 @@ export function UpsolvingProblemTableFilters({
   judgeSourceFilters,
   judgeSourceCounts,
   statusCounts,
+  visibleCount,
   onSearchQueryChange,
   onStatusFilterChange,
   onJudgeSourceFiltersChange
@@ -24,6 +25,7 @@ export function UpsolvingProblemTableFilters({
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
   readonly statusCounts: Record<UpsolvingStatusFilter, number>;
+  readonly visibleCount: number;
   readonly onSearchQueryChange: (value: string) => void;
   readonly onStatusFilterChange: (value: UpsolvingStatusFilter) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
@@ -52,6 +54,7 @@ export function UpsolvingProblemTableFilters({
           counts={statusCounts}
           onChange={onStatusFilterChange}
         />
+        <TableCount count={visibleCount} itemName="problem" />
       </div>
     </div>
   );

@@ -9,6 +9,8 @@ import {
   wsLink
 } from "@trpc/client";
 
+import { env } from "./env.js";
+
 type AuthTokenGetter = () => Promise<string | null>;
 
 let authTokenGetter: AuthTokenGetter = async () => null;
@@ -34,8 +36,8 @@ const authHeaders = async (): Promise<Record<string, string>> => {
 };
 
 const resolveBaseUrl = (): string => {
-  const value = import.meta.env.VITE_API_BASE_URL;
-  if (typeof value === "string" && value.trim().length > 0) {
+  const value = env.VITE_API_BASE_URL;
+  if (value !== undefined && value.length > 0) {
     return value.replace(/\/$/, "");
   }
   return "";
