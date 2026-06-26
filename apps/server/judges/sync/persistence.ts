@@ -60,8 +60,8 @@ export const getSyncUsers = (
     provider,
     phase: SYNC_OPERATION_PHASES.Database,
     action: "users to sync"
-  }, () =>
-    database.db
+  }, async () =>
+    (await database.db
       .select()
       .from(appUserJudgeUsers)
       .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
@@ -70,7 +70,7 @@ export const getSyncUsers = (
         eq(appUserJudgeUsers.role, USER_TYPES.Team),
         eq(users.judge, judge),
       ))
-      .all()
+      .all())
       .map((row) => row.users)
   );
 
@@ -107,8 +107,8 @@ export const existingSubmissionsByJudgeId = (
     phase: SYNC_OPERATION_PHASES.Database,
     action: `existing submissions for user ${user.username}`,
     userHandle: user.username
-  }, () => {
-    const rows = database.db
+  }, async () => {
+    const rows = await database.db
       .select({
         judgeId: submissions.judgeId,
         problemId: submissions.problemId,
@@ -130,9 +130,9 @@ export const insertSubmission = (
   submission: JudgeSubmission,
   problem: ProblemRow,
   context: SyncOperationContext
-): Effect.Effect<UpsertSubmissionResult, SyncOperationError> => syncEffect(context, () => {
+): Effect.Effect<UpsertSubmissionResult, SyncOperationError> => syncEffect(context, async () => {
   const timestamp = now();
-  const existing = database.db
+  const existing = await database.db
     .select({
       problemId: submissions.problemId,
       userId: submissions.userId,
@@ -157,7 +157,7 @@ export const insertSubmission = (
     return { inserted: 0, updated: 0, skipped: 1 };
   }
 
-  database.db
+  await database.db
     .insert(submissions)
     .values({
       judgeId: submission.judgeId,
@@ -190,9 +190,9 @@ export const refreshUserContestStateFromSubmissions = (
   user: SyncUser,
   contestId: number,
   context: SyncOperationContext
-): Effect.Effect<void, SyncOperationError> => syncEffect(context, () => {
+): Effect.Effect<void, SyncOperationError> => syncEffect(context, async () => {
   const timestamp = now();
-  const row = database.db
+  const row = await database.db
     .select({
       submissionCount: count(submissions.id),
       acceptedCount: sum(eq(submissions.status, SUBMISSION_STATUSES.AC)).mapWith(Number),
@@ -210,7 +210,7 @@ export const refreshUserContestStateFromSubmissions = (
       ? null
       : new Date(row.lastSubmissionAt);
 
-  database.db
+  await database.db
     .insert(userContestStates)
     .values({
       userId: user.id,
@@ -241,11 +241,11 @@ export const upsertContest = (
   judge: JUDGES,
   contest: JudgeContest,
   context: SyncOperationContext
-): Effect.Effect<number, SyncOperationError> => syncEffect(context, () => {
+): Effect.Effect<number, SyncOperationError> => syncEffect(context, async () => {
   const timestamp = now();
   const link = requiredContestLink(contest);
 
-  database.db
+  await database.db
     .insert(contests)
     .values({
       judgeId: contest.judgeId,
@@ -269,7 +269,7 @@ export const upsertContest = (
     })
     .run();
 
-  const row = database.db
+  const row = await database.db
     .select({ id: contests.id })
     .from(contests)
     .where(and(eq(contests.judge, judge), eq(contests.judgeId, contest.judgeId)))
@@ -288,7 +288,7 @@ export const upsertContestProblems = (
   contest: JudgeContest,
   contestId: number,
   context: SyncOperationContext
-): Effect.Effect<number, SyncOperationError> => syncEffect(context, () => {
+): Effect.Effect<number, SyncOperationError> => syncEffect(context, async () => {
   const timestamp = now();
   const maxSolvesInContest = Math.max(0, ...contest.problems.map((problem) => problem.solves));
 
@@ -305,7 +305,7 @@ export const upsertContestProblems = (
       maxSolvesInContest
     });
 
-    database.db
+    await database.db
       .insert(problems)
       .values({
         judgeId: problem.judgeId,

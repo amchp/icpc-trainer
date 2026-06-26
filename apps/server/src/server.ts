@@ -33,7 +33,18 @@ export const startServer = (
 ): Effect.Effect<StartedServer, Error, Scope.Scope | DatabaseServiceTag> =>
   Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
-    yield* database.migrate;
+    if (config.database.autoMigrate) {
+      yield* database.migrate;
+    } else {
+      yield* database.healthCheck.pipe(
+        Effect.mapError((cause) =>
+          new Error(
+            "Remote database is not migrated or is unavailable. Run pnpm --filter @icpc-trainer/db db:migrate.",
+            { cause }
+          )
+        )
+      );
+    }
     const judgeRegistry = {
       codeforces: makeCodeforcesJudge(database),
       qoj: makeQojJudge(database)

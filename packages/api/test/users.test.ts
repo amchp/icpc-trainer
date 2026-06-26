@@ -14,7 +14,7 @@ describe("user roster routers", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -37,13 +37,13 @@ describe("user roster routers", () => {
       );
 
       return {
-        users: database.db.select().from(users).where(eq(users.username, "tourist")).all(),
-        roles: database.db.select().from(appUserJudgeUsers).all()
+        users: yield* Effect.promise(() => database.db.select().from(users).where(eq(users.username, "tourist")).all()),
+        roles: yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).all())
       };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.users).toHaveLength(1);
@@ -58,7 +58,7 @@ describe("user roster routers", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -81,13 +81,13 @@ describe("user roster routers", () => {
       );
 
       return {
-        users: database.db.select().from(users).where(eq(users.username, "tourist")).all(),
-        roles: database.db.select().from(appUserJudgeUsers).all()
+        users: yield* Effect.promise(() => database.db.select().from(users).where(eq(users.username, "tourist")).all()),
+        roles: yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).all())
       };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.users).toHaveLength(1);

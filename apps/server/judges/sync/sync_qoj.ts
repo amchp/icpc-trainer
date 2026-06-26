@@ -70,16 +70,16 @@ const getUserSubmissions = (
     userHandle: user.username
   }, judge.getSubmissions({ userHandle: user.username }));
 
-const simulatedQojContestKeys = (
+const simulatedQojContestKeys = async (
   database: DatabaseService,
   contestIds: ReadonlyArray<string>,
   userIds: ReadonlyArray<number>
-): ReadonlySet<string> => {
+): Promise<ReadonlySet<string>> => {
   if (contestIds.length === 0 || userIds.length === 0) {
     return new Set();
   }
 
-  const rows = database.db
+  const rows = await database.db
     .select({ judgeId: contests.judgeId, userId: userContestStates.userId })
     .from(userContestStates)
     .innerJoin(contests, eq(contests.id, userContestStates.contestId))
@@ -193,7 +193,9 @@ const runQojSyncProgram = (
     }
 
     const discoveredContestIds = [...contestsToSync.keys()].sort((left, right) => Number(left) - Number(right));
-    const simulatedContestKeys = simulatedQojContestKeys(database, discoveredContestIds, syncUsers.map((user) => user.id));
+    const simulatedContestKeys = yield* Effect.promise(() =>
+      simulatedQojContestKeys(database, discoveredContestIds, syncUsers.map((user) => user.id))
+    );
     const contestIds = discoveredContestIds.filter((contestId) =>
       ![...(contestsToSync.get(contestId) ?? [])].every((userId) => simulatedContestKeys.has(`${contestId}:${userId}`))
     );

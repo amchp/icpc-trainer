@@ -9,8 +9,8 @@ export interface AppDataStatus {
   readonly syncedContestJudges: readonly JudgeProvider[];
 }
 
-export const getAccountDataStatus = (database: DatabaseService, appUserId: number): AppDataStatus => {
-  const rows = database.db
+export const getAccountDataStatus = async (database: DatabaseService, appUserId: number): Promise<AppDataStatus> => {
+  const rows = await database.db
     .select({ judge: contests.judge })
     .from(userContestStates)
     .innerJoin(contests, eq(contests.id, userContestStates.contestId))

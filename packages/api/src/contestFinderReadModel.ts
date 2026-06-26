@@ -20,9 +20,12 @@ export interface ContestFinderOverview {
   readonly contests: readonly ContestFinderRow[];
 }
 
-export const getContestFinderOverview = (database: DatabaseService, appUserId: number): ContestFinderOverview => {
+export const getContestFinderOverview = async (
+  database: DatabaseService,
+  appUserId: number
+): Promise<ContestFinderOverview> => {
   const attemptedContestIds = new Set<number>();
-  const teamContestStateRows = database.db
+  const teamContestStateRows = await database.db
     .select({ contestId: userContestStates.contestId })
     .from(userContestStates)
     .innerJoin(appUserJudgeUsers, and(
@@ -43,7 +46,7 @@ export const getContestFinderOverview = (database: DatabaseService, appUserId: n
     : notInArray(contests.id, attemptedContestIdList);
   const friendCount = count(users.id);
 
-  const contestRows = database.db
+  const contestRows = await database.db
     .select({
       id: contests.id,
       judge: contests.judge,
@@ -70,7 +73,7 @@ export const getContestFinderOverview = (database: DatabaseService, appUserId: n
     .orderBy(desc(friendCount), contests.judge, contests.name)
     .all();
 
-  const handleRows = database.db
+  const handleRows = await database.db
     .select({
       contestId: userContestStates.contestId,
       username: users.username

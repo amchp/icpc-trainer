@@ -1,4 +1,6 @@
+import { Buffer } from "node:buffer";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import process from "node:process";
 
 import { TRPCError } from "@trpc/server";
 

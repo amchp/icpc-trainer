@@ -16,6 +16,7 @@
     "@icpc-trainer/api": "workspace:*",
     "@icpc-trainer/db": "workspace:*",
     "@icpc-trainer/shared": "workspace:*",
+    "@libsql/client": "^0.17.4",
     "@t3-oss/env-core": "^0.13.11",
     "@trpc/server": "11.18.0",
     "drizzle-orm": "0.45.2",

@@ -14,7 +14,7 @@ describe("account router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -26,19 +26,19 @@ describe("account router", () => {
 
       const emptyStatus = yield* Effect.promise(() => caller.account.dataStatus());
 
-      database.db.insert(users).values({
+      yield* Effect.promise(() => database.db.insert(users).values({
         username: "team",
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
-      }).run();
-      const team = database.db.select().from(users).get();
+      }).run());
+      const team = yield* Effect.promise(() => database.db.select().from(users).get());
       if (team === undefined) {
         throw new Error("Expected team judge user.");
       }
-      attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team);
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team));
 
-      database.db.insert(contests).values([
+      yield* Effect.promise(() => database.db.insert(contests).values([
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
@@ -59,12 +59,13 @@ describe("account router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
-      const simulatedContest = database.db.select().from(contests).all().find((contest) => contest.judgeId === "100");
+      ]).run());
+      const simulatedContest = (yield* Effect.promise(() => database.db.select().from(contests).all()))
+        .find((contest) => contest.judgeId === "100");
       if (simulatedContest === undefined) {
         throw new Error("Expected simulated contest.");
       }
-      database.db.insert(userContestStates).values({
+      yield* Effect.promise(() => database.db.insert(userContestStates).values({
         userId: team.id,
         contestId: simulatedContest.id,
         submissionCount: 2,
@@ -73,14 +74,14 @@ describe("account router", () => {
         simulated: true,
         lastSubmissionAt: timestamp,
         updatedAt: timestamp
-      }).run();
+      }).run());
 
       const populatedStatus = yield* Effect.promise(() => caller.account.dataStatus());
       return { emptyStatus, populatedStatus };
     });
 
     await expect(
-      Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))))
+      Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))))
     ).resolves.toEqual({
       emptyStatus: {
         hasSyncedContests: false,

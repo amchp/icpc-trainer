@@ -27,8 +27,11 @@ export interface FindProblemsOverview {
   };
 }
 
-export const getFindProblemsOverview = (database: DatabaseService, appUserId: number): FindProblemsOverview => {
-  const problemRows = database.db
+export const getFindProblemsOverview = async (
+  database: DatabaseService,
+  appUserId: number
+): Promise<FindProblemsOverview> => {
+  const problemRows = await database.db
     .select({
       problemId: problems.id,
       contestName: contests.name,

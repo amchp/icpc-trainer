@@ -14,9 +14,9 @@ describe("contest finder router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
-      database.db.insert(users).values([
+      yield* Effect.promise(() => database.db.insert(users).values([
         {
           username: "cf-friend",
           judge: JUDGES.Codeforces,
@@ -35,9 +35,9 @@ describe("contest finder router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      database.db.insert(contests).values([
+      yield* Effect.promise(() => database.db.insert(contests).values([
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
@@ -78,10 +78,10 @@ describe("contest finder router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      const userRows = database.db.select().from(users).all();
-      const contestRows = database.db.select().from(contests).all();
+      const userRows = yield* Effect.promise(() => database.db.select().from(users).all());
+      const contestRows = yield* Effect.promise(() => database.db.select().from(contests).all());
       const cfFriend = userRows.find((user) => user.username === "cf-friend");
       const qojFriend = userRows.find((user) => user.username === "qoj-friend");
       const team = userRows.find((user) => user.username === "team");
@@ -91,11 +91,11 @@ describe("contest finder router", () => {
       if (!cfFriend || !qojFriend || !team || !cfContest || !qojContest || !simulatedContest) {
         throw new Error("Expected seeded rows.");
       }
-      attachJudgeUser(database, appUser.id, cfFriend.id, USER_TYPES.Friend);
-      attachJudgeUser(database, appUser.id, qojFriend.id, USER_TYPES.Friend);
-      attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team);
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, cfFriend.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, qojFriend.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team));
 
-      database.db.insert(userContestStates).values([
+      yield* Effect.promise(() => database.db.insert(userContestStates).values([
         {
           userId: cfFriend.id,
           contestId: cfContest.id,
@@ -146,7 +146,7 @@ describe("contest finder router", () => {
           lastSubmissionAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
       const caller = appRouter.createCaller({
         database,
@@ -176,7 +176,7 @@ describe("contest finder router", () => {
     });
 
     const overview = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(overview.contests.map((contest) => contest.judgeId)).toEqual(["200"]);

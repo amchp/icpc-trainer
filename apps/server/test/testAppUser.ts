@@ -3,12 +3,12 @@ import { appUsers, type DatabaseService } from "@icpc-trainer/db";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-export const createTestAppUser = (
+export const createTestAppUser = async (
   database: DatabaseService,
   clerkUserId = "server_test_app_user"
-): AppUser => {
+): Promise<AppUser> => {
   const now = new Date("2026-01-01T00:00:00.000Z");
-  database.db.insert(appUsers).values({
+  await database.db.insert(appUsers).values({
     clerkUserId,
     primaryEmail: `${clerkUserId}@example.com`,
     displayName: clerkUserId,
@@ -17,7 +17,7 @@ export const createTestAppUser = (
     updatedAt: now
   }).run();
 
-  const appUser = database.db
+  const appUser = await database.db
     .select()
     .from(appUsers)
     .where(eq(appUsers.clerkUserId, clerkUserId))

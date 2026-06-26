@@ -100,7 +100,7 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
     Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       const appUserId = yield* AppUserIdTag;
-      const auth = getStoredQojCredentials({ database, appUserId });
+      const auth = yield* Effect.promise(() => getStoredQojCredentials({ database, appUserId }));
       if (!auth.ok) {
         return yield* Effect.fail(new JudgeCredentialError({ judgeId: "qoj", cause: auth.cause }));
       }
@@ -631,7 +631,7 @@ export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL) => {
 
       const database = yield* DatabaseServiceTag;
       const appUserId = yield* AppUserIdTag;
-      const auth = getStoredQojCredentials({ database, appUserId });
+      const auth = yield* Effect.promise(() => getStoredQojCredentials({ database, appUserId }));
       const handle = auth.ok ? userHandleFromCookieJar(auth.credentials.cookieJar) : undefined;
 
       if (handle === undefined || handle === "") {

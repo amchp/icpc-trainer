@@ -83,7 +83,7 @@ const upsertAuthenticatedUser = (
   { database }: AuthDependencies,
   clerkUserId: string,
   profile: AuthenticatedUserProfile = {}
-): ApiContext["appUser"] =>
+): Promise<ApiContext["appUser"]> =>
   upsertAppUser({ database }, {
     clerkUserId,
     primaryEmail: profile.primaryEmail,
@@ -105,7 +105,7 @@ const appUserFromBearerToken = async (
     const clerkUserId = stringClaim(claims, "sub");
     return clerkUserId === undefined
       ? undefined
-      : upsertAuthenticatedUser(dependencies, clerkUserId, profileFromJwtClaims(claims));
+      : await upsertAuthenticatedUser(dependencies, clerkUserId, profileFromJwtClaims(claims));
   } catch {
     return undefined;
   }
@@ -140,7 +140,7 @@ export const appUserFromHttpRequest = async (
     const userId = auth.toAuth().userId;
     const user = await client.users.getUser(userId);
 
-    return upsertAuthenticatedUser(dependencies, userId, {
+    return await upsertAuthenticatedUser(dependencies, userId, {
       primaryEmail: user.primaryEmailAddress?.emailAddress,
       displayName: user.fullName ?? user.username,
       imageUrl: user.imageUrl

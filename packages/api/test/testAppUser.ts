@@ -2,12 +2,12 @@ import { appUserJudgeUsers, appUsers, type DatabaseService } from "@icpc-trainer
 import { USER_TYPES } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 
-export const createTestAppUser = (
+export const createTestAppUser = async (
   database: DatabaseService,
   clerkUserId = "test_app_user"
 ) => {
   const now = new Date("2026-01-01T00:00:00.000Z");
-  database.db.insert(appUsers).values({
+  await database.db.insert(appUsers).values({
     clerkUserId,
     primaryEmail: `${clerkUserId}@example.com`,
     displayName: clerkUserId,
@@ -16,7 +16,7 @@ export const createTestAppUser = (
     updatedAt: now
   }).run();
 
-  const appUser = database.db
+  const appUser = await database.db
     .select()
     .from(appUsers)
     .where(eq(appUsers.clerkUserId, clerkUserId))
@@ -27,14 +27,14 @@ export const createTestAppUser = (
   return appUser;
 };
 
-export const attachJudgeUser = (
+export const attachJudgeUser = async (
   database: DatabaseService,
   appUserId: number,
   userId: number,
   role: USER_TYPES.Team | USER_TYPES.Friend
-): void => {
+): Promise<void> => {
   const now = new Date("2026-01-01T00:00:00.000Z");
-  database.db.insert(appUserJudgeUsers).values({
+  await database.db.insert(appUserJudgeUsers).values({
     appUserId,
     userId,
     role,

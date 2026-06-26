@@ -2,6 +2,8 @@ import { AppUserIdTag, appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -56,7 +58,7 @@ const runWithDatabase = async <A>(
   const program = Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
-    const appUser = createTestAppUser(database);
+    const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
     if (auth !== undefined) {
       const caller = appRouter.createCaller({
@@ -79,7 +81,7 @@ const runWithDatabase = async <A>(
     return yield* provideTestAppUser(effect, appUser);
   });
 
-  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 };
 
 const runWithCodeforcesAuth = async <A>(

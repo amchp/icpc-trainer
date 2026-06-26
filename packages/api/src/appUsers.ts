@@ -21,13 +21,13 @@ export interface AppUserContext {
   readonly database: DatabaseService;
 }
 
-export const upsertAppUser = (
+export const upsertAppUser = async (
   ctx: AppUserContext,
   input: AuthenticatedAppUserInput
-): AppUser => {
+): Promise<AppUser> => {
   const now = new Date();
 
-  ctx.database.db
+  await ctx.database.db
     .insert(appUsers)
     .values({
       clerkUserId: input.clerkUserId,
@@ -48,7 +48,7 @@ export const upsertAppUser = (
     })
     .run();
 
-  const appUser = ctx.database.db
+  const appUser = await ctx.database.db
     .select()
     .from(appUsers)
     .where(eq(appUsers.clerkUserId, input.clerkUserId))

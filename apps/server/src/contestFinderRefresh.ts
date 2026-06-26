@@ -48,17 +48,17 @@ const warning = (judge: Provider, error: unknown): ContestFinderRefreshWarning =
       : String(error)
 });
 
-const credentialProviders = (database: DatabaseService, appUserId: number): readonly Provider[] =>
-  database.db
+const credentialProviders = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> =>
+  (await database.db
     .selectDistinct({ provider: providerCredentials.provider })
     .from(providerCredentials)
     .where(eq(providerCredentials.appUserId, appUserId))
-    .all()
+    .all())
     .map((row) => row.provider)
     .filter(isJudgeProvider);
 
-const friendProviders = (database: DatabaseService, appUserId: number): readonly Provider[] =>
-  database.db
+const friendProviders = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> =>
+  (await database.db
     .selectDistinct({ judge: users.judge })
     .from(appUserJudgeUsers)
     .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
@@ -66,20 +66,24 @@ const friendProviders = (database: DatabaseService, appUserId: number): readonly
       eq(appUserJudgeUsers.appUserId, appUserId),
       eq(appUserJudgeUsers.role, USER_TYPES.Friend)
     ))
-    .all()
+    .all())
     .map((row) => row.judge)
     .filter(isJudgeProvider);
 
-const refreshTargets = (database: DatabaseService, appUserId: number): readonly Provider[] => {
+const refreshTargets = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> => {
   const targets = new Set<Provider>([
-    ...credentialProviders(database, appUserId),
-    ...friendProviders(database, appUserId)
+    ...await credentialProviders(database, appUserId),
+    ...await friendProviders(database, appUserId)
   ]);
   return supportedProviders.filter((provider) => targets.has(provider));
 };
 
-const friendsForProvider = (database: DatabaseService, appUserId: number, judge: JUDGES): readonly SyncUser[] =>
-  database.db
+const friendsForProvider = async (
+  database: DatabaseService,
+  appUserId: number,
+  judge: JUDGES
+): Promise<readonly SyncUser[]> =>
+  (await database.db
     .select()
     .from(appUserJudgeUsers)
     .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
@@ -88,7 +92,7 @@ const friendsForProvider = (database: DatabaseService, appUserId: number, judge:
       eq(appUserJudgeUsers.role, USER_TYPES.Friend),
       eq(users.judge, judge)
     ))
-    .all()
+    .all())
     .map((row) => row.users);
 
 export const createContestFinderRefreshService = (
@@ -114,7 +118,7 @@ export const createContestFinderRefreshService = (
     let friendsProcessed = 0;
     let latestEvent: ContestFinderRefreshEvent | undefined;
     const judge = registry[provider];
-    const friends = friendsForProvider(database, appUserId, judgeFromProvider(provider));
+    const friends = await friendsForProvider(database, appUserId, judgeFromProvider(provider));
     const emptyStepsTotal = friends.length + 1;
     const emit = (event: ContestFinderRefreshEvent): void => {
       latestEvent = event;
@@ -195,7 +199,7 @@ export const createContestFinderRefreshService = (
 
   return {
     startContestFinderRefresh: async ({ appUserId }) => {
-      for (const provider of refreshTargets(database, appUserId)) {
+      for (const provider of await refreshTargets(database, appUserId)) {
         jobs.start(
           jobKey(appUserId, provider),
           {

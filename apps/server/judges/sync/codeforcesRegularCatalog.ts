@@ -55,8 +55,8 @@ export const upsertCodeforcesRegularCatalog = (
   problemCatalog: readonly JudgeRegularCatalogProblem[]
 ): Effect.Effect<RegularCatalogImportResult, SyncOperationError> =>
   Effect.gen(function* () {
-    return yield* Effect.try({
-      try: () => {
+    return yield* Effect.tryPromise({
+      try: async () => {
         const timestamp = new Date();
         const contestCatalogById = new Map<string, JudgeRegularCatalogContest>();
         const problemsByContest = new Map<string, JudgeRegularCatalogProblem[]>();
@@ -93,144 +93,142 @@ export const upsertCodeforcesRegularCatalog = (
         let problemsImported = 0;
         const importedContestIds = new Set<string>();
 
-        database.db.transaction((tx) => {
-          for (const [contestJudgeId, contestProblems] of problemsByContest.entries()) {
-            const contest = contestCatalogById.get(contestJudgeId);
-            if (contest === undefined || contestProblems.length === 0) {
-              continue;
-            }
+        for (const [contestJudgeId, contestProblems] of problemsByContest.entries()) {
+          const contest = contestCatalogById.get(contestJudgeId);
+          if (contest === undefined || contestProblems.length === 0) {
+            continue;
+          }
 
-            const existingContest = tx
-              .select({
-                id: contests.id,
-                participants: contests.participants,
-                stars: contests.stars
-              })
-              .from(contests)
-              .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-              .get();
-            const standingsGrade = existingContest?.participants !== null && existingContest?.participants !== undefined;
-            const stars = standingsGrade && existingContest?.stars !== null && existingContest?.stars !== undefined
-              ? existingContest.stars
-              : regularContestStars(contest.name);
-            const link = regularContestLink(contest);
+          const existingContest = await database.db
+            .select({
+              id: contests.id,
+              participants: contests.participants,
+              stars: contests.stars
+            })
+            .from(contests)
+            .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
+            .get();
+          const standingsGrade = existingContest?.participants !== null && existingContest?.participants !== undefined;
+          const stars = standingsGrade && existingContest?.stars !== null && existingContest?.stars !== undefined
+            ? existingContest.stars
+            : regularContestStars(contest.name);
+          const link = regularContestLink(contest);
 
-            tx
-              .insert(contests)
-              .values({
-                judgeId: contestJudgeId,
-                judge: JUDGES.Codeforces,
+          await database.db
+            .insert(contests)
+            .values({
+              judgeId: contestJudgeId,
+              judge: JUDGES.Codeforces,
+              name: contest.name,
+              link,
+              participants: existingContest?.participants ?? null,
+              stars,
+              createdAt: timestamp,
+              updatedAt: timestamp
+            })
+            .onConflictDoUpdate({
+              target: [contests.judgeId, contests.judge],
+              set: {
                 name: contest.name,
                 link,
                 participants: existingContest?.participants ?? null,
                 stars,
+                updatedAt: timestamp
+              }
+            })
+            .run();
+
+          const contestRow = await database.db
+            .select({
+              id: contests.id,
+              participants: contests.participants
+            })
+            .from(contests)
+            .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
+            .get();
+
+          if (contestRow === undefined) {
+            throw new Error(`Regular Codeforces contest ${contestJudgeId} was not found after upsert.`);
+          }
+
+          const problemJudgeIds = contestProblems.map((problem) => problem.judgeId);
+          const existingProblems = problemJudgeIds.length === 0
+            ? []
+            : await database.db
+              .select({
+                id: problems.id,
+                judgeId: problems.judgeId,
+                solvePercentage: problems.solvePercentage,
+                rating: problems.rating
+              })
+              .from(problems)
+              .where(and(
+                eq(problems.judge, JUDGES.Codeforces),
+                inArray(problems.judgeId, problemJudgeIds)
+              ))
+              .all();
+          const existingProblemsByJudgeId = new Map(existingProblems.map((problem) => [problem.judgeId, problem]));
+          const maxSolvesInContest = Math.max(0, ...contestProblems.map((problem) => problem.solves));
+          const preserveSolvePercentage = contestRow.participants !== null;
+          importedContestIds.add(contestJudgeId);
+
+          for (const problem of contestProblems) {
+            const existingProblem = existingProblemsByJudgeId.get(problem.judgeId);
+            const fallbackRating = estimateProblemRating({
+              stars,
+              participants: maxSolvesInContest,
+              solves: problem.solves,
+              maxSolvesInContest
+            });
+            const rating = problem.rating ?? existingProblem?.rating ?? fallbackRating;
+            const solvePercentage = preserveSolvePercentage && existingProblem !== undefined
+              ? existingProblem.solvePercentage
+              : regularSolvePercentage(problem.solves, maxSolvesInContest);
+
+            const [problemRow] = await database.db
+              .insert(problems)
+              .values({
+                judgeId: problem.judgeId,
+                judge: JUDGES.Codeforces,
+                name: problem.name,
+                link: problem.link,
+                contestId: contestRow.id,
+                solves: problem.solves,
+                solvePercentage,
+                rating,
                 createdAt: timestamp,
                 updatedAt: timestamp
               })
               .onConflictDoUpdate({
-                target: [contests.judgeId, contests.judge],
+                target: [problems.judgeId, problems.judge],
                 set: {
-                  name: contest.name,
-                  link,
-                  participants: existingContest?.participants ?? null,
-                  stars,
-                  updatedAt: timestamp
-                }
-              })
-              .run();
-
-            const contestRow = tx
-              .select({
-                id: contests.id,
-                participants: contests.participants
-              })
-              .from(contests)
-              .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, contestJudgeId)))
-              .get();
-
-            if (contestRow === undefined) {
-              throw new Error(`Regular Codeforces contest ${contestJudgeId} was not found after upsert.`);
-            }
-
-            const problemJudgeIds = contestProblems.map((problem) => problem.judgeId);
-            const existingProblems = problemJudgeIds.length === 0
-              ? []
-              : tx
-                .select({
-                  id: problems.id,
-                  judgeId: problems.judgeId,
-                  solvePercentage: problems.solvePercentage,
-                  rating: problems.rating
-                })
-                .from(problems)
-                .where(and(
-                  eq(problems.judge, JUDGES.Codeforces),
-                  inArray(problems.judgeId, problemJudgeIds)
-                ))
-                .all();
-            const existingProblemsByJudgeId = new Map(existingProblems.map((problem) => [problem.judgeId, problem]));
-            const maxSolvesInContest = Math.max(0, ...contestProblems.map((problem) => problem.solves));
-            const preserveSolvePercentage = contestRow.participants !== null;
-            importedContestIds.add(contestJudgeId);
-
-            for (const problem of contestProblems) {
-              const existingProblem = existingProblemsByJudgeId.get(problem.judgeId);
-              const fallbackRating = estimateProblemRating({
-                stars,
-                participants: maxSolvesInContest,
-                solves: problem.solves,
-                maxSolvesInContest
-              });
-              const rating = problem.rating ?? existingProblem?.rating ?? fallbackRating;
-              const solvePercentage = preserveSolvePercentage && existingProblem !== undefined
-                ? existingProblem.solvePercentage
-                : regularSolvePercentage(problem.solves, maxSolvesInContest);
-
-              const [problemRow] = tx
-                .insert(problems)
-                .values({
-                  judgeId: problem.judgeId,
-                  judge: JUDGES.Codeforces,
                   name: problem.name,
                   link: problem.link,
                   contestId: contestRow.id,
                   solves: problem.solves,
                   solvePercentage,
                   rating,
-                  createdAt: timestamp,
                   updatedAt: timestamp
-                })
-                .onConflictDoUpdate({
-                  target: [problems.judgeId, problems.judge],
-                  set: {
-                    name: problem.name,
-                    link: problem.link,
-                    contestId: contestRow.id,
-                    solves: problem.solves,
-                    solvePercentage,
-                    rating,
-                    updatedAt: timestamp
-                  }
-                })
-                .returning({ id: problems.id })
-                .all();
+                }
+              })
+              .returning({ id: problems.id })
+              .all();
 
-              if (problemRow === undefined) {
-                throw new Error(`Regular Codeforces problem ${problem.judgeId} was not found after upsert.`);
-              }
-
-              tx.delete(problemTags).where(eq(problemTags.problemId, problemRow.id)).run();
-              for (const tag of [...new Set((problem.tags ?? []).map((value) => value.trim()).filter(Boolean))]) {
-                tx.insert(problemTags).values({
-                  problemId: problemRow.id,
-                  tag
-                }).onConflictDoNothing().run();
-              }
-
-              problemsImported += 1;
+            if (problemRow === undefined) {
+              throw new Error(`Regular Codeforces problem ${problem.judgeId} was not found after upsert.`);
             }
+
+            await database.db.delete(problemTags).where(eq(problemTags.problemId, problemRow.id)).run();
+            for (const tag of [...new Set((problem.tags ?? []).map((value) => value.trim()).filter(Boolean))]) {
+              await database.db.insert(problemTags).values({
+                problemId: problemRow.id,
+                tag
+              }).onConflictDoNothing().run();
+            }
+
+            problemsImported += 1;
           }
-        });
+        }
 
         return {
           importedContestIds,

@@ -20,7 +20,7 @@ describe("appRouter", () => {
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result).toMatchObject({

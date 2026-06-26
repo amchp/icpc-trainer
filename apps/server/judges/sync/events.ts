@@ -155,10 +155,10 @@ export const syncOperationErrorEvent = (
 
 export const syncEffect = <A>(
   context: SyncOperationContext,
-  run: () => A
+  run: () => A | Promise<A>
 ): Effect.Effect<A, SyncOperationError> =>
-  Effect.try({
-    try: run,
+  Effect.tryPromise({
+    try: () => Promise.resolve(run()),
     catch: (cause) => new SyncOperationError({ ...context, cause })
   });
 

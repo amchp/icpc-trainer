@@ -14,9 +14,9 @@ describe("upsolving router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
-      database.db.insert(users).values([
+      yield* Effect.promise(() => database.db.insert(users).values([
         {
           username: "other",
           judge: JUDGES.Codeforces,
@@ -35,9 +35,9 @@ describe("upsolving router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      database.db.insert(contests).values([
+      yield* Effect.promise(() => database.db.insert(contests).values([
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
@@ -68,9 +68,9 @@ describe("upsolving router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      const contestRows = database.db.select().from(contests).all();
+      const contestRows = yield* Effect.promise(() => database.db.select().from(contests).all());
       const syncedContest = contestRows.find((contest) => contest.judgeId === "100");
       const qojContest = contestRows.find((contest) => contest.judgeId === "200");
       const unsyncedContest = contestRows.find((contest) => contest.judgeId === "300");
@@ -78,7 +78,7 @@ describe("upsolving router", () => {
         throw new Error("Expected seeded contests.");
       }
 
-      database.db.insert(problems).values([
+      yield* Effect.promise(() => database.db.insert(problems).values([
         {
           judgeId: "100A",
           judge: JUDGES.Codeforces,
@@ -127,10 +127,10 @@ describe("upsolving router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      const userRows = database.db.select().from(users).all();
-      const problemRows = database.db.select().from(problems).all();
+      const userRows = yield* Effect.promise(() => database.db.select().from(users).all());
+      const problemRows = yield* Effect.promise(() => database.db.select().from(problems).all());
       const other = userRows.find((user) => user.username === "other");
       const teammate = userRows.find((user) => user.username === "teammate");
       const friend = userRows.find((user) => user.username === "friend");
@@ -140,9 +140,9 @@ describe("upsolving router", () => {
       if (!other || !teammate || !friend || !solved || !attempted || !newProblem) {
         throw new Error("Expected seeded users and problems.");
       }
-      attachJudgeUser(database, appUser.id, teammate.id, USER_TYPES.Team);
-      attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend);
-      database.db.insert(userContestStates).values([
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, teammate.id, USER_TYPES.Team));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => database.db.insert(userContestStates).values([
         {
           userId: teammate.id,
           contestId: syncedContest.id,
@@ -163,9 +163,9 @@ describe("upsolving router", () => {
           lastSubmissionAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      database.db.insert(submissions).values([
+      yield* Effect.promise(() => database.db.insert(submissions).values([
         {
           judgeId: "sub-1",
           judge: JUDGES.Codeforces,
@@ -196,7 +196,7 @@ describe("upsolving router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
       const caller = appRouter.createCaller({
         database,
@@ -211,7 +211,7 @@ describe("upsolving router", () => {
     });
 
     const overview = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(overview.rows).toHaveLength(2);

@@ -73,7 +73,7 @@ export const saveCredentialsInputSchema = z.discriminatedUnion("provider", [
 
 export const createCredentialsRouter = (t: TrpcInstance) =>
   t.router({
-    status: t.procedure.query(({ ctx }): CredentialStatus =>
+    status: t.procedure.query(({ ctx }): Promise<CredentialStatus> =>
       getCredentialStatus({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id })
     ),
     events: t.procedure.subscription(async function* ({ ctx }) {
@@ -82,7 +82,7 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
       yield {
         type: "snapshot" as const,
         appUserId: appUser.id,
-        status: getCredentialStatus({ database: ctx.database, appUserId: appUser.id }),
+        status: await getCredentialStatus({ database: ctx.database, appUserId: appUser.id }),
         occurredAt: new Date().toISOString()
       };
 
@@ -98,7 +98,7 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
       const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
       await validateCredentials(ctx, input);
 
-      const status = saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
+      const status = await saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
       publishCredentialChange(ctx, status);
       return status;
     }),
@@ -106,12 +106,12 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
       const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
       await validateCredentials(ctx, input);
 
-      const status = saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
+      const status = await saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
       publishCredentialChange(ctx, status);
       return status;
     }),
-    clear: t.procedure.input(judgeProviderSchema).mutation(({ ctx, input }): CredentialStatus => {
-      const status = clearCredentials({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id }, input);
+    clear: t.procedure.input(judgeProviderSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
+      const status = await clearCredentials({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id }, input);
       ctx.credentialEvents?.publish({
         type: "changed",
         appUserId: requireAppUser(ctx.appUser).id,

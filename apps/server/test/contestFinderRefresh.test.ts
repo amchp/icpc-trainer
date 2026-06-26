@@ -21,12 +21,12 @@ const withDatabase = async <A>(run: (database: DatabaseService) => Promise<A>): 
     return yield* Effect.promise(() => run(database));
   });
 
-  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 };
 
-const seedCredentialRefreshTarget = (database: DatabaseService, appUserId: number): void => {
+const seedCredentialRefreshTarget = async (database: DatabaseService, appUserId: number): Promise<void> => {
   const timestamp = new Date("2026-01-01T00:00:00.000Z");
-  database.db.insert(providerCredentials).values({
+  await database.db.insert(providerCredentials).values({
     appUserId,
     provider: JUDGES.Codeforces,
     providerUserKey: "default",
@@ -38,9 +38,9 @@ const seedCredentialRefreshTarget = (database: DatabaseService, appUserId: numbe
   }).run();
 };
 
-const seedGlobalContest = (database: DatabaseService): void => {
+const seedGlobalContest = async (database: DatabaseService): Promise<void> => {
   const timestamp = new Date("2026-01-01T00:00:00.000Z");
-  database.db.insert(contests).values({
+  await database.db.insert(contests).values({
     judgeId: "100",
     judge: JUDGES.Codeforces,
     name: "Global Contest",
@@ -80,8 +80,8 @@ describe("createContestFinderRefreshService", () => {
 
   it("sends latest running state to late observers", async () => {
     await withDatabase(async (database) => {
-      const appUser = createTestAppUser(database);
-      seedCredentialRefreshTarget(database, appUser.id);
+      const appUser = await createTestAppUser(database);
+      await seedCredentialRefreshTarget(database, appUser.id);
       let finish: (() => void) | undefined;
       let service: ReturnType<typeof createContestFinderRefreshService> | undefined;
       const emitted = new Promise<void>((resolve) => {
@@ -138,8 +138,8 @@ describe("createContestFinderRefreshService", () => {
 
   it("retains latest completed state for new observers", async () => {
     await withDatabase(async (database) => {
-      const appUser = createTestAppUser(database);
-      seedCredentialRefreshTarget(database, appUser.id);
+      const appUser = await createTestAppUser(database);
+      await seedCredentialRefreshTarget(database, appUser.id);
       const service = createContestFinderRefreshService(database, {
         codeforces: testJudge(() => Effect.succeed({
           contestsUpserted: 2,
@@ -169,7 +169,7 @@ describe("createContestFinderRefreshService", () => {
 
   it("does not start a refresh from another user's global contest rows", async () => {
     await withDatabase(async (database) => {
-      seedGlobalContest(database);
+      await seedGlobalContest(database);
       let calls = 0;
       const service = createContestFinderRefreshService(database, {
         codeforces: testJudge(() => {

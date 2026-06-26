@@ -9,7 +9,7 @@ The repository contains:
 - Tailwind CSS 4 and shadcn-style UI primitives
 - tRPC typed HTTP API
 - Effect-backed backend services
-- Drizzle ORM with `better-sqlite3`
+- Drizzle ORM with libSQL/Turso
 - Clerk-owned app users mapped to judge users marked as team users or friends
 
 ## Requirements
@@ -47,7 +47,8 @@ pnpm test:e2e
 ```bash
 ICPC_TRAINER_HOST=127.0.0.1
 ICPC_TRAINER_PORT=3773
-ICPC_TRAINER_SQLITE_PATH=.local/icpc-trainer.sqlite
+ICPC_TRAINER_DATABASE_URL=file:.local/icpc-trainer.sqlite
+# ICPC_TRAINER_DATABASE_AUTH_TOKEN=
 VITE_API_BASE_URL=http://127.0.0.1:3773
 
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
@@ -58,15 +59,29 @@ CLERK_SECRET_KEY=sk_test_...
 
 E2E_CLERK_USER_EMAIL=icpc-trainer-e2e+clerk_test@example.com
 E2E_CLERK_USER_PASSWORD=ICPC-Trainer-E2E-Password-424242!
+
+E2E_CODEFORCES_HANDLE=drew138
+# E2E_CODEFORCES_API_KEY=
+# E2E_CODEFORCES_API_SECRET=
 ```
 
-`ICPC_TRAINER_SQLITE_PATH` is resolved from the server process working directory. With the package scripts, `.local/icpc-trainer.sqlite` usually means `apps/server/.local/icpc-trainer.sqlite`.
+`ICPC_TRAINER_DATABASE_URL` accepts local libSQL URLs such as `file:.local/icpc-trainer.sqlite` and `:memory:`, or remote Turso/libSQL URLs such as `libsql://...`. Local `file:` and `:memory:` databases auto-migrate on server startup. Remote Turso databases do not auto-migrate.
 
-The server auto-generates a local credential encryption key file beside the SQLite database when `ICPC_TRAINER_CREDENTIAL_KEY` is not set.
+The server auto-generates a local credential encryption key file beside a local database when `ICPC_TRAINER_CREDENTIAL_KEY` is not set. Remote database URLs require explicit `ICPC_TRAINER_CREDENTIAL_KEY` or `ICPC_TRAINER_CREDENTIAL_KEY_FILE`.
+
+To use Turso Cloud:
+
+```bash
+export ICPC_TRAINER_DATABASE_URL=libsql://your-database.turso.io
+export ICPC_TRAINER_DATABASE_AUTH_TOKEN=...
+export ICPC_TRAINER_CREDENTIAL_KEY=...
+pnpm --filter @icpc-trainer/db db:migrate
+pnpm --filter @icpc-trainer/server dev
+```
 
 ## Local Database Reset
 
-If local SQLite state is stale after schema changes, stop the dev server and run:
+If local database state is stale after schema changes, stop the dev server and run:
 
 ```bash
 pnpm dev:reset
@@ -87,7 +102,12 @@ Optional:
 
 - `E2E_CLERK_USER_EMAIL`
 - `E2E_CLERK_USER_PASSWORD`
+- `E2E_CODEFORCES_HANDLE` (defaults to `drew138`)
+- `E2E_CODEFORCES_API_KEY`
+- `E2E_CODEFORCES_API_SECRET`
 
 The default e2e email uses the `+clerk_test` subaddress. The global setup creates the user if it does not already exist, signs in with Clerk's testing helpers, and stores auth state under `apps/web/playwright/.clerk/`.
 
-CI must provide the same Clerk secrets as protected secrets. The Playwright config starts the API on `127.0.0.1:43773` with in-memory SQLite and the web app on `127.0.0.1:5173`.
+The Codeforces sync e2e test is skipped unless `E2E_CODEFORCES_API_KEY` and `E2E_CODEFORCES_API_SECRET` are set. When enabled, it computes the expected live Codeforces totals for `E2E_CODEFORCES_HANDLE`, syncs that user, and checks that the Contests and Upsolving table counts match.
+
+CI must provide the same Clerk secrets as protected secrets. The Playwright config starts the API on `127.0.0.1:43773` with an in-memory libSQL database and the web app on `127.0.0.1:5173`.

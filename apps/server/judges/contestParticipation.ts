@@ -35,11 +35,11 @@ export const ensureCatalogContest = (
   name: string | undefined,
   link: string,
   context: SyncOperationContext
-): Effect.Effect<number, SyncOperationError> => syncEffect(context, () => {
+): Effect.Effect<number, SyncOperationError> => syncEffect(context, async () => {
   const timestamp = now();
   const trimmedName = name?.trim();
   const fallbackName = `${judge === JUDGES.Codeforces ? "Codeforces" : "QOJ"} Contest ${contestJudgeId}`;
-  const existing = database.db
+  const existing = await database.db
     .select({ id: contests.id })
     .from(contests)
     .where(and(eq(contests.judge, judge), eq(contests.judgeId, contestJudgeId)))
@@ -49,7 +49,7 @@ export const ensureCatalogContest = (
     return existing.id;
   }
 
-  database.db
+  await database.db
     .insert(contests)
     .values({
       judgeId: contestJudgeId,
@@ -71,7 +71,7 @@ export const ensureCatalogContest = (
     })
     .run();
 
-  const row = database.db
+  const row = await database.db
     .select({ id: contests.id })
     .from(contests)
     .where(and(eq(contests.judge, judge), eq(contests.judgeId, contestJudgeId)))
@@ -84,17 +84,18 @@ export const ensureCatalogContest = (
   return row.id;
 });
 
-export const upsertUserContestState = (
+export const upsertUserContestState = async (
   database: DatabaseService,
   userId: number,
   contestId: number,
   submissionsForContest: ReadonlyArray<ContestStateSubmission>
-): boolean => {
-  const existing = database.db
+): Promise<boolean> => {
+  const existing = await database.db
     .select({ userId: userContestStates.userId })
     .from(userContestStates)
     .where(and(eq(userContestStates.userId, userId), eq(userContestStates.contestId, contestId)))
     .get();
+
   if (submissionsForContest.length === 0 && existing !== undefined) {
     return false;
   }
@@ -111,7 +112,7 @@ export const upsertUserContestState = (
   );
   const acceptedCount = submissionsForContest.filter((submission) => submission.verdict === SUBMISSION_STATUSES.AC).length;
 
-  database.db
+  await database.db
     .insert(userContestStates)
     .values({
       userId,
@@ -148,18 +149,18 @@ export const upsertContestParticipations = (
   provider,
   phase: SYNC_OPERATION_PHASES.Database,
   action: "contest participation"
-}, () => {
+}, async () => {
   let upserted = 0;
 
   for (const entry of entries) {
-    const contestId = Effect.runSync(ensureCatalogContest(database, judge, entry.contestJudgeId, entry.contestName, entry.contestLink, {
+    const contestId = await Effect.runPromise(ensureCatalogContest(database, judge, entry.contestJudgeId, entry.contestName, entry.contestLink, {
       provider,
       phase: SYNC_OPERATION_PHASES.Database,
       action: `contest ${entry.contestJudgeId} participation`,
       userHandle: entry.user.username,
       contestJudgeId: entry.contestJudgeId
     }));
-    if (upsertUserContestState(database, entry.user.id, contestId, entry.submissions)) {
+    if (await upsertUserContestState(database, entry.user.id, contestId, entry.submissions)) {
       upserted += 1;
     }
   }
@@ -176,11 +177,11 @@ export const upsertExistingContestParticipations = (
   provider,
   phase: SYNC_OPERATION_PHASES.Database,
   action: "existing contest participation"
-}, () => {
+}, async () => {
   let upserted = 0;
 
   for (const entry of entries) {
-    const contest = database.db
+    const contest = await database.db
       .select({ id: contests.id })
       .from(contests)
       .where(and(eq(contests.judge, judge), eq(contests.judgeId, entry.contestJudgeId)))
@@ -190,7 +191,7 @@ export const upsertExistingContestParticipations = (
       continue;
     }
 
-    if (upsertUserContestState(database, entry.user.id, contest.id, entry.submissions)) {
+    if (await upsertUserContestState(database, entry.user.id, contest.id, entry.submissions)) {
       upserted += 1;
     }
   }

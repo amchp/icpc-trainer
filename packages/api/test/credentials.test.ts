@@ -2,6 +2,8 @@ import { appUserJudgeUsers, DatabaseLive, DatabaseServiceTag, providerCredential
 import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -29,7 +31,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -48,12 +50,12 @@ describe("credentials router", () => {
         }
       }));
 
-      const stored = database.db.select().from(providerCredentials).get();
+      const stored = yield* Effect.promise(() => database.db.select().from(providerCredentials).get());
       return stored;
     });
 
     const stored = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(stored?.encryptedPayload).toMatch(/^icpct-v1:/);
@@ -66,7 +68,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -85,7 +87,7 @@ describe("credentials router", () => {
         }
       }));
 
-      const before = getStoredCodeforcesCredentials({ database, appUserId: appUser.id });
+      const before = yield* Effect.promise(() => getStoredCodeforcesCredentials({ database, appUserId: appUser.id }));
 
       yield* Effect.promise(() => caller.credentials.create({
         provider: "codeforces",
@@ -98,15 +100,15 @@ describe("credentials router", () => {
 
       return {
         before,
-        after: getStoredCodeforcesCredentials({ database, appUserId: appUser.id }),
-        stored: database.db.select().from(providerCredentials).all(),
-        handles: database.db.select().from(users).all(),
-        roles: database.db.select().from(appUserJudgeUsers).all()
+        after: yield* Effect.promise(() => getStoredCodeforcesCredentials({ database, appUserId: appUser.id })),
+        stored: yield* Effect.promise(() => database.db.select().from(providerCredentials).all()),
+        handles: yield* Effect.promise(() => database.db.select().from(users).all()),
+        roles: yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).all())
       };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.before).toEqual({
@@ -134,7 +136,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -153,14 +155,14 @@ describe("credentials router", () => {
         }
       }));
 
-      const stored = database.db.select().from(providerCredentials).get();
-      const user = database.db.select().from(users).where(eq(users.username, "tourist")).get();
-      const role = database.db.select().from(appUserJudgeUsers).get();
+      const stored = yield* Effect.promise(() => database.db.select().from(providerCredentials).get());
+      const user = yield* Effect.promise(() => database.db.select().from(users).where(eq(users.username, "tourist")).get());
+      const role = yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).get());
       return { stored, user, role };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.stored).toMatchObject({
@@ -180,7 +182,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -207,13 +209,13 @@ describe("credentials router", () => {
       }));
 
       return {
-        users: database.db.select().from(users).where(eq(users.username, "juancs")).all(),
-        roles: database.db.select().from(appUserJudgeUsers).all()
+        users: yield* Effect.promise(() => database.db.select().from(users).where(eq(users.username, "juancs")).all()),
+        roles: yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).all())
       };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.users).toHaveLength(2);
@@ -237,7 +239,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -260,11 +262,11 @@ describe("credentials router", () => {
         })).rejects.toThrow("Codeforces credentials failed validation.")
       );
 
-      return database.db.select().from(providerCredentials).all();
+      return yield* Effect.promise(() => database.db.select().from(providerCredentials).all());
     });
 
     const stored = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(stored).toHaveLength(0);
@@ -276,7 +278,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -296,13 +298,13 @@ describe("credentials router", () => {
       yield* Effect.promise(() => caller.credentials.clear("qoj"));
 
       return {
-        user: database.db.select().from(users).where(eq(users.username, "qoj-user")).get() ?? null,
-        role: database.db.select().from(appUserJudgeUsers).get() ?? null
+        user: (yield* Effect.promise(() => database.db.select().from(users).where(eq(users.username, "qoj-user")).get())) ?? null,
+        role: (yield* Effect.promise(() => database.db.select().from(appUserJudgeUsers).get())) ?? null
       };
     });
 
     const result = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(result.user).toMatchObject({
@@ -319,7 +321,7 @@ describe("credentials router", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -344,7 +346,7 @@ describe("credentials router", () => {
     });
 
     await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))),
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))),
     );
 
     expect(published).toHaveLength(1);

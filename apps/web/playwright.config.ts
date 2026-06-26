@@ -31,7 +31,7 @@ export default defineConfig({
       cwd: repoRoot,
       env: {
         ICPC_TRAINER_PORT: "43773",
-        ICPC_TRAINER_SQLITE_PATH: ":memory:"
+        ICPC_TRAINER_DATABASE_URL: ":memory:"
       }
     },
     {

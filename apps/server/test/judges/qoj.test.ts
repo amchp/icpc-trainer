@@ -1,6 +1,8 @@
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
+import process from "node:process";
 import { AppUserIdTag, appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
@@ -131,7 +133,7 @@ describe("QOJ judge HTML fixtures", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -153,7 +155,7 @@ describe("QOJ judge HTML fixtures", () => {
       return yield* provideTestAppUser(effect, appUser);
     });
 
-    return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+    return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
   };
 
   it("parses contest metadata and problems from copied QOJ contest HTML", async () => {

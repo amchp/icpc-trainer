@@ -1,6 +1,8 @@
 import { appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag, providerCredentials } from "@icpc-trainer/db";
 import { Effect } from "effect";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -88,7 +90,7 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       return yield* Effect.promise(() =>
         createJudgePlayground(database).run({
           provider: "codeforces",
@@ -99,7 +101,7 @@ describe("createJudgePlayground", () => {
       );
     });
 
-    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 
     expect(result).toMatchObject({
       ok: false,
@@ -124,7 +126,7 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -155,7 +157,7 @@ describe("createJudgePlayground", () => {
       );
     });
 
-    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+    const result = await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
     const url = requestedUrl(fetchMock.mock.calls[0]?.[0]);
 
     expect(result).toMatchObject({ ok: true });
@@ -176,7 +178,7 @@ describe("createJudgePlayground", () => {
     const program = Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
       const caller = appRouter.createCaller({
         database,
         appUser,
@@ -206,12 +208,12 @@ describe("createJudgePlayground", () => {
         })
       );
 
-      const remaining = database.db.select().from(providerCredentials).all();
+      const remaining = yield* Effect.promise(() => database.db.select().from(providerCredentials).all());
       return { remaining, result };
     });
 
     const { remaining, result } = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(result).toMatchObject({

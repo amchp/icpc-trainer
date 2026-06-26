@@ -14,9 +14,9 @@ describe("find problems router", () => {
       const database = yield* DatabaseServiceTag;
       yield* database.migrate;
       const timestamp = new Date("2026-01-01T00:00:00.000Z");
-      const appUser = createTestAppUser(database);
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
-      database.db.insert(users).values([
+      yield* Effect.promise(() => database.db.insert(users).values([
         {
           username: "team",
           judge: JUDGES.Codeforces,
@@ -29,9 +29,9 @@ describe("find problems router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      database.db.insert(contests).values([
+      yield* Effect.promise(() => database.db.insert(contests).values([
         {
           judgeId: "100",
           judge: JUDGES.Codeforces,
@@ -52,16 +52,16 @@ describe("find problems router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      const contestRows = database.db.select().from(contests).all();
+      const contestRows = yield* Effect.promise(() => database.db.select().from(contests).all());
       const codeforcesContest = contestRows.find((contest) => contest.judgeId === "100");
       const qojContest = contestRows.find((contest) => contest.judgeId === "200");
       if (!codeforcesContest || !qojContest) {
         throw new Error("Expected seeded contests.");
       }
 
-      database.db.insert(problems).values([
+      yield* Effect.promise(() => database.db.insert(problems).values([
         {
           judgeId: "100A",
           judge: JUDGES.Codeforces,
@@ -110,10 +110,10 @@ describe("find problems router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
-      const problemRows = database.db.select().from(problems).all();
-      const userRows = database.db.select().from(users).all();
+      const problemRows = yield* Effect.promise(() => database.db.select().from(problems).all());
+      const userRows = yield* Effect.promise(() => database.db.select().from(users).all());
       const team = userRows.find((user) => user.username === "team");
       const friend = userRows.find((user) => user.username === "friend");
       const untagged = problemRows.find((problem) => problem.judgeId === "100A");
@@ -122,16 +122,16 @@ describe("find problems router", () => {
       if (!team || !friend || !untagged || !tagged || !duplicateTagSource) {
         throw new Error("Expected seeded users and problems.");
       }
-      attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team);
-      attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend);
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend));
 
-      database.db.insert(problemTags).values([
+      yield* Effect.promise(() => database.db.insert(problemTags).values([
         { problemId: tagged.id, tag: "dp" },
         { problemId: tagged.id, tag: "math" },
         { problemId: duplicateTagSource.id, tag: "dp" }
-      ]).run();
+      ]).run());
 
-      database.db.insert(submissions).values([
+      yield* Effect.promise(() => database.db.insert(submissions).values([
         {
           judgeId: "team-wa",
           judge: JUDGES.Codeforces,
@@ -162,7 +162,7 @@ describe("find problems router", () => {
           createdAt: timestamp,
           updatedAt: timestamp
         }
-      ]).run();
+      ]).run());
 
       const caller = appRouter.createCaller({
         database,
@@ -177,7 +177,7 @@ describe("find problems router", () => {
     });
 
     const overview = await Effect.runPromise(
-      program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(overview.rows.map((row) => row.problemJudgeId)).toEqual(["100A", "100B"]);

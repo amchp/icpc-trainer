@@ -27,10 +27,11 @@ export type StoredCredentialResult<T> =
       readonly cause: string;
     };
 
-export const getStoredCodeforcesCredentials = (
+export const getStoredCodeforcesCredentials = async (
   ctx: CredentialDatabaseContext,
-): StoredCredentialResult<StoredCodeforcesCredentials> => {
-  const stored = getLatestCredential(ctx, JUDGES.Codeforces);
+): Promise<StoredCredentialResult<StoredCodeforcesCredentials>> => {
+  const stored = await getLatestCredential(ctx, JUDGES.Codeforces);
+
   if (!stored) {
     return {
       ok: false,
@@ -55,10 +56,11 @@ export const getStoredCodeforcesCredentials = (
   };
 };
 
-export const getStoredQojCredentials = (
+export const getStoredQojCredentials = async (
   ctx: CredentialDatabaseContext,
-): StoredCredentialResult<StoredQojCredentials> => {
-  const stored = getLatestCredential(ctx, JUDGES.Qoj);
+): Promise<StoredCredentialResult<StoredQojCredentials>> => {
+  const stored = await getLatestCredential(ctx, JUDGES.Qoj);
+
   if (!stored) {
     return {
       ok: false,
@@ -82,9 +84,9 @@ export const getStoredQojCredentials = (
   };
 };
 
-export const clearStoredCredentials = (
+export const clearStoredCredentials = async (
   ctx: CredentialDatabaseContext,
   provider: PlaygroundProvider,
-): void => {
-  clearCredentials(ctx, provider);
+): Promise<void> => {
+  await clearCredentials(ctx, provider);
 };

@@ -27,7 +27,7 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
       contestId: z.number().int().positive()
     })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {
       const appUser = requireAppUser(ctx.appUser);
-      const contest = ctx.database.db
+      const contest = await ctx.database.db
         .select({
           judge: contests.judge,
           judgeId: contests.judgeId

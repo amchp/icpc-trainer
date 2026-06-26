@@ -52,8 +52,11 @@ interface SubmissionStatusAccumulator {
   hasAccepted: boolean;
 }
 
-export const getUpsolvingOverview = (database: DatabaseService, appUserId: number): UpsolvingOverview => {
-  const problemRows = database.db
+export const getUpsolvingOverview = async (
+  database: DatabaseService,
+  appUserId: number
+): Promise<UpsolvingOverview> => {
+  const problemRows = await database.db
     .select({
       contestId: contests.id,
       contestName: contests.name,
@@ -81,7 +84,7 @@ export const getUpsolvingOverview = (database: DatabaseService, appUserId: numbe
 
   const submissionStateByProblemId = new Map<number, SubmissionStatusAccumulator>();
 
-  const submissionRows = database.db
+  const submissionRows = await database.db
     .select({
       contestId: contests.id,
       problemId: submissions.problemId,
@@ -148,7 +151,7 @@ export const getUpsolvingOverview = (database: DatabaseService, appUserId: numbe
     }
   }
 
-  const contestRows = database.db
+  const contestRows = await database.db
     .select({
       id: contests.id,
       judge: contests.judge,

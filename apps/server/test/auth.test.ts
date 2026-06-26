@@ -30,7 +30,7 @@ const withDatabase = async <A>(run: (database: DatabaseService) => Promise<A>): 
     return yield* Effect.promise(() => run(database));
   });
 
-  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 };
 
 const requestWithAuthorization = (authorization: string): IncomingMessage => ({
@@ -62,7 +62,7 @@ describe("Clerk server auth", () => {
       }, requestWithAuthorization("Bearer expired"));
 
       expect(appUser).toBeUndefined();
-      expect(database.db.select().from(appUsers).all()).toEqual([]);
+      await expect(database.db.select().from(appUsers).all()).resolves.toEqual([]);
     });
   });
 
@@ -115,7 +115,7 @@ describe("Clerk server auth", () => {
       } as IncomingMessage);
 
       expect(appUser).toBeUndefined();
-      expect(database.db.select().from(appUsers).all()).toEqual([]);
+      await expect(database.db.select().from(appUsers).all()).resolves.toEqual([]);
     });
   });
 });

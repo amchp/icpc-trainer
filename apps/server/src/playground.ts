@@ -113,15 +113,15 @@ const toPlaygroundResult = async <T>(
 ): Promise<PlaygroundResult> =>
   Effect.runPromise(
     effect.pipe(
-      Effect.match({
-        onFailure: (error) => {
+      Effect.matchEffect({
+        onFailure: (error) => Effect.gen(function* () {
           if (error._tag === "JudgeCredentialError") {
-            clearStoredCredentials({ database, appUserId: input.appUserId }, input.provider);
+            yield* Effect.promise(() => clearStoredCredentials({ database, appUserId: input.appUserId }, input.provider));
           }
 
           return { ok: false as const, error: toPlaygroundError(error) };
-        },
-        onSuccess: (value) => ({ ok: true as const, result: toJsonValue(value) })
+        }),
+        onSuccess: (value) => Effect.succeed({ ok: true as const, result: toJsonValue(value) })
       })
     )
   );

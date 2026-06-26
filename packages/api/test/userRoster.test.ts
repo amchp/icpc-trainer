@@ -14,14 +14,14 @@ describe("user roster module", () => {
       Effect.gen(function* () {
         const database = yield* DatabaseServiceTag;
         yield* database.migrate;
-        const appUser = createTestAppUser(database);
+        const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
-        return replaceUserRoster(database, appUser.id, USER_TYPES.Team, [
+        return yield* Effect.promise(() => replaceUserRoster(database, appUser.id, USER_TYPES.Team, [
           { username: " tourist ", judge: JUDGES.Codeforces },
           { username: "Tourist", judge: JUDGES.Codeforces },
           { username: "benq", judge: JUDGES.Qoj }
-        ], "team user");
-      }).pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+        ], "team user"));
+      }).pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(roster.users).toEqual([
@@ -36,29 +36,29 @@ describe("user roster module", () => {
         const database = yield* DatabaseServiceTag;
         yield* database.migrate;
         const timestamp = new Date("2026-01-01T00:00:00.000Z");
-        const appUser = createTestAppUser(database);
+        const appUser = yield* Effect.promise(() => createTestAppUser(database));
 
-        database.db.insert(users).values({
+        yield* Effect.promise(() => database.db.insert(users).values({
           username: "tourist",
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
-        }).run();
-        const user = database.db.select().from(users).get();
+        }).run());
+        const user = yield* Effect.promise(() => database.db.select().from(users).get());
         if (user === undefined) {
           throw new Error("Expected test judge user.");
         }
-        attachJudgeUser(database, appUser.id, user.id, USER_TYPES.Team);
+        yield* Effect.promise(() => attachJudgeUser(database, appUser.id, user.id, USER_TYPES.Team));
 
-        yield* Effect.sync(() =>
-          expect(() =>
+        yield* Effect.promise(() =>
+          expect(
             addUserToRoster(database, appUser.id, USER_TYPES.Friend, {
               username: "tourist",
               judge: JUDGES.Codeforces
             }, "friend")
-          ).toThrow("tourist is already saved as a team user.")
+          ).rejects.toThrow("tourist is already saved as a team user.")
         );
-      }).pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      }).pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
   });
 
@@ -67,23 +67,23 @@ describe("user roster module", () => {
       Effect.gen(function* () {
         const database = yield* DatabaseServiceTag;
         yield* database.migrate;
-        const firstAppUser = createTestAppUser(database, "first_app_user");
-        const secondAppUser = createTestAppUser(database, "second_app_user");
+        const firstAppUser = yield* Effect.promise(() => createTestAppUser(database, "first_app_user"));
+        const secondAppUser = yield* Effect.promise(() => createTestAppUser(database, "second_app_user"));
 
-        addUserToRoster(database, firstAppUser.id, USER_TYPES.Team, {
+        yield* Effect.promise(() => addUserToRoster(database, firstAppUser.id, USER_TYPES.Team, {
           username: "Tourist",
           judge: JUDGES.Codeforces
-        }, "team user");
-        const secondRoster = addUserToRoster(database, secondAppUser.id, USER_TYPES.Team, {
+        }, "team user"));
+        const secondRoster = yield* Effect.promise(() => addUserToRoster(database, secondAppUser.id, USER_TYPES.Team, {
           username: "tourist",
           judge: JUDGES.Codeforces
-        }, "team user");
+        }, "team user"));
 
         return {
-          users: database.db.select().from(users).all(),
+          users: yield* Effect.promise(() => database.db.select().from(users).all()),
           secondRoster
         };
-      }).pipe(Effect.provide(DatabaseLive({ filename: ":memory:" })))
+      }).pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
     );
 
     expect(result.users).toHaveLength(1);

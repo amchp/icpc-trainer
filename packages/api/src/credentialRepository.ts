@@ -66,68 +66,66 @@ const trackedTeamUsername = (input: SaveCredentialsInput): string | null => {
     : null;
 };
 
-const attachTeamUser = (
+const attachTeamUser = async (
   ctx: CredentialDatabaseContext,
   username: string,
   judge: JUDGES,
   timestamp: Date
-): void => {
-  ctx.database.db.transaction((tx) => {
-    tx
-      .insert(users)
-      .values({
-        username,
-        judge,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      })
-      .onConflictDoNothing()
-      .run();
+): Promise<void> => {
+  await ctx.database.db
+    .insert(users)
+    .values({
+      username,
+      judge,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    })
+    .onConflictDoNothing()
+    .run();
 
-    const user = tx
-      .select({ id: users.id })
-      .from(users)
-      .where(and(
-        sql`lower(${users.username}) = ${username.toLowerCase()}`,
-        eq(users.judge, judge)
-      ))
-      .get();
+  const user = await ctx.database.db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(
+      sql`lower(${users.username}) = ${username.toLowerCase()}`,
+      eq(users.judge, judge)
+    ))
+    .get();
 
-    if (user === undefined) {
-      throw new Error(`Judge user ${username} was not found after credential save.`);
-    }
+  if (user === undefined) {
+    throw new Error(`Judge user ${username} was not found after credential save.`);
+  }
 
-    tx
-      .update(users)
-      .set({ updatedAt: timestamp })
-      .where(eq(users.id, user.id))
-      .run();
+  await ctx.database.db
+    .update(users)
+    .set({ updatedAt: timestamp })
+    .where(eq(users.id, user.id))
+    .run();
 
-    tx
-      .insert(appUserJudgeUsers)
-      .values({
-        appUserId: ctx.appUserId,
-        userId: user.id,
+  await ctx.database.db
+    .insert(appUserJudgeUsers)
+    .values({
+      appUserId: ctx.appUserId,
+      userId: user.id,
+      role: USER_TYPES.Team,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    })
+    .onConflictDoUpdate({
+      target: [appUserJudgeUsers.appUserId, appUserJudgeUsers.userId],
+      set: {
         role: USER_TYPES.Team,
-        createdAt: timestamp,
         updatedAt: timestamp
-      })
-      .onConflictDoUpdate({
-        target: [appUserJudgeUsers.appUserId, appUserJudgeUsers.userId],
-        set: {
-          role: USER_TYPES.Team,
-          updatedAt: timestamp
-        }
-      })
-      .run();
-  });
+      }
+    })
+    .run();
 };
 
-export const getLatestCredential = (
+export const getLatestCredential = async (
   ctx: CredentialDatabaseContext,
   provider: PlaygroundProvider,
-) =>
-  ctx.database.db
+): Promise<typeof providerCredentials.$inferSelect | null> => {
+  const credential = await ctx.database.db
     .select()
     .from(providerCredentials)
     .where(
@@ -138,11 +136,14 @@ export const getLatestCredential = (
       )
     )
     .orderBy(desc(providerCredentials.updatedAt))
-    .get() ?? null;
+    .get();
 
-export const getCredentialStatus = (ctx: CredentialDatabaseContext): CredentialStatus => {
-  const codeforces = getLatestCredential(ctx, JUDGES.Codeforces);
-  const qoj = getLatestCredential(ctx, JUDGES.Qoj);
+  return credential ?? null;
+};
+
+export const getCredentialStatus = async (ctx: CredentialDatabaseContext): Promise<CredentialStatus> => {
+  const codeforces = await getLatestCredential(ctx, JUDGES.Codeforces);
+  const qoj = await getLatestCredential(ctx, JUDGES.Qoj);
 
   return {
     codeforces: {
@@ -156,16 +157,16 @@ export const getCredentialStatus = (ctx: CredentialDatabaseContext): CredentialS
   };
 };
 
-export const saveEncryptedCredential = (
+export const saveEncryptedCredential = async (
   ctx: CredentialDatabaseContext,
   input: SaveCredentialsInput,
   encryptedPayload: string,
-): CredentialStatus => {
+): Promise<CredentialStatus> => {
   const now = new Date();
   const teamUsername = trackedTeamUsername(input);
   const judge = judgeFromProvider(input.provider);
 
-  ctx.database.db
+  await ctx.database.db
     .insert(providerCredentials)
     .values({
       provider: input.provider,
@@ -193,17 +194,17 @@ export const saveEncryptedCredential = (
     .run();
 
   if (teamUsername !== null) {
-    attachTeamUser(ctx, teamUsername, judge, now);
+    await attachTeamUser(ctx, teamUsername, judge, now);
   }
 
   return getCredentialStatus(ctx);
 };
 
-export const clearCredentials = (
+export const clearCredentials = async (
   ctx: CredentialDatabaseContext,
   provider: PlaygroundProvider,
-): CredentialStatus => {
-  ctx.database.db
+): Promise<CredentialStatus> => {
+  await ctx.database.db
     .delete(providerCredentials)
     .where(
       and(

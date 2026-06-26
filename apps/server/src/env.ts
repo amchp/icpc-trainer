@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-core";
+import process from "node:process";
 import { z } from "zod";
 
 const blankToUndefined = (value: unknown): unknown =>
@@ -13,8 +14,9 @@ export const createServerEnv = (runtimeEnv: NodeJS.ProcessEnv = process.env) =>
     server: {
       ICPC_TRAINER_HOST: trimmedStringWithDefault("127.0.0.1"),
       ICPC_TRAINER_PORT: z.coerce.number().int().min(1).max(65535).default(3773),
-      ICPC_TRAINER_SQLITE_PATH: optionalTrimmedString,
       ICPC_TRAINER_DATABASE_URL: optionalTrimmedString,
+      ICPC_TRAINER_DATABASE_AUTH_TOKEN: optionalTrimmedString,
+      ICPC_TRAINER_SQLITE_PATH: optionalTrimmedString,
       ICPC_TRAINER_CREDENTIAL_KEY: optionalTrimmedString,
       ICPC_TRAINER_CREDENTIAL_KEY_FILE: optionalTrimmedString,
       CLERK_SECRET_KEY: optionalTrimmedString,

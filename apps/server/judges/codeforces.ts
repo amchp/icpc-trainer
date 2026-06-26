@@ -305,7 +305,7 @@ const makeCodeforcesRequester = (): RequestCodeforces =>
     Effect.gen(function* () {
       const database = yield* DatabaseServiceTag;
       const appUserId = yield* AppUserIdTag;
-      const storedAuth = getStoredCodeforcesCredentials({ database, appUserId });
+      const storedAuth = yield* Effect.promise(() => getStoredCodeforcesCredentials({ database, appUserId }));
       if (!storedAuth.ok || !hasCodeforcesAuth(storedAuth.credentials)) {
         return yield* Effect.fail({
           comment: storedAuth.ok

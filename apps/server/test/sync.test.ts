@@ -10,6 +10,7 @@ import { type DatabaseService, DatabaseLive, DatabaseServiceTag, schema } from "
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
+import { Buffer } from "node:buffer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
@@ -88,7 +89,7 @@ const withDatabase = async <A>(
   const program = Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
     yield* database.migrate;
-    const appUser = createTestAppUser(database);
+    const appUser = yield* Effect.promise(() => createTestAppUser(database));
     if (options.saveCredentials !== false) {
       const caller = appRouter.createCaller({
         database,
@@ -113,16 +114,16 @@ const withDatabase = async <A>(
     return yield* Effect.promise(() => run(database, appUser.id));
   });
 
-  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ filename: ":memory:" }))));
+  return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 };
 
-const attachTeamUser = (
+const attachTeamUser = async (
   database: DatabaseService,
   appUserId: number,
   username: string,
   judge: JUDGES
-): void => {
-  const user = database.db
+): Promise<void> => {
+  const user = await database.db
     .select({ id: users.id })
     .from(users)
     .where(and(eq(users.username, username), eq(users.judge, judge)))
@@ -132,7 +133,7 @@ const attachTeamUser = (
   }
 
   const timestamp = new Date("2025-01-01T00:00:00.000Z");
-  database.db
+  await database.db
     .insert(appUserJudgeUsers)
     .values({
       appUserId,
@@ -458,8 +459,8 @@ describe("createJudgeSyncService", () => {
 
     await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      const user = database.db.select().from(users).where(eq(users.username, "tourist")).get();
-      database.db.insert(contests).values({
+      const user = await database.db.select().from(users).where(eq(users.username, "tourist")).get();
+      await database.db.insert(contests).values({
         judgeId: "100566",
         judge: JUDGES.Codeforces,
         name: "Testing Round #100566",
@@ -469,7 +470,7 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const contest = database.db
+      const contest = await database.db
         .select()
         .from(contests)
         .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, "100566")))
@@ -477,7 +478,7 @@ describe("createJudgeSyncService", () => {
       if (user === undefined || contest === undefined) {
         throw new Error("Expected test user and contest to be inserted.");
       }
-      database.db.insert(problems).values({
+      await database.db.insert(problems).values({
         judgeId: "100566A",
         judge: JUDGES.Codeforces,
         name: "A. Matching Names",
@@ -492,8 +493,8 @@ describe("createJudgeSyncService", () => {
       await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       const secondEvents = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
-      const rows = database.db.select().from(submissions).all();
-      const contestStates = database.db.select().from(userContestStates).all();
+      const rows = await database.db.select().from(submissions).all();
+      const contestStates = await database.db.select().from(userContestStates).all();
       expect(user.username).toBe("tourist");
       expect(rows).toHaveLength(1);
       expect(contestStates).toEqual([
@@ -548,14 +549,14 @@ describe("createJudgeSyncService", () => {
     };
 
     await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "teammate",
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "teammate", JUDGES.Codeforces);
-      database.db.insert(contests).values({
+      await attachTeamUser(database, appUserId, "teammate", JUDGES.Codeforces);
+      await database.db.insert(contests).values({
         judgeId: "100566",
         judge: JUDGES.Codeforces,
         name: "Testing Round #100566",
@@ -565,7 +566,7 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const contest = database.db
+      const contest = await database.db
         .select()
         .from(contests)
         .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, "100566")))
@@ -573,7 +574,7 @@ describe("createJudgeSyncService", () => {
       if (contest === undefined) {
         throw new Error("Expected test contest to be inserted.");
       }
-      database.db.insert(problems).values({
+      await database.db.insert(problems).values({
         judgeId: "100566A",
         judge: JUDGES.Codeforces,
         name: "A. Matching Names",
@@ -586,7 +587,7 @@ describe("createJudgeSyncService", () => {
       }).run();
 
       const events = await collect(createSyncService(database, { codeforces: judge }).sync({ provider: "codeforces", appUserId }));
-      const rows = database.db.select().from(submissions).all();
+      const rows = await database.db.select().from(submissions).all();
 
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -660,14 +661,14 @@ describe("createJudgeSyncService", () => {
     };
 
     await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
-      database.db.insert(contests).values({
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await database.db.insert(contests).values({
         judgeId: "1113",
         judge: JUDGES.Qoj,
         name: "QOJ Contest 1113",
@@ -677,7 +678,7 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const contest = database.db
+      const contest = await database.db
         .select()
         .from(contests)
         .where(and(eq(contests.judge, JUDGES.Qoj), eq(contests.judgeId, "1113")))
@@ -685,7 +686,7 @@ describe("createJudgeSyncService", () => {
       if (contest === undefined) {
         throw new Error("Expected QOJ contest to be inserted.");
       }
-      database.db.insert(problems).values({
+      await database.db.insert(problems).values({
         judgeId: "11785",
         judge: JUDGES.Qoj,
         name: "Archery Tournament",
@@ -708,7 +709,7 @@ describe("createJudgeSyncService", () => {
           errors: 0
         }
       });
-      expect(database.db.select().from(submissions).all()).toEqual([
+      await expect(database.db.select().from(submissions).all()).resolves.toEqual([
         expect.objectContaining({
           judgeId: "98765",
           judge: JUDGES.Qoj,
@@ -744,19 +745,19 @@ describe("createJudgeSyncService", () => {
     };
 
     await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
-      const user = database.db
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      const user = await database.db
         .select()
         .from(users)
         .where(and(eq(users.judge, JUDGES.Qoj), eq(users.username, "qoj-user")))
         .get();
-      database.db.insert(contests).values({
+      await database.db.insert(contests).values({
         judgeId: "1113",
         judge: JUDGES.Qoj,
         name: "QOJ Contest 1113",
@@ -766,7 +767,7 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const contest = database.db
+      const contest = await database.db
         .select()
         .from(contests)
         .where(and(eq(contests.judge, JUDGES.Qoj), eq(contests.judgeId, "1113")))
@@ -774,7 +775,7 @@ describe("createJudgeSyncService", () => {
       if (user === undefined || contest === undefined) {
         throw new Error("Expected QOJ user and contest to be inserted.");
       }
-      database.db.insert(problems).values({
+      await database.db.insert(problems).values({
         judgeId: "11785",
         judge: JUDGES.Qoj,
         name: "Archery Tournament",
@@ -785,7 +786,7 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const problem = database.db
+      const problem = await database.db
         .select()
         .from(problems)
         .where(and(eq(problems.judge, JUDGES.Qoj), eq(problems.judgeId, "11785")))
@@ -793,7 +794,7 @@ describe("createJudgeSyncService", () => {
       if (problem === undefined) {
         throw new Error("Expected QOJ problem to be inserted.");
       }
-      database.db.insert(submissions).values({
+      await database.db.insert(submissions).values({
         judgeId: "98765",
         judge: JUDGES.Qoj,
         problemId: problem.id,
@@ -816,7 +817,7 @@ describe("createJudgeSyncService", () => {
           errors: 0
         }
       });
-      expect(database.db.select().from(submissions).all()).toEqual([
+      await expect(database.db.select().from(submissions).all()).resolves.toEqual([
         expect.objectContaining({
           judgeId: "98765",
           judge: JUDGES.Qoj,
@@ -842,13 +843,13 @@ describe("createJudgeSyncService", () => {
     };
 
     const events = await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
     }, { saveCredentials: false });
@@ -933,17 +934,17 @@ describe("createJudgeSyncService", () => {
         total: 1,
         processed: 1
       }));
-      const problemRows = database.db.select().from(problems).all();
+      const problemRows = await database.db.select().from(problems).all();
       expect(problemRows).toHaveLength(2);
       expect(problemRows).toEqual([
         expect.objectContaining({ judgeId: "100566A", name: "A. Matching Names", solvePercentage: 100, rating: 700 }),
         expect.objectContaining({ judgeId: "100566B", name: "B. Replicating Processes", solvePercentage: 100, rating: 700 })
       ]);
-      expect(database.db.select().from(submissions).all()).toHaveLength(2);
-      expect(database.db.select().from(contests).get()).toMatchObject({
+      await expect(database.db.select().from(submissions).all()).resolves.toHaveLength(2);
+      await expect(database.db.select().from(contests).get()).resolves.toMatchObject({
         judgeId: "100566"
       });
-      expect(database.db.select().from(userContestStates).all()).toEqual([
+      await expect(database.db.select().from(userContestStates).all()).resolves.toEqual([
         expect.objectContaining({
           distinctProblemCount: 2,
           simulated: true
@@ -975,9 +976,9 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        contestRows: database.db.select().from(contests).all(),
-        contestStateRows: database.db.select().from(userContestStates).all(),
-        problemRows: database.db.select().from(problems).all()
+        contestRows: await database.db.select().from(contests).all(),
+        contestStateRows: await database.db.select().from(userContestStates).all(),
+        problemRows: await database.db.select().from(problems).all()
       };
     });
 
@@ -1036,7 +1037,7 @@ describe("createJudgeSyncService", () => {
 
     const result = await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      database.db.insert(contests).values({
+      await database.db.insert(contests).values({
         judgeId: "100566",
         judge: JUDGES.Codeforces,
         name: "Finder Candidate",
@@ -1050,9 +1051,9 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        contestRows: database.db.select().from(contests).all(),
-        contestStateRows: database.db.select().from(userContestStates).all(),
-        problemRows: database.db.select().from(problems).all()
+        contestRows: await database.db.select().from(contests).all(),
+        contestStateRows: await database.db.select().from(userContestStates).all(),
+        problemRows: await database.db.select().from(problems).all()
       };
     });
 
@@ -1136,7 +1137,7 @@ describe("createJudgeSyncService", () => {
 
     const result = await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      const [friend] = database.db.insert(users).values({
+      const [friend] = await database.db.insert(users).values({
         username: "friend",
         judge: JUDGES.Codeforces,
         createdAt: timestamp,
@@ -1155,8 +1156,8 @@ describe("createJudgeSyncService", () => {
       );
 
       return {
-        contestRows: database.db.select().from(contests).all(),
-        contestStateRows: database.db.select().from(userContestStates).all()
+        contestRows: await database.db.select().from(contests).all(),
+        contestStateRows: await database.db.select().from(userContestStates).all()
       };
     });
 
@@ -1287,8 +1288,8 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        contestRows: database.db.select().from(contests).all(),
-        contestStateRows: database.db.select().from(userContestStates).all()
+        contestRows: await database.db.select().from(contests).all(),
+        contestStateRows: await database.db.select().from(userContestStates).all()
       };
     });
 
@@ -1361,10 +1362,10 @@ describe("createJudgeSyncService", () => {
     await withDatabase(async (database, appUserId) => {
       await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
-      expect(database.db
+      await expect(database.db
         .select({ solvePercentage: problems.solvePercentage, rating: problems.rating })
         .from(problems)
-        .all()).toEqual([
+        .all()).resolves.toEqual([
         { solvePercentage: 100, rating: 1100 },
         { solvePercentage: 100, rating: 1100 }
       ]);
@@ -1482,10 +1483,10 @@ describe("createJudgeSyncService", () => {
     await withDatabase(async (database, appUserId) => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
 
-      const contestRows = database.db.select().from(contests).all();
-      const problemRows = database.db.select().from(problems).all();
-      const submissionRows = database.db.select().from(submissions).all();
-      const tagRows = database.db.select().from(problemTags).all();
+      const contestRows = await database.db.select().from(contests).all();
+      const problemRows = await database.db.select().from(problems).all();
+      const submissionRows = await database.db.select().from(submissions).all();
+      const tagRows = await database.db.select().from(problemTags).all();
 
       expect(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.Contests)))
         .toBeLessThan(events.findIndex((event) => isStepEvent(event, JudgeSyncStep.RegularCatalog)));
@@ -1522,7 +1523,7 @@ describe("createJudgeSyncService", () => {
           participants: null
         })
       ]);
-      expect(database.db.select().from(userContestStates).all()).toEqual([
+      await expect(database.db.select().from(userContestStates).all()).resolves.toEqual([
         expect.objectContaining({
           distinctProblemCount: 2,
           simulated: true
@@ -1614,9 +1615,9 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        submissions: database.db.select().from(submissions).all(),
-        contests: database.db.select().from(contests).all(),
-        problems: database.db.select().from(problems).all()
+        submissions: await database.db.select().from(submissions).all(),
+        contests: await database.db.select().from(contests).all(),
+        problems: await database.db.select().from(problems).all()
       };
     });
 
@@ -1698,9 +1699,9 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        submissions: database.db.select().from(submissions).all(),
-        contests: database.db.select().from(contests).all(),
-        problems: database.db.select().from(problems).all()
+        submissions: await database.db.select().from(submissions).all(),
+        contests: await database.db.select().from(contests).all(),
+        problems: await database.db.select().from(problems).all()
       };
     });
 
@@ -1752,9 +1753,9 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        submissions: database.db.select().from(submissions).all(),
-        contests: database.db.select().from(contests).all(),
-        problems: database.db.select().from(problems).all()
+        submissions: await database.db.select().from(submissions).all(),
+        contests: await database.db.select().from(contests).all(),
+        problems: await database.db.select().from(problems).all()
       };
     });
 
@@ -1834,8 +1835,8 @@ describe("createJudgeSyncService", () => {
       const events = await collect(createSyncService(database).sync({ provider: "codeforces", appUserId }));
       return {
         events,
-        submissions: database.db.select().from(submissions).all(),
-        problems: database.db.select().from(problems).all()
+        submissions: await database.db.select().from(submissions).all(),
+        problems: await database.db.select().from(problems).all()
       };
     });
 
@@ -1875,14 +1876,14 @@ describe("createJudgeSyncService", () => {
     };
 
     await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
-      database.db.insert(contests).values({
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await database.db.insert(contests).values({
         judgeId: "stale",
         judge: JUDGES.Qoj,
         name: "Stale contest",
@@ -1907,13 +1908,13 @@ describe("createJudgeSyncService", () => {
   it("syncs eligible QOJ profile contests before importing profile submissions", async () => {
     await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const qojJudge: TestJudge = {
         getContests: () => Effect.succeed([
@@ -2011,8 +2012,8 @@ describe("createJudgeSyncService", () => {
         stepStatus: SyncStepStatus.Completed
       })))
         .toBeLessThan(importSubmissionsIndex);
-      expect(database.db.select().from(submissions).all()).toHaveLength(3);
-      expect(database.db.select().from(userContestStates).all()).toEqual([
+      await expect(database.db.select().from(submissions).all()).resolves.toHaveLength(3);
+      await expect(database.db.select().from(userContestStates).all()).resolves.toEqual([
         expect.objectContaining({
           submissionCount: 2,
           acceptedCount: 2,
@@ -2032,13 +2033,13 @@ describe("createJudgeSyncService", () => {
   it("syncs a QOJ profile contest with only one unique submitted problem", async () => {
     await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const qojJudge: TestJudge = {
         getContests: () => Effect.succeed([
@@ -2089,19 +2090,19 @@ describe("createJudgeSyncService", () => {
         current: "111",
         stepStatus: SyncStepStatus.Completed
       }));
-      expect(database.db.select().from(contests).all()).toEqual([
+      await expect(database.db.select().from(contests).all()).resolves.toEqual([
         expect.objectContaining({
           judgeId: "111",
           judge: JUDGES.Qoj
         })
       ]);
-      expect(database.db.select().from(userContestStates).all()).toEqual([
+      await expect(database.db.select().from(userContestStates).all()).resolves.toEqual([
         expect.objectContaining({
           distinctProblemCount: 1,
           simulated: false
         })
       ]);
-      expect(database.db.select().from(submissions).all()).toHaveLength(2);
+      await expect(database.db.select().from(submissions).all()).resolves.toHaveLength(2);
       expect(events.at(-1)).toMatchObject({
         type: "completed",
         summary: {
@@ -2116,13 +2117,13 @@ describe("createJudgeSyncService", () => {
   it("skips already simulated QOJ profile contests on later syncs", async () => {
     await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       const getContest = vi.fn((contestId: string) => Effect.succeed({
         judgeId: contestId,
@@ -2182,13 +2183,13 @@ describe("createJudgeSyncService", () => {
         step: JudgeSyncStep.Contests,
         current: "111"
       }));
-      expect(database.db.select().from(contests).all()).toEqual([
+      await expect(database.db.select().from(contests).all()).resolves.toEqual([
         expect.objectContaining({
           judgeId: "111",
           judge: JUDGES.Qoj
         })
       ]);
-      expect(database.db.select().from(userContestStates).all()).toEqual([
+      await expect(database.db.select().from(userContestStates).all()).resolves.toEqual([
         expect.objectContaining({
           distinctProblemCount: 2,
           simulated: true
@@ -2200,14 +2201,14 @@ describe("createJudgeSyncService", () => {
   it("does not sync QOJ profile contests that are already simulated", async () => {
     await withDatabase(async (database, appUserId) => {
       const timestamp = new Date("2025-01-01T00:00:00.000Z");
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
-      database.db.insert(contests).values({
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await database.db.insert(contests).values({
         judgeId: "111",
         judge: JUDGES.Qoj,
         name: "QOJ Contest 111",
@@ -2217,12 +2218,12 @@ describe("createJudgeSyncService", () => {
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      const seededUser = database.db
+      const seededUser = await database.db
         .select({ id: users.id })
         .from(users)
         .where(and(eq(users.username, "qoj-user"), eq(users.judge, JUDGES.Qoj)))
         .get();
-      const seededContest = database.db
+      const seededContest = await database.db
         .select({ id: contests.id })
         .from(contests)
         .where(and(eq(contests.judgeId, "111"), eq(contests.judge, JUDGES.Qoj)))
@@ -2230,7 +2231,7 @@ describe("createJudgeSyncService", () => {
       if (seededUser === undefined || seededContest === undefined) {
         throw new Error("Expected seeded QOJ user and contest.");
       }
-      database.db.insert(userContestStates).values({
+      await database.db.insert(userContestStates).values({
         userId: seededUser.id,
         contestId: seededContest.id,
         submissionCount: 2,
@@ -2353,13 +2354,13 @@ describe("createJudgeSyncService", () => {
     };
 
     const events = await withDatabase(async (database, appUserId) => {
-      database.db.insert(users).values({
+      await database.db.insert(users).values({
         username: "qoj-user",
         judge: JUDGES.Qoj,
         createdAt: timestamp,
         updatedAt: timestamp
       }).run();
-      attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
+      await attachTeamUser(database, appUserId, "qoj-user", JUDGES.Qoj);
 
       return await collect(createSyncService(database, { qoj: qojJudge }).sync({ provider: "qoj", appUserId }));
     }, { saveCredentials: false });
