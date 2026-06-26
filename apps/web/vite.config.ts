@@ -12,6 +12,9 @@ export default defineConfig({
     }
   },
   plugins: [react(), tailwindcss()],
+  preview: {
+    allowedHosts: ["icpc-trainer.site"]
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,
