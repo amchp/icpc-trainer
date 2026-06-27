@@ -42,6 +42,11 @@ const MAX_RETRY_ATTEMPTS = 3;
 
 type QojRequestParam = string | number | boolean | undefined;
 
+export interface QojPlaygroundClientOptions {
+  readonly baseUrl?: string;
+  readonly sharedCookieJar?: string;
+}
+
 type QojHttpResponse = {
   readonly status: number;
   readonly ok: boolean;
@@ -90,6 +95,21 @@ const buildUrl = (
   return url.toString();
 };
 
+const normalizeCookieJar = (cookieJar: string | undefined): string | undefined => {
+  const normalized = cookieJar?.trim();
+  return normalized === undefined || normalized === "" ? undefined : normalized;
+};
+
+const normalizeQojOptions = (
+  baseUrlOrOptions: string | QojPlaygroundClientOptions | undefined
+): Required<Pick<QojPlaygroundClientOptions, "baseUrl">> & Pick<QojPlaygroundClientOptions, "sharedCookieJar"> =>
+  typeof baseUrlOrOptions === "string"
+    ? { baseUrl: baseUrlOrOptions }
+    : {
+        baseUrl: baseUrlOrOptions?.baseUrl ?? QOJ_BASE_URL,
+        sharedCookieJar: baseUrlOrOptions?.sharedCookieJar
+      };
+
 const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
   let requestChain: Promise<void> = Promise.resolve();
   let nextAvailableAt = 0;
@@ -103,8 +123,7 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
         return yield* Effect.fail(new JudgeCredentialError({ judgeId: "qoj", cause: auth.cause }));
       }
 
-      const cookieJar = auth.credentials.cookieJar.trim();
-      const normalizedCookieJar = cookieJar === "" ? undefined : cookieJar;
+      const normalizedCookieJar = normalizeCookieJar(auth.credentials.cookieJar);
 
       return yield* Effect.tryPromise({
         try: () => {
@@ -150,9 +169,13 @@ const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
     });
 };
 
-const createPublicQojRequester = (baseUrl = QOJ_BASE_URL) => {
+const createPublicQojRequester = (
+  baseUrl = QOJ_BASE_URL,
+  cookieJar?: string
+) => {
   let requestChain: Promise<void> = Promise.resolve();
   let nextAvailableAt = 0;
+  const normalizedCookieJar = normalizeCookieJar(cookieJar);
 
   return (path: string, params?: Record<string, QojRequestParam>): Effect.Effect<string, JudgeError> =>
     Effect.tryPromise({
@@ -167,7 +190,7 @@ const createPublicQojRequester = (baseUrl = QOJ_BASE_URL) => {
             nextAvailableAt = Date.now() + OUTBOUND_INTERVAL_MS;
 
             try {
-              return await fetchQojText(buildUrl(path, params, baseUrl), undefined);
+              return await fetchQojText(buildUrl(path, params, baseUrl), normalizedCookieJar);
             } catch (error) {
               const normalizedError = toQojRequestError(error);
 
@@ -665,9 +688,12 @@ const validateQojAuthentication = (
   );
 };
 
-export const makeQojPlaygroundClient = (baseUrl = QOJ_BASE_URL) => {
-  const requestQoj = createQojRequester(baseUrl);
-  const requestPublicQoj = createPublicQojRequester(baseUrl);
+export const makeQojPlaygroundClient = (
+  baseUrlOrOptions: string | QojPlaygroundClientOptions = QOJ_BASE_URL
+) => {
+  const options = normalizeQojOptions(baseUrlOrOptions);
+  const requestQoj = createQojRequester(options.baseUrl);
+  const requestPublicQoj = createPublicQojRequester(options.baseUrl, options.sharedCookieJar);
   const requestProfile = (
     options?: GetContestsOptions | GetSubmissionsOptions
   ): Effect.Effect<string, JudgeError, DatabaseServiceTag | AppUserIdTag> =>
@@ -791,8 +817,11 @@ export const syncQojContestFinderCatalog = (
   };
 });
 
-export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL): Judge => {
-  const client = makeQojPlaygroundClient(baseUrl);
+export const makeQojJudge = (
+  database: DatabaseService,
+  baseUrlOrOptions: string | QojPlaygroundClientOptions = QOJ_BASE_URL
+): Judge => {
+  const client = makeQojPlaygroundClient(baseUrlOrOptions);
 
   return {
     syncFriendSubmissions: (input) => Effect.gen(function* () {

@@ -339,6 +339,24 @@ describe("QOJ judge HTML fixtures", () => {
     );
   });
 
+  it("sends a shared QOJ cookie on public catalog requests when configured", async () => {
+    const judge = makeQojPlaygroundClient({
+      baseUrl,
+      sharedCookieJar: ` ${qojCookieJar} `
+    });
+
+    await expect(Effect.runPromise(judge.getContestCatalog())).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          judgeId: "3876"
+        })
+      ])
+    );
+
+    expect(requestedPaths).toEqual(["/contests"]);
+    expect(lastCookieHeader).toBe(qojCookieJar);
+  });
+
   it("rejects login-required profile HTML instead of treating it as a user", async () => {
     const judge = makeQojPlaygroundClient(baseUrl);
 
