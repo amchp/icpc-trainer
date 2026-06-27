@@ -9,7 +9,6 @@ export interface ServerConfig {
   readonly port: number;
   readonly database: DatabaseConfig;
   readonly clerk: ClerkAuthConfig;
-  readonly qoj: QojConfig;
   readonly taskToken?: string;
 }
 
@@ -24,10 +23,6 @@ export interface ClerkAuthConfig {
   readonly publishableKey?: string;
   readonly jwtKey?: string;
   readonly authorizedParties: readonly string[];
-}
-
-export interface QojConfig {
-  readonly cookieJar?: string;
 }
 
 const CREDENTIAL_KEY_BYTE_LENGTH = 32;
@@ -72,9 +67,6 @@ export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): Serve
         ?.split(",")
         .map((origin) => origin.trim())
         .filter((origin) => origin !== "") ?? []
-    },
-    qoj: {
-      cookieJar: env.ICPC_TRAINER_QOJ_COOKIE_JAR
     },
     taskToken: env.TASK_TOKEN
   };

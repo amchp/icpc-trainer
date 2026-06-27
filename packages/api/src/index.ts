@@ -114,6 +114,7 @@ export type {
 export {
   clearStoredCredentials,
   getStoredCodeforcesCredentials,
+  getLatestStoredQojCredentials,
   getStoredQojCredentials
 } from "./storedCredentials.js";
 

@@ -19,9 +19,7 @@ Effect.gen(function* () {
 
   const registry = {
     codeforces: makeCodeforcesJudge(database),
-    qoj: makeQojJudge(database, {
-      sharedCookieJar: config.qoj.cookieJar
-    })
+    qoj: makeQojJudge(database)
   };
 
   return yield* Effect.promise(() =>

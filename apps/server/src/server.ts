@@ -93,9 +93,7 @@ export const startServer = (
     }
     const judgeRegistry: JudgeRegistry = options.judgeRegistry ?? {
       codeforces: makeCodeforcesJudge(database),
-      qoj: makeQojJudge(database, {
-        sharedCookieJar: config.qoj.cookieJar
-      })
+      qoj: makeQojJudge(database)
     };
     const judges = {
       ...createJudgePlayground(database),

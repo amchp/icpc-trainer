@@ -6,7 +6,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { PlaygroundProvider } from "./playground.js";
 
 const CODEFORCES_CREDENTIAL_TYPE = "api_credentials";
-const QOJ_CREDENTIAL_TYPE = "cookie_jar";
+export const QOJ_CREDENTIAL_TYPE = "cookie_jar";
 const DEFAULT_PROVIDER_USER_KEY = "default";
 
 export interface CredentialDatabaseContext {

@@ -1,5 +1,5 @@
 
-import { AppUserIdTag, getStoredQojCredentials } from "@icpc-trainer/api";
+import { AppUserIdTag, getLatestStoredQojCredentials, getStoredQojCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
   FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
@@ -109,6 +109,14 @@ const normalizeQojOptions = (
         baseUrl: baseUrlOrOptions?.baseUrl ?? QOJ_BASE_URL,
         sharedCookieJar: baseUrlOrOptions?.sharedCookieJar
       };
+
+const qojOptionsWithSharedCookie = (
+  options: Required<Pick<QojPlaygroundClientOptions, "baseUrl">> & Pick<QojPlaygroundClientOptions, "sharedCookieJar">,
+  sharedCookieJar: string | undefined
+): QojPlaygroundClientOptions => ({
+  baseUrl: options.baseUrl,
+  sharedCookieJar
+});
 
 const createQojRequester = (baseUrl = QOJ_BASE_URL) => {
   let requestChain: Promise<void> = Promise.resolve();
@@ -821,7 +829,20 @@ export const makeQojJudge = (
   database: DatabaseService,
   baseUrlOrOptions: string | QojPlaygroundClientOptions = QOJ_BASE_URL
 ): Judge => {
-  const client = makeQojPlaygroundClient(baseUrlOrOptions);
+  const options = normalizeQojOptions(baseUrlOrOptions);
+  const client = makeQojPlaygroundClient(options);
+  const catalogClient = (): Effect.Effect<QojPlaygroundClient, JudgeCredentialError> =>
+    Effect.gen(function* () {
+      const storedCredentials = yield* Effect.promise(() => getLatestStoredQojCredentials(database));
+      if (!storedCredentials.ok) {
+        return yield* Effect.fail(new JudgeCredentialError({ judgeId: "qoj", cause: storedCredentials.cause }));
+      }
+
+      return makeQojPlaygroundClient(qojOptionsWithSharedCookie(
+        options,
+        storedCredentials.credentials.cookieJar
+      ));
+    });
 
   return {
     syncFriendSubmissions: (input) => Effect.gen(function* () {
@@ -880,7 +901,10 @@ export const makeQojJudge = (
       };
     }),
 
-    syncContestFinderCatalog: () => syncQojContestFinderCatalog(database, client),
+    syncContestFinderCatalog: () =>
+      catalogClient().pipe(
+        Effect.flatMap((qojCatalogClient) => syncQojContestFinderCatalog(database, qojCatalogClient))
+      ),
 
     refetchContest: (input) =>
       syncQojContest(database, input.provider, client, input.contestJudgeId).pipe(

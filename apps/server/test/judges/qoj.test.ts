@@ -4,12 +4,13 @@ import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { AppUserIdTag, appRouter } from "@icpc-trainer/api";
-import { DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
+import { type DatabaseService, DatabaseLive, DatabaseServiceTag } from "@icpc-trainer/db";
 import { SUBMISSION_STATUSES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  makeQojJudge,
   makeQojCredentialValidator,
   makeQojPlaygroundClient
 } from "../../judges/qoj.js";
@@ -153,6 +154,39 @@ describe("QOJ judge HTML fixtures", () => {
       );
 
       return yield* provideTestAppUser(effect, appUser);
+    });
+
+    return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
+  };
+
+  const runWithSavedQojCredential = async <A>(
+    run: (database: DatabaseService) => Effect.Effect<A, unknown, DatabaseServiceTag>
+  ): Promise<A> => {
+    process.env.ICPC_TRAINER_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const caller = appRouter.createCaller({
+        database,
+        appUser,
+        judges: {
+          run: async (input) => ({ ok: true as const, result: input }),
+          validateCredentials: async () => undefined
+        }
+      });
+      yield* Effect.promise(() =>
+        caller.credentials.save({
+          provider: "qoj",
+          providerUserKey: "qoj-user",
+          qoj: {
+            cookieJar: qojCookieJar
+          }
+        })
+      );
+
+      return yield* run(database);
     });
 
     return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
@@ -353,6 +387,16 @@ describe("QOJ judge HTML fixtures", () => {
       ])
     );
 
+    expect(requestedPaths).toEqual(["/contests"]);
+    expect(lastCookieHeader).toBe(qojCookieJar);
+  });
+
+  it("falls back to the latest saved QOJ credential for catalog sync", async () => {
+    const result = await runWithSavedQojCredential((database) =>
+      makeQojJudge(database, { baseUrl }).syncContestFinderCatalog()
+    );
+
+    expect(result.contestsUpserted).toBeGreaterThan(0);
     expect(requestedPaths).toEqual(["/contests"]);
     expect(lastCookieHeader).toBe(qojCookieJar);
   });

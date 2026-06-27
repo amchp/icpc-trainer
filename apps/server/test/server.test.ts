@@ -58,9 +58,6 @@ const testServerConfig = (taskToken?: string): ServerConfig => ({
     jwtKey: undefined,
     authorizedParties: []
   },
-  qoj: {
-    cookieJar: undefined
-  },
   taskToken
 });
 

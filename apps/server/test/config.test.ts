@@ -25,9 +25,6 @@ describe("loadServerConfig", () => {
         jwtKey: undefined,
         authorizedParties: []
       },
-      qoj: {
-        cookieJar: undefined
-      },
       taskToken: undefined
     });
   });
@@ -41,7 +38,6 @@ describe("loadServerConfig", () => {
         ICPC_TRAINER_DATABASE_URL: ":memory:",
         ICPC_TRAINER_DATABASE_AUTH_TOKEN: "local-token",
         TASK_TOKEN: "task-secret",
-        ICPC_TRAINER_QOJ_COOKIE_JAR: " uoj_username=server; uojsessid=session ",
         CLERK_SECRET_KEY: "sk_test_secret",
         CLERK_PUBLISHABLE_KEY: "pk_test_public",
         CLERK_JWT_KEY: "jwt-key",
@@ -60,9 +56,6 @@ describe("loadServerConfig", () => {
         publishableKey: "pk_test_public",
         jwtKey: "jwt-key",
         authorizedParties: ["https://app.example", "https://admin.example"]
-      },
-      qoj: {
-        cookieJar: "uoj_username=server; uojsessid=session"
       },
       taskToken: "task-secret"
     });
