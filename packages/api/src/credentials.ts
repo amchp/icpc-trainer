@@ -95,28 +95,46 @@ export const createCredentialsRouter = (t: TrpcInstance) =>
       }
     }),
     create: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
-      const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
+      const appUser = requireAppUser(ctx.appUser);
+      const credentialContext = { database: ctx.database, appUserId: appUser.id };
       await validateCredentials(ctx, input);
 
       const status = await saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
       publishCredentialChange(ctx, status);
+      ctx.analytics?.capture({
+        distinctId: appUser.clerkUserId,
+        event: "judge_credentials_saved",
+        properties: { provider: input.provider, has_provider_user_key: input.providerUserKey !== undefined }
+      });
       return status;
     }),
     save: t.procedure.input(saveCredentialsInputSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
-      const credentialContext = { database: ctx.database, appUserId: requireAppUser(ctx.appUser).id };
+      const appUser = requireAppUser(ctx.appUser);
+      const credentialContext = { database: ctx.database, appUserId: appUser.id };
       await validateCredentials(ctx, input);
 
       const status = await saveEncryptedCredential(credentialContext, input, encryptCredential(credentialPayloadFor(input)));
       publishCredentialChange(ctx, status);
+      ctx.analytics?.capture({
+        distinctId: appUser.clerkUserId,
+        event: "judge_credentials_saved",
+        properties: { provider: input.provider, has_provider_user_key: input.providerUserKey !== undefined }
+      });
       return status;
     }),
     clear: t.procedure.input(judgeProviderSchema).mutation(async ({ ctx, input }): Promise<CredentialStatus> => {
-      const status = await clearCredentials({ database: ctx.database, appUserId: requireAppUser(ctx.appUser).id }, input);
+      const appUser = requireAppUser(ctx.appUser);
+      const status = await clearCredentials({ database: ctx.database, appUserId: appUser.id }, input);
       ctx.credentialEvents?.publish({
         type: "changed",
-        appUserId: requireAppUser(ctx.appUser).id,
+        appUserId: appUser.id,
         status,
         occurredAt: new Date().toISOString()
+      });
+      ctx.analytics?.capture({
+        distinctId: appUser.clerkUserId,
+        event: "judge_credentials_cleared",
+        properties: { provider: input }
       });
       return status;
     })

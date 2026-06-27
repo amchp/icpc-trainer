@@ -86,6 +86,11 @@ export const createUpsolvingRouter = (t: TrpcInstance) =>
         });
       }
 
+      ctx.analytics?.capture({
+        distinctId: appUser.clerkUserId,
+        event: "contest_refetched",
+        properties: { contest_id: input.contestId, provider: contest.judge }
+      });
       return { ok: true };
     })
   });

@@ -1,9 +1,7 @@
 import type { UpsolvingContestRow } from "@icpc-trainer/api";
-import { JUDGES, type JudgeProvider } from "@icpc-trainer/shared";
 import { type ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
-import { Button } from "./components/ui.js";
 import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
 
 export type SearchableContestRow = UpsolvingContestRow & {
@@ -11,7 +9,7 @@ export type SearchableContestRow = UpsolvingContestRow & {
 };
 
 export const contestsTableGridTemplateColumns =
-  "3.25rem minmax(0, 1fr) minmax(7rem, 8rem) minmax(7rem, 9rem) minmax(8rem, 10rem)";
+  "3.25rem minmax(0, 1fr) minmax(7rem, 8rem) minmax(7rem, 9rem)";
 
 const searchableText = (contest: UpsolvingContestRow): string =>
   [
@@ -25,27 +23,7 @@ export const toSearchableContestRow = (contest: UpsolvingContestRow): Searchable
   searchText: searchableText(contest)
 });
 
-const linkPath = (link: string): string => {
-  try {
-    return new URL(link, "https://codeforces.com").pathname.toLowerCase();
-  } catch {
-    return link.toLowerCase();
-  }
-};
-
-const canRefetchContest = (contest: {
-  readonly judge: JudgeProvider;
-  readonly link: string;
-}): boolean =>
-  !(contest.judge === JUDGES.Codeforces && linkPath(contest.link).startsWith("/contest/"));
-
-export const createContestColumns = ({
-  refreshingContestIds,
-  onRefetchContest
-}: {
-  readonly refreshingContestIds: readonly number[];
-  readonly onRefetchContest: (contest: UpsolvingContestRow) => void;
-}): Array<ColumnDef<SearchableContestRow>> => [
+export const createContestColumns = (): Array<ColumnDef<SearchableContestRow>> => [
   {
     accessorKey: "name",
     header: "Contest",
@@ -84,36 +62,6 @@ export const createContestColumns = ({
         {row.original.solvedCount} / {row.original.problemCount}
       </span>
     )
-  },
-  {
-    id: "refresh",
-    header: () => <span className="block text-right">Refresh</span>,
-    enableSorting: false,
-    cell: ({ row }) => {
-      const refreshing = refreshingContestIds.includes(row.original.id);
-      const refetchable = canRefetchContest(row.original);
-
-      return (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-8"
-            disabled={refreshing || !refetchable}
-            title={refetchable ? undefined : "Codeforces rounds refresh through catalog sync"}
-            aria-label={refetchable ? undefined : "Codeforces rounds cannot be refetched individually"}
-            onClick={() => onRefetchContest(row.original)}
-          >
-            {refreshing ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <RefreshCw className="size-3.5" aria-hidden="true" />
-            )}
-            {refreshing ? "Refreshing" : "Refetch"}
-          </Button>
-        </div>
-      );
-    }
   }
 ];
 

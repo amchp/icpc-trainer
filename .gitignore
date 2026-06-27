@@ -13,3 +13,4 @@ playwright-report
 htmls
 apps/web/playwright/.clerk
 *.tsbuildinfo
+.env.local

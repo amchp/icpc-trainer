@@ -26,10 +26,11 @@ export const invalidateAfterJudgeSync = (queryClient: QueryClient): void => {
   ]);
 };
 
-export const invalidateAfterContestFinderRefresh = (queryClient: QueryClient): void => {
+export const invalidateAfterFriendSubmissionSync = (queryClient: QueryClient): void => {
   invalidate(queryClient, [
     queryKeys.contestFinderOverview,
-    queryKeys.findProblemsOverview
+    queryKeys.findProblemsOverview,
+    queryKeys.upsolvingOverview
   ]);
 };
 

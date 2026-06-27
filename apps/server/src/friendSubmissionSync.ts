@@ -1,14 +1,14 @@
 import {
   AppUserIdTag,
-  type ContestFinderRefreshEvent,
-  type ContestFinderRefreshObserveEvent,
-  type ContestFinderRefreshProviderState,
-  type ContestFinderRefreshService,
-  type ContestFinderRefreshWarning
+  type FriendSubmissionSyncEvent,
+  type FriendSubmissionSyncObserveEvent,
+  type FriendSubmissionSyncProviderState,
+  type FriendSubmissionSyncService,
+  type FriendSubmissionSyncWarning
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag, schema } from "@icpc-trainer/db";
 import {
-  CONTEST_FINDER_REFRESH_EVENT_TYPES,
+  FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   JUDGE_PROVIDERS,
   RUN_STATUSES,
   USER_TYPES,
@@ -27,19 +27,19 @@ import {
   type PublishProviderJobEvent
 } from "./observableProviderJob.js";
 import {
-  applyContestFinderRefreshEventToState,
-  emptyContestFinderRefreshState
-} from "./contestFinderRefreshState.js";
+  applyFriendSubmissionSyncEventToState,
+  emptyFriendSubmissionSyncState
+} from "./friendSubmissionSyncState.js";
 import { formatJudgeError } from "./judgeErrorFormatting.js";
 
-const { appUserJudgeUsers, providerCredentials, users } = schema;
+const { appUserJudgeUsers, users } = schema;
 
 type Provider = JudgeProvider;
 type Registry = Partial<Record<Provider, Judge>>;
 
 const supportedProviders: readonly Provider[] = JUDGE_PROVIDERS;
 
-const warning = (judge: Provider, error: unknown): ContestFinderRefreshWarning => ({
+const warning = (judge: Provider, error: unknown): FriendSubmissionSyncWarning => ({
   judge,
   message: error instanceof Error
     ? error.message
@@ -47,15 +47,6 @@ const warning = (judge: Provider, error: unknown): ContestFinderRefreshWarning =
       ? formatJudgeError(error as never)
       : String(error)
 });
-
-const credentialProviders = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> =>
-  (await database.db
-    .selectDistinct({ provider: providerCredentials.provider })
-    .from(providerCredentials)
-    .where(eq(providerCredentials.appUserId, appUserId))
-    .all())
-    .map((row) => row.provider)
-    .filter(isJudgeProvider);
 
 const friendProviders = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> =>
   (await database.db
@@ -70,11 +61,8 @@ const friendProviders = async (database: DatabaseService, appUserId: number): Pr
     .map((row) => row.judge)
     .filter(isJudgeProvider);
 
-const refreshTargets = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> => {
-  const targets = new Set<Provider>([
-    ...await credentialProviders(database, appUserId),
-    ...await friendProviders(database, appUserId)
-  ]);
+const syncTargets = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> => {
+  const targets = new Set<Provider>(await friendProviders(database, appUserId));
   return supportedProviders.filter((provider) => targets.has(provider));
 };
 
@@ -95,32 +83,31 @@ const friendsForProvider = async (
     .all())
     .map((row) => row.users);
 
-export const createContestFinderRefreshService = (
+export const createFriendSubmissionSyncService = (
   database: DatabaseService,
   registry: Registry
-): ContestFinderRefreshService => {
-  const jobs = createObservableProviderJobRegistry<string, ContestFinderRefreshEvent, ContestFinderRefreshProviderState>(
+): FriendSubmissionSyncService => {
+  const jobs = createObservableProviderJobRegistry<string, FriendSubmissionSyncEvent, FriendSubmissionSyncProviderState>(
     supportedProviders,
-    (key) => emptyContestFinderRefreshState(key.includes(":")
+    (key) => emptyFriendSubmissionSyncState(key.includes(":")
       ? key.split(":")[1] as Provider
       : key as Provider),
-    applyContestFinderRefreshEventToState
+    applyFriendSubmissionSyncEventToState
   );
   const jobKey = (appUserId: number, provider: Provider): string => `${appUserId}:${provider}`;
 
-  const runProviderRefresh = async (
+  const runProviderSync = async (
     appUserId: number,
     provider: Provider,
-    publish: PublishProviderJobEvent<ContestFinderRefreshEvent>
+    publish: PublishProviderJobEvent<FriendSubmissionSyncEvent>
   ): Promise<void> => {
-    const warnings: ContestFinderRefreshWarning[] = [];
-    let contestsUpserted = 0;
+    const warnings: FriendSubmissionSyncWarning[] = [];
     let friendsProcessed = 0;
-    let latestEvent: ContestFinderRefreshEvent | undefined;
+    let latestEvent: FriendSubmissionSyncEvent | undefined;
     const judge = registry[provider];
     const friends = await friendsForProvider(database, appUserId, judgeFromProvider(provider));
     const emptyStepsTotal = friends.length;
-    const emit = (event: ContestFinderRefreshEvent): void => {
+    const emit = (event: FriendSubmissionSyncEvent): void => {
       latestEvent = event;
       publish(event);
     };
@@ -134,25 +121,24 @@ export const createContestFinderRefreshService = (
       };
       warnings.push(missingWarning);
       emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Started,
         provider,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
       emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning,
         provider,
         message: missingWarning.message,
         stepsTotal: emptyStepsTotal,
         stepsLeft: emptyStepsTotal
       });
       emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Completed,
         provider,
         stepsTotal: emptyStepsTotal,
         stepsLeft: 0,
         summary: {
-          contestsUpserted,
           friendsProcessed,
           warnings
         }
@@ -162,7 +148,7 @@ export const createContestFinderRefreshService = (
 
     try {
       const result = await Effect.runPromise(
-        judge.findContest({
+        judge.syncFriendSubmissions({
           friends,
           emit: (event) => Effect.sync(() => emit(event))
         }).pipe(
@@ -170,27 +156,25 @@ export const createContestFinderRefreshService = (
           Effect.provideService(AppUserIdTag, appUserId)
         )
       );
-      contestsUpserted += result.contestsUpserted;
       friendsProcessed += result.friendsProcessed;
     } catch (error) {
-      const refreshWarning = warning(provider, error);
-      warnings.push(refreshWarning);
+      const syncWarning = warning(provider, error);
+      warnings.push(syncWarning);
       emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning,
         provider,
-        message: refreshWarning.message,
+        message: syncWarning.message,
         stepsTotal: latestStepsTotal(),
         stepsLeft: latestStepsLeft()
       });
     }
 
     emit({
-      type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed,
+      type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Completed,
       provider,
       stepsTotal: latestStepsTotal(),
       stepsLeft: 0,
       summary: {
-        contestsUpserted,
         friendsProcessed,
         warnings
       }
@@ -198,19 +182,19 @@ export const createContestFinderRefreshService = (
   };
 
   return {
-    startContestFinderRefresh: async ({ appUserId }) => {
-      for (const provider of await refreshTargets(database, appUserId)) {
+    startFriendSubmissionSync: async ({ appUserId }) => {
+      for (const provider of await syncTargets(database, appUserId)) {
         jobs.start(
           jobKey(appUserId, provider),
           {
-            ...emptyContestFinderRefreshState(provider),
+            ...emptyFriendSubmissionSyncState(provider),
             status: RUN_STATUSES.Running
           },
-          (publish) => runProviderRefresh(appUserId, provider, publish)
+          (publish) => runProviderSync(appUserId, provider, publish)
         );
       }
     },
-    observeContestFinderRefresh: (input) =>
-      jobs.observe(jobKey(input.appUserId, input.provider)) satisfies AsyncIterable<ContestFinderRefreshObserveEvent>
+    observeFriendSubmissionSync: (input) =>
+      jobs.observe(jobKey(input.appUserId, input.provider)) satisfies AsyncIterable<FriendSubmissionSyncObserveEvent>
   }
 };

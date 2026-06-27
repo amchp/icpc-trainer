@@ -2,7 +2,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 
 import { AccountRoute } from "./AccountRoute.js";
 import { appPaths } from "./appNavigation.js";
-import { CodeforcesConnectJudgeRoute } from "./CodeforcesConnectJudgeRoute.js";
+import { ConnectJudgeProviderRoute } from "./ConnectJudgeProviderRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
 import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
@@ -10,7 +10,6 @@ import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
-import { QojConnectJudgeRoute } from "./QojConnectJudgeRoute.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
 import { TeamRoute } from "./TeamRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
@@ -39,16 +38,10 @@ const connectJudgesRoute = createRoute({
   component: ConnectJudgesRoute
 });
 
-const codeforcesConnectJudgeRoute = createRoute({
+const connectJudgeProviderRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: appPaths.connectCodeforces,
-  component: CodeforcesConnectJudgeRoute
-});
-
-const qojConnectJudgeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: appPaths.connectQoj,
-  component: QojConnectJudgeRoute
+  path: "/connect-judges/$provider",
+  component: ConnectJudgeProviderRoute
 });
 
 const playgroundRoute = createRoute({
@@ -128,8 +121,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   playgroundRoute,
   connectJudgesRoute,
-  codeforcesConnectJudgeRoute,
-  qojConnectJudgeRoute
+  connectJudgeProviderRoute
 ]);
 
 export const router = createRouter({ routeTree });

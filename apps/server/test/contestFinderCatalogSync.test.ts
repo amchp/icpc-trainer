@@ -17,8 +17,7 @@ const withDatabase = async <A>(run: (database: DatabaseService) => Promise<A>): 
 
 const testJudge = (syncContestFinderCatalog: Judge["syncContestFinderCatalog"]): Judge => ({
   sync: async function* () {},
-  findContest: () => Effect.succeed({
-    contestsUpserted: 0,
+  syncFriendSubmissions: () => Effect.succeed({
     friendsProcessed: 0
   }),
   syncContestFinderCatalog,

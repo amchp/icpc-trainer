@@ -2,8 +2,7 @@
 import { AppUserIdTag, getStoredQojCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
-  CONTEST_FINDER_REFRESH_EVENT_TYPES,
-  CONTEST_FINDER_REFRESH_STEPS,
+  FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   JUDGE_RESOURCES,
   JUDGES,
   JUDGE_REQUEST_ERROR_KINDS,
@@ -30,11 +29,10 @@ import {
   type Problem
 } from "./judges.js";
 import {
-  upsertContestFinderCatalog,
-  upsertContestFinderParticipations
+  upsertContestFinderCatalog
 } from "./contestFinder/index.js";
-import { qojContestParticipations } from "./contestFinder/qoj.js";
 import { createQojJudgeSync, syncQojContest } from "./sync/sync_qoj.js";
+import { syncUserSubmissions } from "./sync/persistence.js";
 
 const QOJ_BASE_URL = "https://qoj.ac";
 const USER_AGENT = "icpc-trainer-v2-qoj-sync/1.0";
@@ -797,54 +795,48 @@ export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL):
   const client = makeQojPlaygroundClient(baseUrl);
 
   return {
-    findContest: (input) => Effect.gen(function* () {
+    syncFriendSubmissions: (input) => Effect.gen(function* () {
       const emit = input.emit ?? (() => Effect.void);
       const stepsTotal = input.friends.length;
       let stepsDone = 0;
 
       yield* emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Started,
         provider: "qoj",
         stepsTotal,
         stepsLeft: stepsTotal
       });
-      const contestsUpserted = 0;
       let friendsProcessed = 0;
 
       yield* emit({
-        type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing,
+        type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendsSyncing,
         provider: "qoj",
-        step: CONTEST_FINDER_REFRESH_STEPS.Friends,
         friendsTotal: input.friends.length,
         stepsTotal,
         stepsLeft: stepsTotal - stepsDone
       });
       for (const friend of input.friends) {
         yield* emit({
-          type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing,
+          type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSyncing,
           provider: "qoj",
-          step: CONTEST_FINDER_REFRESH_STEPS.Friends,
           userHandle: friend.username,
           friendIndex: friendsProcessed + 1,
           friendsTotal: input.friends.length,
           stepsTotal,
           stepsLeft: stepsTotal - stepsDone
         });
-        const contests = (yield* client.getContests({ userHandle: friend.username })).map(withQojContestLink);
-        yield* upsertContestFinderParticipations(
-          database,
-          "qoj",
-          JUDGES.Qoj,
-          qojContestParticipations(friend, contests)
-        ).pipe(
+        const submissions = yield* client.getSubmissions({ userHandle: friend.username });
+        yield* syncUserSubmissions(database, "qoj", JUDGES.Qoj, friend, {
+          queueMissingSubmissions: false,
+          userSubmissions: submissions
+        }).pipe(
           Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
         );
         friendsProcessed += 1;
         stepsDone += 1;
         yield* emit({
-          type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced,
+          type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSynced,
           provider: "qoj",
-          step: CONTEST_FINDER_REFRESH_STEPS.Friends,
           userHandle: friend.username,
           friendIndex: friendsProcessed,
           friendsTotal: input.friends.length,
@@ -855,7 +847,6 @@ export const makeQojJudge = (database: DatabaseService, baseUrl = QOJ_BASE_URL):
       }
 
       return {
-        contestsUpserted,
         friendsProcessed
       };
     }),

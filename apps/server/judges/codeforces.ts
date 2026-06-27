@@ -2,8 +2,7 @@
 import { AppUserIdTag, getStoredCodeforcesCredentials } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
-  CONTEST_FINDER_REFRESH_EVENT_TYPES,
-  CONTEST_FINDER_REFRESH_STEPS,
+  FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   JUDGE_RESOURCES,
   JUDGES,
   SUBMISSION_STATUSES,
@@ -37,6 +36,7 @@ import {
 import { codeforcesContestParticipations } from "./contestFinder/codeforces.js";
 import { createCodeforcesJudgeSync, syncCodeforcesContest, type CodeforcesSyncOperations } from "./sync/sync_codeforces.js";
 import { upsertCodeforcesRegularCatalog } from "./sync/codeforcesRegularCatalog.js";
+import { syncUserSubmissions } from "./sync/persistence.js";
 import { estimateContestStarsFromName } from "./sync/problemRating.js";
 
 const CODEFORCES_API_URL = "https://codeforces.com/api";
@@ -759,16 +759,16 @@ export const makeCodeforcesCredentialValidator = (): JudgeCredentialValidator =>
   validateAuthentication: validateCodeforcesAuthentication
 });
 
-const findCodeforcesContests = (
+const syncCodeforcesFriendSubmissions = (
   database: DatabaseService,
-  input: Parameters<Judge["findContest"]>[0]
-): ReturnType<Judge["findContest"]> => Effect.gen(function* () {
+  input: Parameters<Judge["syncFriendSubmissions"]>[0]
+): ReturnType<Judge["syncFriendSubmissions"]> => Effect.gen(function* () {
   const emit = input.emit ?? (() => Effect.void);
   const stepsTotal = input.friends.length;
   let stepsDone = 0;
 
   yield* emit({
-    type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started,
+    type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Started,
     provider: "codeforces",
     stepsTotal,
     stepsLeft: stepsTotal
@@ -780,22 +780,19 @@ const findCodeforcesContests = (
   ).pipe(
     Effect.mapError((error) => new JudgeAPIError({ judgeId: "codeforces", cause: error }))
   );
-  const contestsUpserted = 0;
   let friendsProcessed = 0;
 
   yield* emit({
-    type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing,
+    type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendsSyncing,
     provider: "codeforces",
-    step: CONTEST_FINDER_REFRESH_STEPS.Friends,
     friendsTotal: input.friends.length,
     stepsTotal,
     stepsLeft: stepsTotal - stepsDone
   });
   for (const friend of input.friends) {
     yield* emit({
-      type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing,
+      type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSyncing,
       provider: "codeforces",
-      step: CONTEST_FINDER_REFRESH_STEPS.Friends,
       userHandle: friend.username,
       friendIndex: friendsProcessed + 1,
       friendsTotal: input.friends.length,
@@ -803,6 +800,12 @@ const findCodeforcesContests = (
       stepsLeft: stepsTotal - stepsDone
     });
     const submissions = yield* getCodeforcesSubmissions({ userHandle: friend.username });
+    yield* syncUserSubmissions(database, "codeforces", JUDGES.Codeforces, friend, {
+      queueMissingSubmissions: false,
+      userSubmissions: submissions
+    }).pipe(
+      Effect.mapError((error) => new JudgeAPIError({ judgeId: friend.username, cause: error }))
+    );
     yield* upsertContestFinderParticipations(
       database,
       "codeforces",
@@ -814,9 +817,8 @@ const findCodeforcesContests = (
     friendsProcessed += 1;
     stepsDone += 1;
     yield* emit({
-      type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced,
+      type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSynced,
       provider: "codeforces",
-      step: CONTEST_FINDER_REFRESH_STEPS.Friends,
       userHandle: friend.username,
       friendIndex: friendsProcessed,
       friendsTotal: input.friends.length,
@@ -827,14 +829,13 @@ const findCodeforcesContests = (
   }
 
   return {
-    contestsUpserted,
     friendsProcessed
   };
 });
 
 export const makeCodeforcesJudge = (database: DatabaseService): Judge => {
   return {
-    findContest: (input) => findCodeforcesContests(database, input),
+    syncFriendSubmissions: (input) => syncCodeforcesFriendSubmissions(database, input),
     syncContestFinderCatalog: () => syncCodeforcesContestFinderCatalog(database),
 
     refetchContest: (input) =>

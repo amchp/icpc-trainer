@@ -60,7 +60,8 @@ export const getSyncUsers = (
   database: DatabaseService,
   appUserId: number,
   judge: JUDGES,
-  provider: JudgeSyncInput["provider"]
+  provider: JudgeSyncInput["provider"],
+  role: USER_TYPES = USER_TYPES.Team
 ): Effect.Effect<ReadonlyArray<SyncUser>, SyncOperationError> =>
   syncEffect({
     provider,
@@ -73,7 +74,7 @@ export const getSyncUsers = (
       .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
       .where(and(
         eq(appUserJudgeUsers.appUserId, appUserId),
-        eq(appUserJudgeUsers.role, USER_TYPES.Team),
+        eq(appUserJudgeUsers.role, role),
         eq(users.judge, judge),
       ))
       .all())

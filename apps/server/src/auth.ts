@@ -4,6 +4,7 @@ import type { DatabaseService } from "@icpc-trainer/db";
 import type { IncomingMessage } from "node:http";
 
 import type { ServerConfig } from "./config.js";
+import { getPostHog } from "./posthog.js";
 
 interface AuthDependencies {
   readonly config: ServerConfig["clerk"];
@@ -89,6 +90,17 @@ const upsertAuthenticatedUser = (
     primaryEmail: profile.primaryEmail,
     displayName: profile.displayName,
     imageUrl: profile.imageUrl
+  }).then((appUser) => {
+    getPostHog()?.identify({
+      distinctId: clerkUserId,
+      properties: {
+        $set: {
+          email: profile.primaryEmail ?? undefined,
+          name: profile.displayName ?? undefined
+        }
+      }
+    });
+    return appUser;
   });
 
 const appUserFromBearerToken = async (

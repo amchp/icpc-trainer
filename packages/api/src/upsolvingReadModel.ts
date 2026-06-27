@@ -6,7 +6,7 @@ import {
   type JudgeProvider,
   type UpsolvingProblemStatus
 } from "@icpc-trainer/shared";
-import { and, asc, avg, count, desc, eq, sum } from "drizzle-orm";
+import { and, asc, avg, count, countDistinct, desc, eq, sum } from "drizzle-orm";
 
 const { contests, problems, submissions, users } = schema;
 const { appUserJudgeUsers, userContestStates } = schema;
@@ -21,6 +21,7 @@ export interface UpsolvingProblemRow {
   readonly problemLink: string;
   readonly solvePercentage: number;
   readonly rating: number;
+  readonly friendSolvedCount: number;
   readonly status: UpsolvingProblemStatus;
 }
 
@@ -117,6 +118,24 @@ export const getUpsolvingOverview = async (
     });
   }
 
+  const friendSolvedRows = await database.db
+    .select({
+      problemId: submissions.problemId,
+      friendSolvedCount: countDistinct(submissions.userId)
+    })
+    .from(submissions)
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, submissions.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend)
+    ))
+    .where(eq(submissions.status, SUBMISSION_STATUSES.AC))
+    .groupBy(submissions.problemId)
+    .all();
+  const friendSolvedCountByProblemId = new Map(
+    friendSolvedRows.map((row) => [row.problemId, row.friendSolvedCount])
+  );
+
   const rows = problemRows.map<UpsolvingProblemRow>((row) => {
     const submissionState = submissionStateByProblemId.get(row.problemId);
     const submissionCount = submissionState?.submissionCount ?? 0;
@@ -136,6 +155,7 @@ export const getUpsolvingOverview = async (
       problemLink: row.problemLink,
       solvePercentage: row.solvePercentage,
       rating: row.rating,
+      friendSolvedCount: friendSolvedCountByProblemId.get(row.problemId) ?? 0,
       status
     };
   }).filter((row) => row.status !== UPSOLVING_PROBLEM_STATUSES.New);

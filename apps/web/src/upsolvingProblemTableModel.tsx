@@ -13,7 +13,7 @@ export type SearchableUpsolvingProblemRow = UpsolvingProblemRow & {
 };
 
 export const tableGridTemplateColumns =
-  "3.25rem minmax(0, 50%) minmax(0, 10%) minmax(0, 12%) minmax(0, 11%) minmax(0, 11%)";
+  "3.25rem minmax(16rem, 44%) minmax(6rem, 10%) minmax(6rem, 11%) minmax(5rem, 9%) minmax(5rem, 9%) minmax(6rem, 10%)";
 
 export const statusLabels: Record<UpsolvingProblemStatus, string> = {
   new: "New",
@@ -140,6 +140,19 @@ export const createUpsolvingProblemColumns = (): Array<ColumnDef<SearchableUpsol
     ),
     cell: ({ row }) => (
       <span className="tabular-nums">{formatPercentage(row.original.solvePercentage)}</span>
+    )
+  },
+  {
+    accessorKey: "friendSolvedCount",
+    header: ({ column }) => (
+      <SortableHeader
+        label="Friends"
+        direction={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+      />
+    ),
+    cell: ({ row }) => (
+      <span className="tabular-nums">{row.original.friendSolvedCount}</span>
     )
   }
 ];

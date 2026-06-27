@@ -13,6 +13,7 @@ const rows: UpsolvingProblemRow[] = [
     problemLink: "https://codeforces.com/gym/100/problem/B",
     solvePercentage: 20,
     rating: 1400,
+    friendSolvedCount: 2,
     status: "upsolved"
   },
   {
@@ -23,6 +24,7 @@ const rows: UpsolvingProblemRow[] = [
     problemLink: "https://codeforces.com/gym/100/problem/C",
     solvePercentage: 10,
     rating: 1200,
+    friendSolvedCount: 1,
     status: "attempted"
   },
   {
@@ -33,6 +35,7 @@ const rows: UpsolvingProblemRow[] = [
     problemLink: "https://codeforces.com/gym/100/problem/A",
     solvePercentage: 90,
     rating: 800,
+    friendSolvedCount: 3,
     status: "solved"
   },
 ];
@@ -47,6 +50,7 @@ const sourceRows: UpsolvingProblemRow[] = [
     problemLink: "https://codeforces.com/contest/1800/problem/A",
     solvePercentage: 60,
     rating: 1000,
+    friendSolvedCount: 0,
     status: "solved"
   },
   {
@@ -57,6 +61,7 @@ const sourceRows: UpsolvingProblemRow[] = [
     problemLink: "https://qoj.ac/contest/300/problem/1",
     solvePercentage: 15,
     rating: 1600,
+    friendSolvedCount: 4,
     status: "attempted"
   }
 ];
@@ -79,12 +84,26 @@ describe("UpsolvingProblemTable", () => {
     const bodyRows = screen.getAllByRole("row").slice(1);
     expect(bodyRows).toHaveLength(1);
     expect(within(bodyRows[0]!).getAllByRole("cell")[0]).toHaveTextContent("1");
+    expect(within(bodyRows[0]!).getAllByRole("cell")[6]).toHaveTextContent("2");
     expect(within(bodyRows[0]!).getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Regional Practice")).toHaveLength(1);
     expect(screen.queryByText("100A")).not.toBeInTheDocument();
     expect(screen.queryByText("Submissions")).not.toBeInTheDocument();
+  });
+
+  it("sorts by friends from the column header", () => {
+    render(<UpsolvingProblemTable rows={rows} />);
+
+    selectAllStatuses();
+    fireEvent.click(screen.getByRole("button", { name: "Friends, not sorted" }));
+
+    expect(screen.getByRole("button", { name: "Friends, sorted descending" })).toBeInTheDocument();
+    const bodyRows = screen.getAllByRole("row").slice(1);
+    expect(within(bodyRows[0]!).getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
+    expect(within(bodyRows[1]!).getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
+    expect(within(bodyRows[2]!).getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
   });
 
   it("filters by global search text", () => {

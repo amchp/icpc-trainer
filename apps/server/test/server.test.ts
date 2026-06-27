@@ -37,8 +37,7 @@ const requestedUrl = (value: unknown): URL => {
 
 const testJudge = (syncContestFinderCatalog: Judge["syncContestFinderCatalog"]): Judge => ({
   sync: async function* () {},
-  findContest: () => Effect.succeed({
-    contestsUpserted: 0,
+  syncFriendSubmissions: () => Effect.succeed({
     friendsProcessed: 0
   }),
   syncContestFinderCatalog,

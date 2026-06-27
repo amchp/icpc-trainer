@@ -4,6 +4,7 @@ import process from "node:process";
 
 import { loadServerConfig } from "./config.js";
 import { startServer } from "./server.js";
+import { getPostHog, shutdownPostHog } from "./posthog.js";
 
 const config = loadServerConfig();
 
@@ -23,5 +24,6 @@ startServer(config).pipe(
   Effect.runPromise,
 ).catch((error: unknown) => {
   console.error(error);
-  process.exit(1);
+  getPostHog()?.captureException(error, "server");
+  shutdownPostHog().finally(() => process.exit(1));
 });

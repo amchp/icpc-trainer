@@ -1,15 +1,15 @@
 import {
-  type ContestFinderRefreshEvent,
-  type ContestFinderRefreshInput,
-  type ContestFinderRefreshProviderState
+  type FriendSubmissionSyncEvent,
+  type FriendSubmissionSyncInput,
+  type FriendSubmissionSyncProviderState
 } from "@icpc-trainer/api";
 import {
-  CONTEST_FINDER_REFRESH_EVENT_TYPES,
+  FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   PROVIDER_STATE_EVENT_TYPES,
   RUN_STATUSES
 } from "@icpc-trainer/shared";
 
-type Provider = ContestFinderRefreshInput["provider"];
+type Provider = FriendSubmissionSyncInput["provider"];
 
 const finiteNumber = (value: unknown): number =>
   typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -20,7 +20,7 @@ const progressValue = (stepsTotal: unknown, stepsLeft: unknown): number => {
   return total === 0 ? 100 : Math.round(((total - left) / total) * 100);
 };
 
-export const emptyContestFinderRefreshState = (provider: Provider): ContestFinderRefreshProviderState => ({
+export const emptyFriendSubmissionSyncState = (provider: Provider): FriendSubmissionSyncProviderState => ({
   type: PROVIDER_STATE_EVENT_TYPES.State,
   provider,
   status: RUN_STATUSES.Idle,
@@ -28,7 +28,6 @@ export const emptyContestFinderRefreshState = (provider: Provider): ContestFinde
   stepsTotal: 0,
   stepsLeft: 0,
   current: null,
-  contestsUpserted: 0,
   friendsProcessed: 0,
   warnings: []
 });
@@ -46,10 +45,10 @@ const warningMessages = (warnings: unknown): readonly string[] =>
     : [];
 
 const withProgress = (
-  current: ContestFinderRefreshProviderState,
-  event: ContestFinderRefreshEvent,
-  status: ContestFinderRefreshProviderState["status"] = RUN_STATUSES.Running
-): ContestFinderRefreshProviderState => {
+  current: FriendSubmissionSyncProviderState,
+  event: FriendSubmissionSyncEvent,
+  status: FriendSubmissionSyncProviderState["status"] = RUN_STATUSES.Running
+): FriendSubmissionSyncProviderState => {
   const stepsTotal = Math.max(finiteNumber(event.stepsTotal), 0);
   const stepsLeft = Math.max(0, Math.min(finiteNumber(event.stepsLeft), stepsTotal));
   return {
@@ -61,56 +60,41 @@ const withProgress = (
   };
 };
 
-export const applyContestFinderRefreshEventToState = (
-  current: ContestFinderRefreshProviderState,
-  event: ContestFinderRefreshEvent
-): ContestFinderRefreshProviderState => {
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Started) {
+export const applyFriendSubmissionSyncEventToState = (
+  current: FriendSubmissionSyncProviderState,
+  event: FriendSubmissionSyncEvent
+): FriendSubmissionSyncProviderState => {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Started) {
     return {
-      ...withProgress(emptyContestFinderRefreshState(event.provider), event),
+      ...withProgress(emptyFriendSubmissionSyncState(event.provider), event),
       status: RUN_STATUSES.Running,
-      current: "Preparing refresh"
+      current: "Preparing friend submission sync"
     };
   }
 
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSyncing) {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendsSyncing) {
     return {
       ...withProgress(current, event),
-      current: "Refreshing contest catalog"
+      current: event.friendsTotal === 0 ? "No friends to sync" : "Syncing friend submissions"
     };
   }
 
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSynced) {
-    return {
-      ...withProgress(current, event),
-      current: "Contest catalog refreshed",
-      contestsUpserted: current.contestsUpserted + finiteNumber(event.contestsUpserted)
-    };
-  }
-
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing) {
-    return {
-      ...withProgress(current, event),
-      current: event.friendsTotal === 0 ? "No friends to refresh" : "Refreshing friends"
-    };
-  }
-
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing) {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSyncing) {
     return {
       ...withProgress(current, event),
       current: `${event.userHandle} (${event.friendIndex}/${event.friendsTotal})`
     };
   }
 
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced) {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSynced) {
     return {
       ...withProgress(current, event),
-      current: `${event.userHandle} refreshed`,
+      current: `${event.userHandle} synced`,
       friendsProcessed: current.friendsProcessed + finiteNumber(event.friendsProcessed)
     };
   }
 
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning) {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning) {
     const message = event.userHandle === undefined
       ? event.message
       : `${event.userHandle}: ${event.message}`;
@@ -122,9 +106,8 @@ export const applyContestFinderRefreshEventToState = (
     };
   }
 
-  if (event.type === CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed) {
+  if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Completed) {
     const summary = event.summary as Partial<{
-      readonly contestsUpserted: unknown;
       readonly friendsProcessed: unknown;
       readonly warnings: unknown;
     }> | undefined;
@@ -133,7 +116,6 @@ export const applyContestFinderRefreshEventToState = (
       progress: 100,
       stepsLeft: 0,
       current: null,
-      contestsUpserted: finiteNumber(summary?.contestsUpserted),
       friendsProcessed: finiteNumber(summary?.friendsProcessed),
       warnings: warningMessages(summary?.warnings)
     };
@@ -142,6 +124,6 @@ export const applyContestFinderRefreshEventToState = (
   return {
     ...current,
     status: RUN_STATUSES.Error,
-    current: "Refresh status unavailable"
+    current: "Sync status unavailable"
   };
 };

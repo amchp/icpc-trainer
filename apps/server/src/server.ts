@@ -16,10 +16,12 @@ import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
 import { appUserFromConnectionParams, appUserFromHttpRequest } from "./auth.js";
-import { createContestFinderRefreshService } from "./contestFinderRefresh.js";
+import { createFriendSubmissionSyncService } from "./friendSubmissionSync.js";
 import { runContestFinderCatalogSyncJob } from "./contestFinderCatalogSync.js";
 import { createAsyncEventHub } from "./asyncEventHub.js";
 import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
+import { getPostHog } from "./posthog.js";
+import type { Analytics } from "@icpc-trainer/api";
 
 type JudgeRegistry = Record<JudgeProvider, Judge>;
 const CATALOG_SYNC_TASK_PATHS = new Set(["/internal/tasks/catalog-sync", "/internal/tasks/catalog-sync/"]);
@@ -97,9 +99,16 @@ export const startServer = (
       ...createJudgePlayground(database),
       ...createJudgeCredentialValidation(database),
       ...createJudgeSyncService(judgeRegistry, database),
-      ...createContestFinderRefreshService(database, judgeRegistry)
+      ...createFriendSubmissionSyncService(database, judgeRegistry)
     };
     const credentialEvents = createAsyncEventHub<CredentialStatusEvent>();
+
+    const ph = getPostHog();
+    const analytics: Analytics | undefined = ph ? {
+      capture: (params) => ph.capture(params),
+      identify: (params) => ph.identify(params),
+      captureException: (error, distinctId) => ph.captureException(error, distinctId)
+    } : undefined;
 
     const trpcHandler = createHTTPHandler({
       router: appRouter,
@@ -108,6 +117,7 @@ export const startServer = (
         database,
         judges,
         credentialEvents,
+        analytics,
         appUser: await appUserFromHttpRequest({ config: config.clerk, database }, req)
       })
     });
@@ -176,6 +186,7 @@ export const startServer = (
         database,
         judges,
         credentialEvents,
+        analytics,
         appUser: await appUserFromConnectionParams({ config: config.clerk, database }, info.connectionParams)
       })
     });

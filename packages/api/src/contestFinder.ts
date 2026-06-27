@@ -1,7 +1,6 @@
 import type { initTRPC } from "@trpc/server";
 import {
-  CONTEST_FINDER_REFRESH_EVENT_TYPES,
-  CONTEST_FINDER_REFRESH_STEPS,
+  FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   PROVIDER_STATE_EVENT_TYPES,
   type JudgeProvider,
   type RunStatus
@@ -18,124 +17,115 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
   ? T
   : never;
 
-export interface ContestFinderRefreshWarning {
+export interface FriendSubmissionSyncWarning {
   readonly judge: JudgeProvider;
   readonly message: string;
 }
 
-export interface ContestFinderRefreshResult {
-  readonly contestsUpserted: number;
+export interface FriendSubmissionSyncResult {
   readonly friendsProcessed: number;
-  readonly warnings: readonly ContestFinderRefreshWarning[];
+  readonly warnings: readonly FriendSubmissionSyncWarning[];
 }
 
-export const contestFinderRefreshInputSchema = z.object({
+export const friendSubmissionSyncInputSchema = z.object({
   provider: judgeProviderSchema
 });
 
-export type ContestFinderRefreshInput = z.infer<typeof contestFinderRefreshInputSchema>;
-export type AppScopedContestFinderRefreshInput = ContestFinderRefreshInput & {
+export type FriendSubmissionSyncInput = z.infer<typeof friendSubmissionSyncInputSchema>;
+export type AppScopedFriendSubmissionSyncInput = FriendSubmissionSyncInput & {
   readonly appUserId: number;
 };
-export type ContestFinderRefreshStatus = RunStatus;
+export type FriendSubmissionSyncStatus = RunStatus;
 
-interface ContestFinderRefreshEventBase {
-  readonly provider: ContestFinderRefreshInput["provider"];
+interface FriendSubmissionSyncEventBase {
+  readonly provider: FriendSubmissionSyncInput["provider"];
   readonly stepsTotal: number;
   readonly stepsLeft: number;
 }
 
-export type ContestFinderRefreshEvent =
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Started;
+export type FriendSubmissionSyncEvent =
+  | (FriendSubmissionSyncEventBase & {
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Started;
     })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSyncing;
-      readonly step: CONTEST_FINDER_REFRESH_STEPS.Catalog;
-    })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.CatalogSynced;
-      readonly step: CONTEST_FINDER_REFRESH_STEPS.Catalog;
-      readonly contestsUpserted: number;
-    })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsSyncing;
-      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
+  | (FriendSubmissionSyncEventBase & {
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendsSyncing;
       readonly friendsTotal: number;
     })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSyncing;
-      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
+  | (FriendSubmissionSyncEventBase & {
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSyncing;
       readonly userHandle: string;
       readonly friendIndex: number;
       readonly friendsTotal: number;
     })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.FriendsFriendSynced;
-      readonly step: CONTEST_FINDER_REFRESH_STEPS.Friends;
+  | (FriendSubmissionSyncEventBase & {
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSynced;
       readonly userHandle: string;
       readonly friendIndex: number;
       readonly friendsTotal: number;
       readonly friendsProcessed: number;
     })
-  | (ContestFinderRefreshEventBase & {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Warning;
+  | (FriendSubmissionSyncEventBase & {
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning;
       readonly message: string;
       readonly userHandle?: string;
     })
   | {
-      readonly type: CONTEST_FINDER_REFRESH_EVENT_TYPES.Completed;
-      readonly provider: ContestFinderRefreshInput["provider"];
+      readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Completed;
+      readonly provider: FriendSubmissionSyncInput["provider"];
       readonly stepsTotal: number;
       readonly stepsLeft: 0;
-      readonly summary: ContestFinderRefreshResult;
+      readonly summary: FriendSubmissionSyncResult;
     };
 
-export interface ContestFinderRefreshProviderState {
+export interface FriendSubmissionSyncProviderState {
   readonly type: PROVIDER_STATE_EVENT_TYPES.State;
-  readonly provider: ContestFinderRefreshInput["provider"];
-  readonly status: ContestFinderRefreshStatus;
+  readonly provider: FriendSubmissionSyncInput["provider"];
+  readonly status: FriendSubmissionSyncStatus;
   readonly progress: number;
   readonly stepsTotal: number;
   readonly stepsLeft: number;
   readonly current: string | null;
-  readonly contestsUpserted: number;
   readonly friendsProcessed: number;
   readonly warnings: readonly string[];
 }
 
-export type ContestFinderRefreshObserveEvent = ContestFinderRefreshProviderState;
+export type FriendSubmissionSyncObserveEvent = FriendSubmissionSyncProviderState;
 
-export interface ContestFinderRefreshService {
-  readonly startContestFinderRefresh: (input: { readonly appUserId: number }) => Promise<void>;
-  readonly observeContestFinderRefresh: (
-    input: AppScopedContestFinderRefreshInput
-  ) => AsyncIterable<ContestFinderRefreshObserveEvent>;
+export interface FriendSubmissionSyncService {
+  readonly startFriendSubmissionSync: (input: { readonly appUserId: number }) => Promise<void>;
+  readonly observeFriendSubmissionSync: (
+    input: AppScopedFriendSubmissionSyncInput
+  ) => AsyncIterable<FriendSubmissionSyncObserveEvent>;
 }
 
 export const createContestFinderRouter = (t: TrpcInstance) =>
   t.router({
     overview: t.procedure.query(({ ctx }) => getContestFinderOverview(ctx.database, requireAppUser(ctx.appUser).id)),
-    refresh: t.procedure.mutation(async ({ ctx }): Promise<{ readonly ok: true }> => {
-      if (ctx.judges.startContestFinderRefresh === undefined) {
+    syncFriendSubmissions: t.procedure.mutation(async ({ ctx }): Promise<{ readonly ok: true }> => {
+      if (ctx.judges.startFriendSubmissionSync === undefined) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Contest Finder refresh is not configured."
+          message: "Friend submission sync is not configured."
         });
       }
 
-      await ctx.judges.startContestFinderRefresh({ appUserId: requireAppUser(ctx.appUser).id });
+      const appUser = requireAppUser(ctx.appUser);
+      await ctx.judges.startFriendSubmissionSync({ appUserId: appUser.id });
+      ctx.analytics?.capture({
+        distinctId: appUser.clerkUserId,
+        event: "friend_submissions_sync_started"
+      });
       return { ok: true };
     }),
-    observeRefresh: t.procedure.input(contestFinderRefreshInputSchema).subscription(async function* ({ ctx, input }) {
-      if (ctx.judges.observeContestFinderRefresh === undefined) {
+    observeFriendSubmissionSync: t.procedure.input(friendSubmissionSyncInputSchema).subscription(async function* ({ ctx, input }) {
+      if (ctx.judges.observeFriendSubmissionSync === undefined) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Contest Finder refresh is not configured."
+          message: "Friend submission sync status is not configured."
         });
       }
 
-      yield* ctx.judges.observeContestFinderRefresh({ ...input, appUserId: requireAppUser(ctx.appUser).id });
+      yield* ctx.judges.observeFriendSubmissionSync({ ...input, appUserId: requireAppUser(ctx.appUser).id });
     })
   });
 

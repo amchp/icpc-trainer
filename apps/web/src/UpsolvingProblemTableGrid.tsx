@@ -30,7 +30,7 @@ export function UpsolvingProblemTableGrid({
       getRowKey={(row) => row.id}
       gridTemplateColumns={tableGridTemplateColumns}
       headerGroups={headerGroups}
-      minWidthClassName="min-w-[680px]"
+      minWidthClassName="min-w-[800px]"
       renderCells={(row) =>
         row.getVisibleCells().map((cell) =>
           flexRender(cell.column.columnDef.cell, cell.getContext())

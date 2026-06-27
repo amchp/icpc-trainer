@@ -39,10 +39,26 @@ export type FriendsRoster = UserRoster<USER_TYPES.Friend>;
 export const createFriendsRouter = (t: TrpcInstance) =>
   t.router({
     roster: t.procedure.query(({ ctx }) => getUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Friend)),
-    add: t.procedure.input(addFriendInputSchema).mutation(({ ctx, input }) =>
-      addUserToRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Friend, input, "friend")
-    ),
-    replace: t.procedure.input(replaceFriendsInputSchema).mutation(({ ctx, input }) =>
-      replaceUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Friend, input.users, "friend")
-    )
+    add: t.procedure.input(addFriendInputSchema).mutation(({ ctx, input }) => {
+      const appUser = requireAppUser(ctx.appUser);
+      return addUserToRoster(ctx.database, appUser.id, USER_TYPES.Friend, input, "friend").then((result) => {
+        ctx.analytics?.capture({
+          distinctId: appUser.clerkUserId,
+          event: "friend_added",
+          properties: { judge: input.judge }
+        });
+        return result;
+      });
+    }),
+    replace: t.procedure.input(replaceFriendsInputSchema).mutation(({ ctx, input }) => {
+      const appUser = requireAppUser(ctx.appUser);
+      return replaceUserRoster(ctx.database, appUser.id, USER_TYPES.Friend, input.users, "friend").then((result) => {
+        ctx.analytics?.capture({
+          distinctId: appUser.clerkUserId,
+          event: "friends_roster_replaced",
+          properties: { friend_count: input.users.length }
+        });
+        return result;
+      });
+    })
   });

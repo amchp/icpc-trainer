@@ -10,7 +10,7 @@ import {
 } from "../judges.js";
 import {
   ensureCatalogContests,
-  upsertContestParticipations,
+  upsertExistingContestParticipations,
   type ContestParticipationInput
 } from "../contestParticipation.js";
 import { syncEffect, type SyncOperationError } from "../sync/sync.js";
@@ -104,4 +104,4 @@ export const upsertContestFinderParticipations = (
 ): Effect.Effect<void, JudgeError | SyncOperationError> =>
   entries.length === 0
     ? Effect.void
-    : upsertContestParticipations(database, provider, judge, entries).pipe(Effect.asVoid);
+    : upsertExistingContestParticipations(database, provider, judge, entries).pipe(Effect.asVoid);

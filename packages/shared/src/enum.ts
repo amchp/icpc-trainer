@@ -106,18 +106,11 @@ export enum JUDGE_RESOURCES {
 
 export type JudgeResource = `${JUDGE_RESOURCES}`;
 
-export enum CONTEST_FINDER_REFRESH_STEPS {
-  Catalog = "catalog",
-  Friends = "friends",
-}
-
-export enum CONTEST_FINDER_REFRESH_EVENT_TYPES {
+export enum FRIEND_SUBMISSION_SYNC_EVENT_TYPES {
   Started = "started",
-  CatalogSyncing = "catalog.syncing",
-  CatalogSynced = "catalog.synced",
   FriendsSyncing = "friends.syncing",
-  FriendsFriendSyncing = "friends.friendSyncing",
-  FriendsFriendSynced = "friends.friendSynced",
+  FriendSyncing = "friend.syncing",
+  FriendSynced = "friend.synced",
   Warning = "warning",
   Completed = "completed",
 }

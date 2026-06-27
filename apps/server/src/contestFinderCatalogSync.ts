@@ -8,6 +8,7 @@ import {
   isJudgeError,
   unwrapEffectFailure
 } from "./judgeErrorFormatting.js";
+import { getPostHog } from "./posthog.js";
 
 type Registry = Record<JudgeProvider, Judge>;
 
@@ -72,8 +73,21 @@ export const runContestFinderCatalogSyncJob = async (
     }
   }
 
-  return {
+  const jobResult = {
     ok: results.every((result) => result.ok),
     providers: results
   };
+
+  const totalContestsUpserted = results.reduce((sum, r) => sum + r.contestsUpserted, 0);
+  getPostHog()?.capture({
+    distinctId: "server",
+    event: "catalog_sync_completed",
+    properties: {
+      ok: jobResult.ok,
+      total_contests_upserted: totalContestsUpserted,
+      provider_results: results.map((r) => ({ provider: r.provider, ok: r.ok, contests_upserted: r.contestsUpserted }))
+    }
+  });
+
+  return jobResult;
 };

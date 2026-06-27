@@ -1,14 +1,14 @@
-import type { ContestFinderRefreshEvent } from "@icpc-trainer/api";
+import type { FriendSubmissionSyncEvent } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseLive, DatabaseServiceTag, schema } from "@icpc-trainer/db";
-import { JUDGES } from "@icpc-trainer/shared";
+import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
-import type { Judge, RefreshContestFinderInput, RefreshContestFinderResult } from "../judges/judges.js";
-import { createContestFinderRefreshService } from "../src/contestFinderRefresh.js";
+import type { Judge, SyncFriendSubmissionsInput, SyncFriendSubmissionsResult } from "../judges/judges.js";
+import { createFriendSubmissionSyncService } from "../src/friendSubmissionSync.js";
 import { createTestAppUser } from "./testAppUser.js";
 
-const { contests, providerCredentials } = schema;
+const { appUserJudgeUsers, contests, users } = schema;
 
 const nextTick = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -24,15 +24,23 @@ const withDatabase = async <A>(run: (database: DatabaseService) => Promise<A>): 
   return await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
 };
 
-const seedCredentialRefreshTarget = async (database: DatabaseService, appUserId: number): Promise<void> => {
+const seedFriendSyncTarget = async (database: DatabaseService, appUserId: number): Promise<void> => {
   const timestamp = new Date("2026-01-01T00:00:00.000Z");
-  await database.db.insert(providerCredentials).values({
+  const [friend] = await database.db.insert(users).values({
+    username: `friend-${appUserId}`,
+    judge: JUDGES.Codeforces,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  }).returning().all();
+
+  if (friend === undefined) {
+    throw new Error("Expected seeded friend.");
+  }
+
+  await database.db.insert(appUserJudgeUsers).values({
     appUserId,
-    provider: JUDGES.Codeforces,
-    providerUserKey: "default",
-    credentialType: "api_credentials",
-    encryptedPayload: "encrypted",
-    lastValidatedAt: timestamp,
+    userId: friend.id,
+    role: USER_TYPES.Friend,
     createdAt: timestamp,
     updatedAt: timestamp
   }).run();
@@ -53,10 +61,10 @@ const seedGlobalContest = async (database: DatabaseService): Promise<void> => {
 };
 
 const testJudge = (
-  findContest: (input: RefreshContestFinderInput) => Effect.Effect<RefreshContestFinderResult>
+  syncFriendSubmissions: (input: SyncFriendSubmissionsInput) => Effect.Effect<SyncFriendSubmissionsResult>
 ): Judge => ({
   sync: async function* () {},
-  findContest,
+  syncFriendSubmissions,
   syncContestFinderCatalog: () => Effect.succeed({
     contestsUpserted: 0,
     regularContestsImported: 0,
@@ -65,11 +73,11 @@ const testJudge = (
   refetchContest: () => Effect.void
 });
 
-describe("createContestFinderRefreshService", () => {
-  it("observes idle state before refresh starts", async () => {
+describe("createFriendSubmissionSyncService", () => {
+  it("observes idle state before sync starts", async () => {
     await withDatabase(async (database) => {
-      const service = createContestFinderRefreshService(database, {});
-      const observer = service.observeContestFinderRefresh({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
+      const service = createFriendSubmissionSyncService(database, {});
+      const observer = service.observeFriendSubmissionSync({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
       const state = await observer.next();
 
       expect(state.value).toMatchObject({
@@ -86,16 +94,18 @@ describe("createContestFinderRefreshService", () => {
   it("sends latest running state to late observers", async () => {
     await withDatabase(async (database) => {
       const appUser = await createTestAppUser(database);
-      await seedCredentialRefreshTarget(database, appUser.id);
+      await seedFriendSyncTarget(database, appUser.id);
       let finish: (() => void) | undefined;
-      let service: ReturnType<typeof createContestFinderRefreshService> | undefined;
+      let service: ReturnType<typeof createFriendSubmissionSyncService> | undefined;
       const emitted = new Promise<void>((resolve) => {
         const judge = testJudge((input) =>
           Effect.gen(function* () {
-            const event: ContestFinderRefreshEvent = {
-              type: "catalog.syncing",
+            const event: FriendSubmissionSyncEvent = {
+              type: "friend.syncing",
               provider: "codeforces",
-              step: "catalog",
+              userHandle: "tourist",
+              friendIndex: 1,
+              friendsTotal: 2,
               stepsTotal: 2,
               stepsLeft: 1
             };
@@ -109,21 +119,20 @@ describe("createContestFinderRefreshService", () => {
               })
             );
             return {
-              contestsUpserted: 3,
               friendsProcessed: 0
             };
           })
         );
-        service = createContestFinderRefreshService(database, { codeforces: judge });
-        void service.startContestFinderRefresh({ appUserId: appUser.id });
+        service = createFriendSubmissionSyncService(database, { codeforces: judge });
+        void service.startFriendSubmissionSync({ appUserId: appUser.id });
       });
 
       await emitted;
       if (service === undefined) {
-        throw new Error("Expected refresh service to be created.");
+        throw new Error("Expected sync service to be created.");
       }
 
-      const observer = service.observeContestFinderRefresh({ provider: "codeforces", appUserId: appUser.id })[Symbol.asyncIterator]();
+      const observer = service.observeFriendSubmissionSync({ provider: "codeforces", appUserId: appUser.id })[Symbol.asyncIterator]();
       const state = await observer.next();
 
       expect(state.value).toMatchObject({
@@ -131,7 +140,7 @@ describe("createContestFinderRefreshService", () => {
         provider: "codeforces",
         status: "running",
         progress: 50,
-        current: "Refreshing contest catalog",
+        current: "tourist (1/2)",
         stepsTotal: 2,
         stepsLeft: 1
       });
@@ -144,20 +153,19 @@ describe("createContestFinderRefreshService", () => {
   it("retains latest completed state for new observers", async () => {
     await withDatabase(async (database) => {
       const appUser = await createTestAppUser(database);
-      await seedCredentialRefreshTarget(database, appUser.id);
-      const service = createContestFinderRefreshService(database, {
+      await seedFriendSyncTarget(database, appUser.id);
+      const service = createFriendSubmissionSyncService(database, {
         codeforces: testJudge(() => Effect.succeed({
-          contestsUpserted: 2,
-          friendsProcessed: 0
+          friendsProcessed: 1
         }))
       });
 
-      await service.startContestFinderRefresh({ appUserId: appUser.id });
+      await service.startFriendSubmissionSync({ appUserId: appUser.id });
       for (let index = 0; index < 5; index += 1) {
         await nextTick();
       }
 
-      const observer = service.observeContestFinderRefresh({ provider: "codeforces", appUserId: appUser.id })[Symbol.asyncIterator]();
+      const observer = service.observeFriendSubmissionSync({ provider: "codeforces", appUserId: appUser.id })[Symbol.asyncIterator]();
       const state = await observer.next();
 
       expect(state.value).toMatchObject({
@@ -166,32 +174,31 @@ describe("createContestFinderRefreshService", () => {
         status: "completed",
         progress: 100,
         stepsLeft: 0,
-        contestsUpserted: 2
+        friendsProcessed: 1
       });
       await observer.return?.();
     });
   });
 
-  it("does not start a refresh from another user's global contest rows", async () => {
+  it("does not start a sync from another user's global contest rows", async () => {
     await withDatabase(async (database) => {
       await seedGlobalContest(database);
       let calls = 0;
-      const service = createContestFinderRefreshService(database, {
+      const service = createFriendSubmissionSyncService(database, {
         codeforces: testJudge(() => {
           calls += 1;
           return Effect.succeed({
-            contestsUpserted: 0,
             friendsProcessed: 0
           });
         })
       });
 
-      await service.startContestFinderRefresh({ appUserId: 1 });
+      await service.startFriendSubmissionSync({ appUserId: 1 });
       for (let index = 0; index < 5; index += 1) {
         await nextTick();
       }
 
-      const observer = service.observeContestFinderRefresh({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
+      const observer = service.observeFriendSubmissionSync({ provider: "codeforces", appUserId: 1 })[Symbol.asyncIterator]();
       const state = await observer.next();
 
       expect(calls).toBe(0);

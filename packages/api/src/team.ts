@@ -39,10 +39,26 @@ export type TeamRoster = UserRoster<USER_TYPES.Team>;
 export const createTeamRouter = (t: TrpcInstance) =>
   t.router({
     roster: t.procedure.query(({ ctx }) => getUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team)),
-    add: t.procedure.input(addTeamUserInputSchema).mutation(({ ctx, input }) =>
-      addUserToRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team, input, "team user")
-    ),
-    replace: t.procedure.input(replaceTeamInputSchema).mutation(({ ctx, input }) =>
-      replaceUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team, input.users, "team user")
-    )
+    add: t.procedure.input(addTeamUserInputSchema).mutation(({ ctx, input }) => {
+      const appUser = requireAppUser(ctx.appUser);
+      return addUserToRoster(ctx.database, appUser.id, USER_TYPES.Team, input, "team user").then((result) => {
+        ctx.analytics?.capture({
+          distinctId: appUser.clerkUserId,
+          event: "team_member_added",
+          properties: { judge: input.judge }
+        });
+        return result;
+      });
+    }),
+    replace: t.procedure.input(replaceTeamInputSchema).mutation(({ ctx, input }) => {
+      const appUser = requireAppUser(ctx.appUser);
+      return replaceUserRoster(ctx.database, appUser.id, USER_TYPES.Team, input.users, "team user").then((result) => {
+        ctx.analytics?.capture({
+          distinctId: appUser.clerkUserId,
+          event: "team_roster_replaced",
+          properties: { member_count: input.users.length }
+        });
+        return result;
+      });
+    })
   });

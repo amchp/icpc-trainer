@@ -154,8 +154,8 @@ describe("contest finder router", () => {
         judges: {
           run: async (input) => ({ ok: true as const, result: input }),
           validateCredentials: async () => undefined,
-          startContestFinderRefresh: async () => undefined,
-          observeContestFinderRefresh: async function* (input) {
+          startFriendSubmissionSync: async () => undefined,
+          observeFriendSubmissionSync: async function* (input) {
             yield {
               type: PROVIDER_STATE_EVENT_TYPES.State,
               provider: input.provider,
@@ -164,7 +164,6 @@ describe("contest finder router", () => {
               stepsTotal: 0,
               stepsLeft: 0,
               current: null,
-              contestsUpserted: 0,
               friendsProcessed: 0,
               warnings: []
             };

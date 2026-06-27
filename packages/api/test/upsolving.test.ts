@@ -195,6 +195,16 @@ describe("upsolving router", () => {
           submittedAt: timestamp,
           createdAt: timestamp,
           updatedAt: timestamp
+        },
+        {
+          judgeId: "sub-4",
+          judge: JUDGES.Codeforces,
+          problemId: attempted.id,
+          userId: friend.id,
+          status: SUBMISSION_STATUSES.AC,
+          submittedAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp
         }
       ]).run());
 
@@ -221,10 +231,12 @@ describe("upsolving router", () => {
       expect.objectContaining({
         problemJudgeId: "100A",
         problemName: "A. Team Solved",
+        friendSolvedCount: 0,
         status: "solved"
       }),
       expect.objectContaining({
         problemJudgeId: "100B",
+        friendSolvedCount: 1,
         status: "upsolved"
       })
     ]));

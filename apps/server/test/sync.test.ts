@@ -18,7 +18,7 @@ import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import {
   JudgeAPIError,
   type Judge,
-  type RefreshContestFinderResult
+  type SyncFriendSubmissionsResult
 } from "../judges/judges.js";
 import type { QojPlaygroundClient } from "../judges/qoj.js";
 import { createCodeforcesJudgeSync, type CodeforcesSyncOperations } from "../judges/sync/sync_codeforces.js";
@@ -173,10 +173,9 @@ const withTestSync = (
     sync: (input) => provider === "codeforces"
       ? createCodeforcesJudgeSync(database, input, judge as CodeforcesTestJudge)
       : createQojJudgeSync(database, input, judge as QojPlaygroundClient),
-    findContest: () => Effect.succeed({
-      contestsUpserted: 0,
+    syncFriendSubmissions: () => Effect.succeed({
       friendsProcessed: 0
-    } satisfies RefreshContestFinderResult),
+    } satisfies SyncFriendSubmissionsResult),
     syncContestFinderCatalog: () => Effect.succeed({
       contestsUpserted: 0,
       regularContestsImported: 0,
@@ -281,8 +280,7 @@ describe("createJudgeSyncService", () => {
         });
         yield completed;
       },
-      findContest: () => Effect.succeed({
-        contestsUpserted: 0,
+      syncFriendSubmissions: () => Effect.succeed({
         friendsProcessed: 0
       }),
       syncContestFinderCatalog: () => Effect.succeed({
@@ -353,8 +351,7 @@ describe("createJudgeSyncService", () => {
         await new Promise<void>((resolve) => finishes.set(input.appUserId, resolve));
         yield completedFor(input.appUserId);
       },
-      findContest: () => Effect.succeed({
-        contestsUpserted: 0,
+      syncFriendSubmissions: () => Effect.succeed({
         friendsProcessed: 0
       }),
       syncContestFinderCatalog: () => Effect.succeed({
@@ -433,8 +430,7 @@ describe("createJudgeSyncService", () => {
         yield started;
         yield completed;
       },
-      findContest: () => Effect.succeed({
-        contestsUpserted: 0,
+      syncFriendSubmissions: () => Effect.succeed({
         friendsProcessed: 0
       }),
       syncContestFinderCatalog: () => Effect.succeed({
@@ -1273,7 +1269,7 @@ describe("createJudgeSyncService", () => {
       .toHaveLength(1);
   });
 
-  it("refreshes Codeforces friend participations from the cached Contest Finder catalog", async () => {
+  it("syncs Codeforces friend submissions from the cached Contest Finder catalog", async () => {
     const fetchMock = vi.fn(async (value: unknown) => {
       const url = new URL(String(value));
       if (url.pathname === "/api/user.status") {
@@ -1337,6 +1333,26 @@ describe("createJudgeSyncService", () => {
           updatedAt: timestamp
         }
       ]).run();
+      const regularContest = await database.db
+        .select({ id: contests.id })
+        .from(contests)
+        .where(and(eq(contests.judge, JUDGES.Codeforces), eq(contests.judgeId, "566")))
+        .get();
+      if (regularContest === undefined) {
+        throw new Error("Expected seeded regular contest.");
+      }
+      await database.db.insert(problems).values({
+        judgeId: "566A",
+        judge: JUDGES.Codeforces,
+        name: "Regular Match",
+        link: "https://codeforces.com/contest/566/problem/A",
+        contestId: regularContest.id,
+        solves: 1200,
+        solvePercentage: 50,
+        rating: 800,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }).run();
       const [friend] = await database.db.insert(users).values({
         username: "friend",
         judge: JUDGES.Codeforces,
@@ -1349,7 +1365,7 @@ describe("createJudgeSyncService", () => {
       }
 
       await Effect.runPromise(
-        makeCodeforcesJudge(database).findContest({ friends: [friend] }).pipe(
+        makeCodeforcesJudge(database).syncFriendSubmissions({ friends: [friend] }).pipe(
           Effect.provideService(DatabaseServiceTag, database),
           Effect.provideService(AppUserIdTag, appUserId)
         )
@@ -1357,7 +1373,8 @@ describe("createJudgeSyncService", () => {
 
       return {
         contestRows: await database.db.select().from(contests).all(),
-        contestStateRows: await database.db.select().from(userContestStates).all()
+        contestStateRows: await database.db.select().from(userContestStates).all(),
+        submissionRows: await database.db.select().from(submissions).all()
       };
     });
 
@@ -1390,6 +1407,12 @@ describe("createJudgeSyncService", () => {
       })
     ]));
     expect(result.contestStateRows).toHaveLength(2);
+    expect(result.submissionRows).toEqual([
+      expect.objectContaining({
+        judgeId: "49644213",
+        status: SUBMISSION_STATUSES.WA
+      })
+    ]);
     expect(fetchMock.mock.calls
       .filter((call) => new URL(String(call[0])).pathname === "/api/contest.list")
       .map((call) => new URL(String(call[0])).searchParams.get("gym"))

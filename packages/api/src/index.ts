@@ -12,7 +12,7 @@ import {
 } from "./credentials.js";
 import {
   createContestFinderRouter,
-  type ContestFinderRefreshService
+  type FriendSubmissionSyncService
 } from "./contestFinder.js";
 import { createFindProblemsRouter } from "./findProblems.js";
 import { createFriendsRouter } from "./friends.js";
@@ -50,11 +50,18 @@ export interface CredentialStatusEventService {
   readonly subscribe: () => AsyncIterable<CredentialStatusEvent>;
 }
 
+export interface Analytics {
+  capture(params: { distinctId: string; event: string; properties?: Record<string, unknown> }): void;
+  identify(params: { distinctId: string; properties?: Record<string, unknown> }): void;
+  captureException(error: unknown, distinctId?: string): void;
+}
+
 export interface ApiContext {
   readonly database: DatabaseService;
-  readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService> & Partial<ContestFinderRefreshService>;
+  readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService> & Partial<FriendSubmissionSyncService>;
   readonly credentialEvents?: CredentialStatusEventService;
   readonly appUser?: AppUser;
+  readonly analytics?: Analytics;
 }
 
 const t = initTRPC.context<ApiContext>().create();
@@ -111,16 +118,16 @@ export {
 } from "./storedCredentials.js";
 
 export type {
-  ContestFinderRefreshEvent,
-  ContestFinderRefreshInput,
-  ContestFinderRefreshObserveEvent,
   ContestFinderOverview,
-  ContestFinderRefreshProviderState,
-  ContestFinderRefreshResult,
-  ContestFinderRefreshService,
-  ContestFinderRefreshStatus,
-  ContestFinderRefreshWarning,
   ContestFinderRow,
+  FriendSubmissionSyncEvent,
+  FriendSubmissionSyncInput,
+  FriendSubmissionSyncObserveEvent,
+  FriendSubmissionSyncProviderState,
+  FriendSubmissionSyncResult,
+  FriendSubmissionSyncService,
+  FriendSubmissionSyncStatus,
+  FriendSubmissionSyncWarning,
 } from "./contestFinder.js";
 
 export type {

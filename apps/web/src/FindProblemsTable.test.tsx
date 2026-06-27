@@ -132,9 +132,9 @@ describe("FindProblemsTable", () => {
   it("sorts by problems solved by the most friends", () => {
     render(<FindProblemsTable overview={overview} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Most friends" }));
+    fireEvent.click(screen.getByRole("button", { name: "Friends, not sorted" }));
 
-    expect(screen.getByRole("button", { name: "Most friends" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Friends, sorted descending" })).toBeInTheDocument();
     const rows = bodyRows();
     expect(rows).toHaveLength(5);
     expect(within(rows[0]!).getByRole("link", { name: "B. Dynamic Math" })).toBeInTheDocument();

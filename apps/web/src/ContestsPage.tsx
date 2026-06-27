@@ -1,7 +1,5 @@
-import type { UpsolvingContestRow } from "@icpc-trainer/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { useCallback, useState } from "react";
 
 import { Card, Skeleton } from "./components/ui.js";
 import { ContestsTable } from "./ContestsTable.js";
@@ -9,13 +7,9 @@ import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { queryKeys } from "./queryKeys.js";
 import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { trpc } from "./trpc.js";
-import { useToaster } from "./Toaster.js";
 
 export function ContestsPage(): React.JSX.Element {
   const { hasConnectedJudge, status } = useConnectedJudges();
-  const toaster = useToaster();
-  const queryClient = useQueryClient();
-  const [refreshingContestIds, setRefreshingContestIds] = useState<readonly number[]>([]);
   const query = useQuery({
     queryKey: queryKeys.upsolvingOverview,
     queryFn: () => trpc.upsolving.overview.query(),
@@ -28,24 +22,6 @@ export function ContestsPage(): React.JSX.Element {
   });
   const noSyncedData = dataStatusQuery.data?.hasSyncedContests === false;
 
-  const refetchContest = useCallback(async (contest: UpsolvingContestRow): Promise<void> => {
-    setRefreshingContestIds((current) =>
-      current.includes(contest.id) ? current : [...current, contest.id]
-    );
-
-    try {
-      await trpc.upsolving.refetchContest.mutate({ contestId: contest.id });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.upsolvingOverview });
-    } catch (error) {
-      toaster.error({
-        title: "Contest refresh failed",
-        description: error instanceof Error ? error.message : String(error)
-      });
-    } finally {
-      setRefreshingContestIds((current) => current.filter((id) => id !== contest.id));
-    }
-  }, [queryClient, toaster]);
-
   if (status !== "ready" || !hasConnectedJudge) {
     return <main className="min-h-screen bg-zinc-950" />;
   }
@@ -55,7 +31,7 @@ export function ContestsPage(): React.JSX.Element {
       <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contests</h1>
-          <p className="mt-1 text-sm text-zinc-500">Review synced contests and refresh details</p>
+          <p className="mt-1 text-sm text-zinc-500">Review contests from synced team data</p>
         </div>
         {query.isFetching ? (
           <span className="inline-flex items-center gap-2 text-sm text-zinc-500">
@@ -84,11 +60,7 @@ export function ContestsPage(): React.JSX.Element {
       {noSyncedData ? (
         <SyncDataPrompt />
       ) : query.data ? (
-        <ContestsTable
-          contests={query.data.contests}
-          refreshingContestIds={refreshingContestIds}
-          onRefetchContest={(contest) => void refetchContest(contest)}
-        />
+        <ContestsTable contests={query.data.contests} />
       ) : null}
     </main>
   );

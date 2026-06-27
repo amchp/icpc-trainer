@@ -52,7 +52,7 @@ pnpm test:e2e
 
 `pnpm dev` starts the server on `http://127.0.0.1:3774` and the web app on Vite's local dev URL. The backend default is `http://127.0.0.1:3773` when run directly.
 
-`pnpm catalog:sync` refreshes the shared Contest Finder catalog for all judges and imports regular Codeforces contest/problem rows. Run it from cron or your scheduler once per day so user-triggered Contest Finder refreshes only update friend participation. Schedulers can also call `POST /internal/tasks/catalog-sync` with `Authorization: Bearer $TASK_TOKEN`.
+`pnpm catalog:sync` refreshes the shared Contest Finder catalog for all judges and imports regular Codeforces contest/problem rows. Run it from cron or your scheduler once per day so user-triggered friend submission syncs only update friend participation. Schedulers can also call `POST /internal/tasks/catalog-sync` with `Authorization: Bearer $TASK_TOKEN`.
 
 For a Railway scheduled task service, use `pnpm catalog:sync:task`. Set `ICPC_TRAINER_API_URL` to the deployed API service URL and set `TASK_TOKEN` to the same secret configured on the API service. A 404 usually means `ICPC_TRAINER_API_URL` points at the web service, an old API deployment, or a URL that is not serving this backend.
 

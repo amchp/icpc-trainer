@@ -5,7 +5,7 @@ import type { DatabaseServiceTag } from "@icpc-trainer/db";
 import type {
   AppUserIdTag,
   AppScopedJudgeSyncInput,
-  ContestFinderRefreshEvent,
+  FriendSubmissionSyncEvent,
   JudgeSyncEvent,
   RefetchContestInput
 } from "@icpc-trainer/api";
@@ -90,13 +90,12 @@ export interface GetSubmissionsOptions {
   readonly userHandle: string;
 }
 
-export interface RefreshContestFinderInput {
+export interface SyncFriendSubmissionsInput {
   readonly friends: readonly SyncUser[];
-  readonly emit?: (event: ContestFinderRefreshEvent) => Effect.Effect<void>;
+  readonly emit?: (event: FriendSubmissionSyncEvent) => Effect.Effect<void>;
 }
 
-export interface RefreshContestFinderResult {
-  readonly contestsUpserted: number;
+export interface SyncFriendSubmissionsResult {
   readonly friendsProcessed: number;
 }
 
@@ -127,9 +126,9 @@ export type JudgeAuthenticationInput =
 
 export interface Judge {
   readonly sync: (input: AppScopedJudgeSyncInput) => AsyncIterable<JudgeSyncEvent>;
-  readonly findContest: (
-    input: RefreshContestFinderInput,
-  ) => Effect.Effect<RefreshContestFinderResult, JudgeError, JudgeEffectContext>;
+  readonly syncFriendSubmissions: (
+    input: SyncFriendSubmissionsInput,
+  ) => Effect.Effect<SyncFriendSubmissionsResult, JudgeError, JudgeEffectContext>;
   readonly syncContestFinderCatalog: (
   ) => Effect.Effect<SyncContestFinderCatalogResult, JudgeError | SyncOperationError, DatabaseServiceTag>;
   readonly refetchContest: (

@@ -22,13 +22,9 @@ import {
 } from "./contestsTableModel.js";
 
 export function ContestsTable({
-  contests,
-  refreshingContestIds,
-  onRefetchContest
+  contests
 }: {
   readonly contests: readonly UpsolvingContestRow[];
-  readonly refreshingContestIds: readonly number[];
-  readonly onRefetchContest: (contest: UpsolvingContestRow) => void;
 }): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState("");
   const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
@@ -66,10 +62,7 @@ export function ContestsTable({
       ),
     [normalizedSearchQuery, selectedJudgeSources, tableRows]
   );
-  const columns = useMemo(
-    () => createContestColumns({ refreshingContestIds, onRefetchContest }),
-    [onRefetchContest, refreshingContestIds]
-  );
+  const columns = useMemo(() => createContestColumns(), []);
   const table = useReactTable({
     data: filteredRows,
     columns,
