@@ -1,16 +1,15 @@
 import { isLocalDatabaseUrl, resolveDatabaseUrl } from "@icpc-trainer/db";
-import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { Buffer } from "node:buffer";
 import process from "node:process";
 
-import { createServerEnv, type ServerEnv } from "./env.js";
+import { createServerEnv } from "./env.js";
 
 export interface ServerConfig {
   readonly host: string;
   readonly port: number;
   readonly database: DatabaseConfig;
   readonly clerk: ClerkAuthConfig;
+  readonly taskToken?: string;
 }
 
 export interface DatabaseConfig {
@@ -26,47 +25,18 @@ export interface ClerkAuthConfig {
   readonly authorizedParties: readonly string[];
 }
 
-const localDatabasePath = (databaseUrl: string): string =>
-  databaseUrl.startsWith("file:") ? databaseUrl.slice("file:".length) : databaseUrl;
+const CREDENTIAL_KEY_BYTE_LENGTH = 32;
 
-const credentialKeyPath = (env: ServerEnv, databaseUrl: string): string => {
-  if (env.ICPC_TRAINER_CREDENTIAL_KEY_FILE !== undefined) {
-    return env.ICPC_TRAINER_CREDENTIAL_KEY_FILE;
+const validateCredentialKey = (credentialKey?: string): void => {
+  if (credentialKey === undefined) {
+    throw new Error(
+      "ICPC_TRAINER_CREDENTIAL_KEY is required. Set it in .env with a key from `openssl rand -base64 32`."
+    );
   }
 
-  return join(
-    databaseUrl === ":memory:" ? ".local" : dirname(localDatabasePath(databaseUrl)),
-    "icpc-trainer.credentials.key"
-  );
-};
-
-const ensureCredentialKey = (rawEnv: NodeJS.ProcessEnv, env: ServerEnv, databaseUrl: string): void => {
-  if (env.ICPC_TRAINER_CREDENTIAL_KEY !== undefined) {
-    return;
+  if (Buffer.from(credentialKey, "base64").byteLength !== CREDENTIAL_KEY_BYTE_LENGTH) {
+    throw new Error(`ICPC_TRAINER_CREDENTIAL_KEY must be a base64-encoded ${CREDENTIAL_KEY_BYTE_LENGTH}-byte key.`);
   }
-
-  if (!isLocalDatabaseUrl(databaseUrl)) {
-    if (env.ICPC_TRAINER_CREDENTIAL_KEY_FILE === undefined) {
-      throw new Error(
-        "Remote database URLs require ICPC_TRAINER_CREDENTIAL_KEY or ICPC_TRAINER_CREDENTIAL_KEY_FILE."
-      );
-    }
-
-    rawEnv.ICPC_TRAINER_CREDENTIAL_KEY = readFileSync(env.ICPC_TRAINER_CREDENTIAL_KEY_FILE, "utf8").trim();
-    if (rawEnv.ICPC_TRAINER_CREDENTIAL_KEY === "") {
-      throw new Error("ICPC_TRAINER_CREDENTIAL_KEY_FILE must contain a non-empty credential key.");
-    }
-    return;
-  }
-
-  const keyPath = credentialKeyPath(env, databaseUrl);
-  mkdirSync(dirname(keyPath), { recursive: true });
-
-  if (!existsSync(keyPath)) {
-    writeFileSync(keyPath, `${randomBytes(32).toString("base64")}\n`, { mode: 0o600 });
-  }
-
-  rawEnv.ICPC_TRAINER_CREDENTIAL_KEY = readFileSync(keyPath, "utf8").trim();
 };
 
 export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): ServerConfig => {
@@ -75,19 +45,7 @@ export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): Serve
     databaseUrl: env.ICPC_TRAINER_DATABASE_URL,
     legacySqlitePath: env.ICPC_TRAINER_SQLITE_PATH
   });
-  if (
-    !isLocalDatabaseUrl(databaseUrl) &&
-    env.ICPC_TRAINER_CREDENTIAL_KEY === undefined &&
-    env.ICPC_TRAINER_CREDENTIAL_KEY_FILE === undefined
-  ) {
-    throw new Error(
-      "Remote database URLs require ICPC_TRAINER_CREDENTIAL_KEY or ICPC_TRAINER_CREDENTIAL_KEY_FILE."
-    );
-  }
-
-  if (rawEnv === process.env) {
-    ensureCredentialKey(rawEnv, env, databaseUrl);
-  }
+  validateCredentialKey(env.ICPC_TRAINER_CREDENTIAL_KEY);
 
   return {
     host: env.ICPC_TRAINER_HOST,
@@ -105,6 +63,7 @@ export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): Serve
         ?.split(",")
         .map((origin) => origin.trim())
         .filter((origin) => origin !== "") ?? []
-    }
+    },
+    taskToken: env.TASK_TOKEN
   };
 };

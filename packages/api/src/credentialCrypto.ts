@@ -15,7 +15,7 @@ const getCredentialKey = (): Buffer => {
   if (!encoded) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
-      message: `${KEY_ENV} is not configured. Generate a base64 32-byte key before saving secrets.`
+      message: `${KEY_ENV} is not configured. Set it in .env with a base64 32-byte key before saving secrets.`
     });
   }
 

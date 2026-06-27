@@ -18,7 +18,7 @@ export const createServerEnv = (runtimeEnv: NodeJS.ProcessEnv = process.env) =>
       ICPC_TRAINER_DATABASE_AUTH_TOKEN: optionalTrimmedString,
       ICPC_TRAINER_SQLITE_PATH: optionalTrimmedString,
       ICPC_TRAINER_CREDENTIAL_KEY: optionalTrimmedString,
-      ICPC_TRAINER_CREDENTIAL_KEY_FILE: optionalTrimmedString,
+      TASK_TOKEN: optionalTrimmedString,
       CLERK_SECRET_KEY: optionalTrimmedString,
       CLERK_PUBLISHABLE_KEY: optionalTrimmedString,
       CLERK_JWT_KEY: optionalTrimmedString,

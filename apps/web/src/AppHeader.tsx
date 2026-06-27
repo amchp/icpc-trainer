@@ -44,7 +44,7 @@ export function AppHeader(): React.JSX.Element {
     <header className="relative z-40 border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur sm:px-8">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4">
         <Link to={appPaths.root} className="flex min-w-0 items-center gap-2 text-zinc-100">
-          <img src="/icpc_trainer.png" alt="" className="size-8 object-contain" />
+          <img src="/icpc_trainer.png" alt="" className="size-8 shrink-0 object-contain" />
           <span className="truncate text-sm font-semibold">{APP_NAME}</span>
         </Link>
 

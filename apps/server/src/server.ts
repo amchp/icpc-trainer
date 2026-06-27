@@ -3,21 +3,33 @@ import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
 import { Effect, Scope } from "effect";
+import { Buffer } from "node:buffer";
+import { timingSafeEqual } from "node:crypto";
 import { createServer, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { WebSocketServer } from "ws";
+import type { JudgeProvider } from "@icpc-trainer/shared";
 
 import { makeCodeforcesJudge } from "../judges/codeforces.js";
+import type { Judge } from "../judges/judges.js";
 import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
 import type { ServerConfig } from "./config.js";
 import { appUserFromConnectionParams, appUserFromHttpRequest } from "./auth.js";
 import { createContestFinderRefreshService } from "./contestFinderRefresh.js";
+import { runContestFinderCatalogSyncJob } from "./contestFinderCatalogSync.js";
 import { createAsyncEventHub } from "./asyncEventHub.js";
 import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
+
+type JudgeRegistry = Record<JudgeProvider, Judge>;
 
 export interface StartedServer {
   readonly server: Server;
   readonly url: string;
+}
+
+export interface StartServerOptions {
+  readonly judgeRegistry?: JudgeRegistry;
 }
 
 const json = (body: unknown): string => JSON.stringify(body);
@@ -28,8 +40,39 @@ const writeCorsHeaders = (response: ServerResponse): void => {
   response.setHeader("access-control-allow-headers", "authorization,content-type,trpc-accept");
 };
 
+const writeJson = (response: ServerResponse, statusCode: number, body: unknown): void => {
+  response.writeHead(statusCode, { "content-type": "application/json" });
+  response.end(json(body));
+};
+
+const bearerToken = (authorization: string | undefined): string | undefined => {
+  const prefix = "Bearer ";
+  return authorization?.startsWith(prefix) === true
+    ? authorization.slice(prefix.length).trim()
+    : undefined;
+};
+
+const tokenMatches = (expected: string | undefined, actual: string | undefined): boolean => {
+  if (expected === undefined || actual === undefined) {
+    return false;
+  }
+
+  const expectedBytes = Buffer.from(expected);
+  const actualBytes = Buffer.from(actual);
+  return expectedBytes.byteLength === actualBytes.byteLength && timingSafeEqual(expectedBytes, actualBytes);
+};
+
+const urlPathname = (requestUrl: string | undefined, host: string | string[] | undefined): string | undefined => {
+  if (requestUrl === undefined) {
+    return undefined;
+  }
+
+  return new URL(requestUrl, `http://${Array.isArray(host) ? host[0] : host ?? "localhost"}`).pathname;
+};
+
 export const startServer = (
   config: ServerConfig,
+  options: StartServerOptions = {},
 ): Effect.Effect<StartedServer, Error, Scope.Scope | DatabaseServiceTag> =>
   Effect.gen(function* () {
     const database = yield* DatabaseServiceTag;
@@ -45,7 +88,7 @@ export const startServer = (
         )
       );
     }
-    const judgeRegistry = {
+    const judgeRegistry: JudgeRegistry = options.judgeRegistry ?? {
       codeforces: makeCodeforcesJudge(database),
       qoj: makeQojJudge(database)
     };
@@ -77,22 +120,47 @@ export const startServer = (
         return;
       }
 
-      if (request.url === "/health") {
+      const pathname = urlPathname(request.url, request.headers.host);
+
+      if (pathname === "/health") {
         Effect.runPromise(database.healthCheck)
           .then((databaseStatus) => {
-            response.writeHead(200, { "content-type": "application/json" });
-            response.end(
-              json({
-                ok: true,
-                service: "icpc-trainer",
-                database: databaseStatus,
-                timestamp: new Date().toISOString()
-              }),
-            );
+            writeJson(response, 200, {
+              ok: true,
+              service: "icpc-trainer",
+              database: databaseStatus,
+              timestamp: new Date().toISOString()
+            });
           })
           .catch((error: unknown) => {
-            response.writeHead(500, { "content-type": "application/json" });
-            response.end(json({ ok: false, error: String(error) }));
+            writeJson(response, 500, { ok: false, error: String(error) });
+          });
+        return;
+      }
+
+      if (pathname === "/internal/tasks/catalog-sync") {
+        if (request.method !== "POST") {
+          response.setHeader("allow", "POST");
+          writeJson(response, 405, { ok: false, error: "Method not allowed." });
+          return;
+        }
+
+        if (config.taskToken === undefined) {
+          writeJson(response, 503, { ok: false, error: "TASK_TOKEN is not configured." });
+          return;
+        }
+
+        if (!tokenMatches(config.taskToken, bearerToken(request.headers.authorization))) {
+          writeJson(response, 401, { ok: false, error: "Unauthorized." });
+          return;
+        }
+
+        Effect.runPromise(Effect.promise(() => runContestFinderCatalogSyncJob(database, judgeRegistry)))
+          .then((result) => {
+            writeJson(response, result.ok ? 200 : 500, result);
+          })
+          .catch((error: unknown) => {
+            writeJson(response, 500, { ok: false, error: String(error) });
           });
         return;
       }
@@ -124,8 +192,10 @@ export const startServer = (
       }),
     );
 
+    const address = server.address() as AddressInfo | string | null;
+    const serverPort = typeof address === "object" && address !== null ? address.port : config.port;
     return {
       server,
-      url: `http://${config.host}:${config.port}`
+      url: `http://${config.host}:${serverPort}`
     };
   });

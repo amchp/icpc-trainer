@@ -8,10 +8,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   JudgeAPIError,
   JudgeCredentialError,
+  type Judge,
   JudgeNotFoundError,
   JudgeUnavailableError
 } from "../judges/judges.js";
+import type { ServerConfig } from "../src/config.js";
 import { createJudgePlayground, formatJudgeError, toPlaygroundError } from "../src/playground.js";
+import { startServer } from "../src/server.js";
 import { createTestAppUser } from "./testAppUser.js";
 
 const originalCredentialKey = process.env.ICPC_TRAINER_CREDENTIAL_KEY;
@@ -30,6 +33,51 @@ const requestedUrl = (value: unknown): URL => {
   }
 
   return new URL(value);
+};
+
+const testJudge = (syncContestFinderCatalog: Judge["syncContestFinderCatalog"]): Judge => ({
+  sync: async function* () {},
+  findContest: () => Effect.succeed({
+    contestsUpserted: 0,
+    friendsProcessed: 0
+  }),
+  syncContestFinderCatalog,
+  refetchContest: () => Effect.void
+});
+
+const testServerConfig = (taskToken?: string): ServerConfig => ({
+  host: "127.0.0.1",
+  port: 0,
+  database: {
+    url: ":memory:",
+    authToken: undefined,
+    autoMigrate: true
+  },
+  clerk: {
+    secretKey: undefined,
+    publishableKey: undefined,
+    jwtKey: undefined,
+    authorizedParties: []
+  },
+  taskToken
+});
+
+const withTestServer = async <A>(
+  config: ServerConfig,
+  options: Parameters<typeof startServer>[1],
+  run: (url: string) => Promise<A>
+): Promise<A> => {
+  const program = Effect.gen(function* () {
+    const started = yield* startServer(config, options);
+    return yield* Effect.promise(() => run(started.url));
+  });
+
+  return await Effect.runPromise(
+    program.pipe(
+      Effect.provide(DatabaseLive({ url: ":memory:" })),
+      Effect.scoped
+    )
+  );
 };
 
 afterEach(() => {
@@ -81,6 +129,126 @@ describe("formatJudgeError", () => {
       cause: "Codeforces API request failed: contestId: Field should contain integer.",
       causeType: "string"
     });
+  });
+});
+
+describe("internal task endpoints", () => {
+  it("rejects catalog sync requests without TASK_TOKEN authorization", async () => {
+    let syncCalls = 0;
+
+    const response = await withTestServer(
+      testServerConfig("task-secret"),
+      {
+        judgeRegistry: {
+          codeforces: testJudge(() => {
+            syncCalls += 1;
+            return Effect.succeed({
+              contestsUpserted: 1,
+              regularContestsImported: 0,
+              regularProblemsImported: 0
+            });
+          }),
+          qoj: testJudge(() => {
+            syncCalls += 1;
+            return Effect.succeed({
+              contestsUpserted: 1,
+              regularContestsImported: 0,
+              regularProblemsImported: 0
+            });
+          })
+        }
+      },
+      (url) => fetch(`${url}/internal/tasks/catalog-sync`, { method: "POST" })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ ok: false, error: "Unauthorized." });
+    expect(syncCalls).toBe(0);
+  });
+
+  it("runs every judge catalog sync from the protected task endpoint", async () => {
+    const syncedProviders: string[] = [];
+
+    const response = await withTestServer(
+      testServerConfig("task-secret"),
+      {
+        judgeRegistry: {
+          codeforces: testJudge(() => {
+            syncedProviders.push("codeforces");
+            return Effect.succeed({
+              contestsUpserted: 2,
+              regularContestsImported: 1,
+              regularProblemsImported: 3
+            });
+          }),
+          qoj: testJudge(() => {
+            syncedProviders.push("qoj");
+            return Effect.succeed({
+              contestsUpserted: 4,
+              regularContestsImported: 0,
+              regularProblemsImported: 0
+            });
+          })
+        }
+      },
+      (url) => fetch(`${url}/internal/tasks/catalog-sync`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer task-secret"
+        }
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      providers: [
+        {
+          provider: "codeforces",
+          ok: true,
+          contestsUpserted: 2,
+          regularContestsImported: 1,
+          regularProblemsImported: 3
+        },
+        {
+          provider: "qoj",
+          ok: true,
+          contestsUpserted: 4,
+          regularContestsImported: 0,
+          regularProblemsImported: 0
+        }
+      ]
+    });
+    expect(syncedProviders).toEqual(["codeforces", "qoj"]);
+  });
+
+  it("does not expose the catalog sync endpoint when TASK_TOKEN is not configured", async () => {
+    const response = await withTestServer(
+      testServerConfig(),
+      {
+        judgeRegistry: {
+          codeforces: testJudge(() => Effect.succeed({
+            contestsUpserted: 1,
+            regularContestsImported: 0,
+            regularProblemsImported: 0
+          })),
+          qoj: testJudge(() => Effect.succeed({
+            contestsUpserted: 1,
+            regularContestsImported: 0,
+            regularProblemsImported: 0
+          }))
+        }
+      },
+      (url) => fetch(`${url}/internal/tasks/catalog-sync`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer task-secret"
+        }
+      })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ ok: false, error: "TASK_TOKEN is not configured." });
   });
 });
 

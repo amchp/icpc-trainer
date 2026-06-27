@@ -13,6 +13,7 @@
     "dev:web": "pnpm --filter @icpc-trainer/web dev",
     "dev:server": "pnpm --filter @icpc-trainer/server dev",
     "catalog:sync": "pnpm --filter @icpc-trainer/server catalog:sync",
+    "catalog:sync:task": "pnpm --filter @icpc-trainer/server catalog:sync:task",
     "build": "pnpm -r build",
     "typecheck": "tsc -b",
     "test": "pnpm -r test",
