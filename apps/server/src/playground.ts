@@ -9,7 +9,6 @@ import {
   type SaveCredentialsInput
 } from "@icpc-trainer/api";
 import { DatabaseServiceTag, type DatabaseService } from "@icpc-trainer/db";
-import { JUDGE_RESOURCES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import {
@@ -24,6 +23,13 @@ import {
   makeQojCredentialValidator,
   makeQojPlaygroundClient
 } from "../judges/qoj.js";
+import {
+  causeMessage,
+  causeType,
+  formatJudgeError
+} from "./judgeErrorFormatting.js";
+
+export { formatJudgeError } from "./judgeErrorFormatting.js";
 
 const requiredInput = (value: string | undefined, label: string): string => {
   if (value === undefined || value.trim() === "") {
@@ -34,50 +40,6 @@ const requiredInput = (value: string | undefined, label: string): string => {
 };
 
 const toJsonValue = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
-
-const causeMessage = (cause: unknown): string | undefined => {
-  if (cause === undefined || cause === null) {
-    return undefined;
-  }
-
-  if (typeof cause === "string") {
-    return cause;
-  }
-
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  if (typeof cause === "object" && "comment" in cause && typeof cause.comment === "string") {
-    return cause.comment;
-  }
-
-  return String(cause);
-};
-
-const causeType = (cause: unknown): string | undefined => {
-  if (cause === undefined || cause === null) {
-    return undefined;
-  }
-
-  return cause instanceof Error ? cause.name : typeof cause;
-};
-
-export const formatJudgeError = (error: JudgeError): string => {
-  const detail = "cause" in error ? causeMessage(error.cause) : undefined;
-  const suffix = detail === undefined || detail === "" ? "" : ` ${detail}`;
-
-  switch (error._tag) {
-    case "JudgeCredentialError":
-      return `Credential error for ${error.judgeId}.${suffix}`;
-    case "JudgeNotFoundError":
-      return `${error.resource === JUDGE_RESOURCES.Contest ? "Contest" : "User"} not found on judge: ${error.judgeId}.`;
-    case "JudgeAPIError":
-      return `Judge API rejected the request for ${error.judgeId}.${suffix}`;
-    case "JudgeUnavailableError":
-      return `Judge is unavailable for ${error.judgeId}.${suffix}`;
-  }
-};
 
 export const toPlaygroundError = (error: JudgeError): PlaygroundError => {
   const cause = "cause" in error ? error.cause : undefined;

@@ -14,6 +14,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/100/problem/A",
       rating: 800,
       solvePercentage: 90,
+      friendSolvedCount: 0,
       tags: []
     },
     {
@@ -24,6 +25,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/100/problem/B",
       rating: 1400,
       solvePercentage: 40,
+      friendSolvedCount: 3,
       tags: ["dp", "math"]
     },
     {
@@ -34,6 +36,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/100/problem/C",
       rating: 2400,
       solvePercentage: 8,
+      friendSolvedCount: 1,
       tags: ["graphs"]
     },
     {
@@ -44,6 +47,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/200/problem/D",
       rating: 2500,
       solvePercentage: 4,
+      friendSolvedCount: 4,
       tags: ["dp"]
     },
     {
@@ -54,6 +58,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/300/problem/A",
       rating: 1000,
       solvePercentage: 75,
+      friendSolvedCount: 2,
       tags: ["implementation"]
     },
     {
@@ -64,6 +69,7 @@ const overview: FindProblemsOverview = {
       problemLink: "https://codeforces.com/contest/300/problem/B",
       rating: 1300,
       solvePercentage: 55,
+      friendSolvedCount: 0,
       tags: ["brute force", "strings"]
     }
   ],
@@ -121,6 +127,21 @@ describe("FindProblemsTable", () => {
     expect(screen.getByLabelText("1 problem")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "A. Implementation" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
+  });
+
+  it("sorts by problems solved by the most friends", () => {
+    render(<FindProblemsTable overview={overview} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Most friends" }));
+
+    expect(screen.getByRole("button", { name: "Most friends" })).toHaveAttribute("aria-pressed", "true");
+    const rows = bodyRows();
+    expect(rows).toHaveLength(5);
+    expect(within(rows[0]!).getByRole("link", { name: "B. Dynamic Math" })).toBeInTheDocument();
+    expect(within(rows[1]!).getByRole("link", { name: "A. Implementation" })).toBeInTheDocument();
+    expect(within(rows[2]!).getByRole("link", { name: "C. Graph Paths" })).toBeInTheDocument();
+    expect(within(rows[3]!).getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
+    expect(within(rows[4]!).getByRole("link", { name: "B. Strong Password" })).toBeInTheDocument();
   });
 
   it("does not search by problem id, contest, or tag", () => {

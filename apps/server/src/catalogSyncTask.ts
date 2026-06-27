@@ -13,6 +13,15 @@ const requiredEnv = (name: string): string => {
   return value;
 };
 
+const readResponse = async (response: Response): Promise<CatalogSyncResponse | string> => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as CatalogSyncResponse;
+  } catch {
+    return text;
+  }
+};
+
 const response = await fetch(new URL("/internal/tasks/catalog-sync", requiredEnv("ICPC_TRAINER_API_URL")), {
   method: "POST",
   headers: {
@@ -20,10 +29,10 @@ const response = await fetch(new URL("/internal/tasks/catalog-sync", requiredEnv
     authorization: `Bearer ${requiredEnv("TASK_TOKEN")}`
   }
 });
-const result = await response.json() as CatalogSyncResponse;
+const result = await readResponse(response);
 
-console.log(JSON.stringify(result, null, 2));
+console.log(typeof result === "string" ? result : JSON.stringify(result, null, 2));
 
-if (!response.ok || !result.ok) {
+if (!response.ok || typeof result === "string" || !result.ok) {
   process.exitCode = 1;
 }

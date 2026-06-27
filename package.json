@@ -1,7 +1,19 @@
 {
   "name": "icpc-trainer",
+  "version": "0.0.0",
+  "description": "Local-first ICPC training app for judge account tracking, contest discovery, and upsolving workflows.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": "Alejandro Mc Ewen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amchp/icpc-trainer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/amchp/icpc-trainer/issues"
+  },
+  "homepage": "https://github.com/amchp/icpc-trainer#readme",
   "packageManager": "pnpm@10.33.4",
   "engines": {
     "node": ">=24 <26",

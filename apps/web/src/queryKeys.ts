@@ -27,7 +27,10 @@ export const invalidateAfterJudgeSync = (queryClient: QueryClient): void => {
 };
 
 export const invalidateAfterContestFinderRefresh = (queryClient: QueryClient): void => {
-  invalidate(queryClient, [queryKeys.contestFinderOverview]);
+  invalidate(queryClient, [
+    queryKeys.contestFinderOverview,
+    queryKeys.findProblemsOverview
+  ]);
 };
 
 export const invalidateAfterTeamRosterChange = (queryClient: QueryClient): void => {
@@ -39,5 +42,8 @@ export const invalidateAfterTeamRosterChange = (queryClient: QueryClient): void 
 };
 
 export const invalidateAfterFriendRosterChange = (queryClient: QueryClient): void => {
-  invalidate(queryClient, [queryKeys.contestFinderOverview]);
+  invalidate(queryClient, [
+    queryKeys.contestFinderOverview,
+    queryKeys.findProblemsOverview
+  ]);
 };

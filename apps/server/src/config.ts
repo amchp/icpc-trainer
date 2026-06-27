@@ -26,6 +26,9 @@ export interface ClerkAuthConfig {
 }
 
 const CREDENTIAL_KEY_BYTE_LENGTH = 32;
+const DEFAULT_LOCAL_HOST = "127.0.0.1";
+const DEFAULT_LOCAL_PORT = 3773;
+const RAILWAY_HOST = "0.0.0.0";
 
 const validateCredentialKey = (credentialKey?: string): void => {
   if (credentialKey === undefined) {
@@ -46,10 +49,11 @@ export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): Serve
     legacySqlitePath: env.ICPC_TRAINER_SQLITE_PATH
   });
   validateCredentialKey(env.ICPC_TRAINER_CREDENTIAL_KEY);
+  const port = env.ICPC_TRAINER_PORT ?? env.PORT ?? DEFAULT_LOCAL_PORT;
 
   return {
-    host: env.ICPC_TRAINER_HOST,
-    port: env.ICPC_TRAINER_PORT,
+    host: env.ICPC_TRAINER_HOST ?? (env.PORT === undefined ? DEFAULT_LOCAL_HOST : RAILWAY_HOST),
+    port,
     database: {
       url: databaseUrl,
       authToken: env.ICPC_TRAINER_DATABASE_AUTH_TOKEN,

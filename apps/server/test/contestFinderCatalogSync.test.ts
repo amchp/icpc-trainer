@@ -2,7 +2,7 @@ import { type DatabaseService, DatabaseLive, DatabaseServiceTag } from "@icpc-tr
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
-import type { Judge } from "../judges/judges.js";
+import { JudgeAPIError, type Judge } from "../judges/judges.js";
 import { runContestFinderCatalogSyncJob } from "../src/contestFinderCatalogSync.js";
 
 const withDatabase = async <A>(run: (database: DatabaseService) => Promise<A>): Promise<A> => {
@@ -93,6 +93,33 @@ describe("runContestFinderCatalogSyncJob", () => {
             error: "QOJ catalog unavailable"
           }
         ]
+      });
+    });
+  });
+
+  it("unwraps Effect fiber failures to report judge error details", async () => {
+    await withDatabase(async (database) => {
+      const result = await runContestFinderCatalogSyncJob(database, {
+        codeforces: testJudge(() => Effect.succeed({
+          contestsUpserted: 2,
+          regularContestsImported: 1,
+          regularProblemsImported: 3
+        })),
+        qoj: testJudge(() => Effect.fail(
+          new JudgeAPIError({
+            judgeId: "qoj",
+            cause: "QOJ returned HTTP 403: Cloudflare challenge"
+          })
+        ))
+      });
+
+      expect(result.providers[1]).toEqual({
+        provider: "qoj",
+        ok: false,
+        contestsUpserted: 0,
+        regularContestsImported: 0,
+        regularProblemsImported: 0,
+        error: "Judge API rejected the request for qoj. QOJ returned HTTP 403: Cloudflare challenge"
       });
     });
   });

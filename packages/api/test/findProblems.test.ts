@@ -28,6 +28,12 @@ describe("find problems router", () => {
           judge: JUDGES.Codeforces,
           createdAt: timestamp,
           updatedAt: timestamp
+        },
+        {
+          username: "other-friend",
+          judge: JUDGES.Codeforces,
+          createdAt: timestamp,
+          updatedAt: timestamp
         }
       ]).run());
 
@@ -116,14 +122,16 @@ describe("find problems router", () => {
       const userRows = yield* Effect.promise(() => database.db.select().from(users).all());
       const team = userRows.find((user) => user.username === "team");
       const friend = userRows.find((user) => user.username === "friend");
+      const otherFriend = userRows.find((user) => user.username === "other-friend");
       const untagged = problemRows.find((problem) => problem.judgeId === "100A");
       const tagged = problemRows.find((problem) => problem.judgeId === "100B");
       const duplicateTagSource = problemRows.find((problem) => problem.judgeId === "100C");
-      if (!team || !friend || !untagged || !tagged || !duplicateTagSource) {
+      if (!team || !friend || !otherFriend || !untagged || !tagged || !duplicateTagSource) {
         throw new Error("Expected seeded users and problems.");
       }
       yield* Effect.promise(() => attachJudgeUser(database, appUser.id, team.id, USER_TYPES.Team));
       yield* Effect.promise(() => attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, otherFriend.id, USER_TYPES.Friend));
 
       yield* Effect.promise(() => database.db.insert(problemTags).values([
         { problemId: tagged.id, tag: "dp" },
@@ -147,6 +155,26 @@ describe("find problems router", () => {
           judge: JUDGES.Codeforces,
           problemId: tagged.id,
           userId: friend.id,
+          status: SUBMISSION_STATUSES.AC,
+          submittedAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          judgeId: "friend-ac-repeat",
+          judge: JUDGES.Codeforces,
+          problemId: tagged.id,
+          userId: friend.id,
+          status: SUBMISSION_STATUSES.AC,
+          submittedAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          judgeId: "other-friend-ac",
+          judge: JUDGES.Codeforces,
+          problemId: tagged.id,
+          userId: otherFriend.id,
           status: SUBMISSION_STATUSES.AC,
           submittedAt: timestamp,
           createdAt: timestamp,
@@ -184,11 +212,13 @@ describe("find problems router", () => {
     expect(overview.rows.find((row) => row.problemJudgeId === "100A")).toEqual(expect.objectContaining({
       tags: [],
       rating: 800,
-      solvePercentage: 80
+      solvePercentage: 80,
+      friendSolvedCount: 0
     }));
     expect(overview.rows.find((row) => row.problemJudgeId === "100B")).toEqual(expect.objectContaining({
       contestName: "Codeforces Round",
       contestLink: "https://codeforces.com/contest/100",
+      friendSolvedCount: 2,
       tags: ["dp", "math"]
     }));
     expect(overview.tags).toEqual([

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, UsersRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button, DropdownContent, DropdownItem, DropdownTrigger, Input, Label, TableCount } from "./components/ui.js";
@@ -21,6 +21,8 @@ export function FindProblemsTableFilters({
   onMinRatingChange,
   onMaxRatingChange,
   onSelectedTagsChange,
+  friendsSortActive,
+  onSortByFriends,
   onRandom
 }: {
   readonly searchQuery: string;
@@ -35,6 +37,8 @@ export function FindProblemsTableFilters({
   readonly onMinRatingChange: (value: number) => void;
   readonly onMaxRatingChange: (value: number) => void;
   readonly onSelectedTagsChange: (value: readonly string[]) => void;
+  readonly friendsSortActive: boolean;
+  readonly onSortByFriends: () => void;
   readonly onRandom: () => void;
 }): React.JSX.Element {
   return (
@@ -74,6 +78,16 @@ export function FindProblemsTableFilters({
           selectedTags={selectedTags}
           onChange={onSelectedTagsChange}
         />
+        <Button
+          type="button"
+          variant={friendsSortActive ? "default" : "secondary"}
+          disabled={visibleCount === 0}
+          aria-pressed={friendsSortActive}
+          onClick={onSortByFriends}
+        >
+          <UsersRound className="size-4" aria-hidden="true" />
+          Most friends
+        </Button>
         <Button
           type="button"
           disabled={visibleCount === 0}

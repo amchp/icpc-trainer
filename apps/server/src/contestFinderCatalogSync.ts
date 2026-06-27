@@ -3,6 +3,11 @@ import { JUDGE_PROVIDERS, type JudgeProvider } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type { Judge } from "../judges/judges.js";
+import {
+  formatJudgeError,
+  isJudgeError,
+  unwrapEffectFailure
+} from "./judgeErrorFormatting.js";
 
 type Registry = Record<JudgeProvider, Judge>;
 
@@ -20,12 +25,20 @@ export interface ContestFinderCatalogSyncJobResult {
   readonly providers: readonly ContestFinderCatalogSyncProviderResult[];
 }
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error
+const errorMessage = (error: unknown): string => {
+  const unwrapped = unwrapEffectFailure(error);
+  if (unwrapped !== error) {
+    return errorMessage(unwrapped);
+  }
+
+  if (isJudgeError(error)) {
+    return formatJudgeError(error);
+  }
+
+  return error instanceof Error
     ? error.message
-    : typeof error === "object" && error !== null && "_tag" in error
-      ? String(error)
-      : String(error);
+    : String(error);
+};
 
 export const runContestFinderCatalogSyncJob = async (
   database: DatabaseService,

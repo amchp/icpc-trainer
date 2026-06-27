@@ -10,5 +10,6 @@ dist-electron
 coverage
 test-results
 playwright-report
+htmls
 apps/web/playwright/.clerk
 *.tsbuildinfo

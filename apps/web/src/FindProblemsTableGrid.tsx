@@ -30,7 +30,7 @@ export function FindProblemsTableGrid({
       getRowKey={(row) => row.id}
       gridTemplateColumns={findProblemsGridTemplateColumns}
       headerGroups={headerGroups}
-      minWidthClassName="min-w-[860px]"
+      minWidthClassName="min-w-[940px]"
       renderCells={(row) =>
         row.getVisibleCells().map((cell) =>
           flexRender(cell.column.columnDef.cell, cell.getContext())

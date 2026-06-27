@@ -61,6 +61,24 @@ describe("loadServerConfig", () => {
     });
   });
 
+  it("uses Railway PORT and binds publicly when ICPC_TRAINER_PORT is absent", () => {
+    expect(loadServerConfig(env({ PORT: "8080" }))).toMatchObject({
+      host: "0.0.0.0",
+      port: 8080
+    });
+  });
+
+  it("prefers explicit ICPC_TRAINER_HOST and ICPC_TRAINER_PORT over Railway defaults", () => {
+    expect(loadServerConfig(env({
+      PORT: "8080",
+      ICPC_TRAINER_HOST: "127.0.0.1",
+      ICPC_TRAINER_PORT: "3773"
+    }))).toMatchObject({
+      host: "127.0.0.1",
+      port: 3773
+    });
+  });
+
   it("prefers ICPC_TRAINER_DATABASE_URL over the deprecated sqlite path", () => {
     expect(loadServerConfig(env({
       ICPC_TRAINER_DATABASE_URL: "file:.local/current.sqlite",

@@ -30,7 +30,7 @@ import {
   applyContestFinderRefreshEventToState,
   emptyContestFinderRefreshState
 } from "./contestFinderRefreshState.js";
-import { formatJudgeError } from "./playground.js";
+import { formatJudgeError } from "./judgeErrorFormatting.js";
 
 const { appUserJudgeUsers, providerCredentials, users } = schema;
 

@@ -12,6 +12,14 @@ The repository contains:
 - Drizzle ORM with libSQL/Turso
 - Clerk-owned app users mapped to judge users marked as team users or friends
 
+## Open Source
+
+ICPC Trainer is open source under the [MIT License](LICENSE). Contributions are accepted under the same license; see [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
+The npm `private` flags in the workspace manifests are publish guards for the monorepo apps and internal packages. They do not restrict source-code use under the MIT License.
+
+This project is not affiliated with ICPC, Codeforces, QOJ, or Clerk.
+
 ## Requirements
 
 - Node `>=24 <26`
@@ -46,7 +54,9 @@ pnpm test:e2e
 
 `pnpm catalog:sync` refreshes the shared Contest Finder catalog for all judges and imports regular Codeforces contest/problem rows. Run it from cron or your scheduler once per day so user-triggered Contest Finder refreshes only update friend participation. Schedulers can also call `POST /internal/tasks/catalog-sync` with `Authorization: Bearer $TASK_TOKEN`.
 
-For a Railway scheduled task service, use `pnpm catalog:sync:task`. Set `ICPC_TRAINER_API_URL` to the deployed API URL and set `TASK_TOKEN` to the same secret configured on the API service.
+For a Railway scheduled task service, use `pnpm catalog:sync:task`. Set `ICPC_TRAINER_API_URL` to the deployed API service URL and set `TASK_TOKEN` to the same secret configured on the API service. A 404 usually means `ICPC_TRAINER_API_URL` points at the web service, an old API deployment, or a URL that is not serving this backend.
+
+On Railway, the API service reads Railway's `PORT` automatically and binds to `0.0.0.0`. Do not set `ICPC_TRAINER_HOST` or `ICPC_TRAINER_PORT` on Railway unless you intentionally want to override that behavior.
 
 ## Environment
 

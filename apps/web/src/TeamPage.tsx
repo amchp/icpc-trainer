@@ -78,6 +78,7 @@ export function TeamPage(): React.JSX.Element {
       <section className="mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <p className="mt-1 text-sm text-zinc-500">Manage handles counted as your team</p>
         </div>
       </section>
 

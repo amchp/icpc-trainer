@@ -22,6 +22,7 @@ import { createAsyncEventHub } from "./asyncEventHub.js";
 import { createJudgeCredentialValidation, createJudgePlayground } from "./playground.js";
 
 type JudgeRegistry = Record<JudgeProvider, Judge>;
+const CATALOG_SYNC_TASK_PATHS = new Set(["/internal/tasks/catalog-sync", "/internal/tasks/catalog-sync/"]);
 
 export interface StartedServer {
   readonly server: Server;
@@ -138,7 +139,7 @@ export const startServer = (
         return;
       }
 
-      if (pathname === "/internal/tasks/catalog-sync") {
+      if (pathname !== undefined && CATALOG_SYNC_TASK_PATHS.has(pathname)) {
         if (request.method !== "POST") {
           response.setHeader("allow", "POST");
           writeJson(response, 405, { ok: false, error: "Method not allowed." });

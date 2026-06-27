@@ -33,6 +33,9 @@ export function UpsolvingPage(): React.JSX.Element {
       <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Upsolving</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Track unsolved problems in contests you have already simulated
+          </p>
         </div>
         {query.isFetching ? (
           <span className="inline-flex items-center gap-2 text-sm text-zinc-500">

@@ -10,7 +10,7 @@ export type SearchableFindProblemRow = FindProblemRow & {
 };
 
 export const findProblemsGridTemplateColumns =
-  "3.25rem minmax(16rem, 45%) minmax(0, 28%) minmax(5rem, 10%) minmax(5rem, 10%)";
+  "3.25rem minmax(16rem, 40%) minmax(0, 26%) minmax(5rem, 9%) minmax(5rem, 9%) minmax(6rem, 10%)";
 
 const problemLetterPattern = /^[A-Z][0-9]?\.\s+/;
 
@@ -101,6 +101,19 @@ export const createFindProblemColumns = (): Array<ColumnDef<SearchableFindProble
     ),
     cell: ({ row }) => (
       <span className="tabular-nums">{formatPercentage(row.original.solvePercentage)}</span>
+    )
+  },
+  {
+    accessorKey: "friendSolvedCount",
+    header: ({ column }) => (
+      <SortableHeader
+        label="Friends"
+        direction={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+      />
+    ),
+    cell: ({ row }) => (
+      <span className="tabular-nums">{row.original.friendSolvedCount}</span>
     )
   }
 ];

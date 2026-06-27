@@ -1,6 +1,6 @@
 import { type DatabaseService, schema } from "@icpc-trainer/db";
 import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
-import { and, asc, eq, notExists } from "drizzle-orm";
+import { and, asc, countDistinct, eq, notExists } from "drizzle-orm";
 
 const { appUserJudgeUsers, contests, problems, problemTags, submissions } = schema;
 
@@ -12,6 +12,7 @@ export interface FindProblemRow {
   readonly problemLink: string;
   readonly rating: number;
   readonly solvePercentage: number;
+  readonly friendSolvedCount: number;
   readonly tags: readonly string[];
 }
 
@@ -64,6 +65,27 @@ export const getFindProblemsOverview = async (
     .orderBy(asc(problems.rating), asc(contests.name), asc(problems.judgeId), asc(problemTags.tag))
     .all();
 
+  const friendSolvedRows = await database.db
+    .select({
+      problemId: submissions.problemId,
+      friendSolvedCount: countDistinct(submissions.userId)
+    })
+    .from(submissions)
+    .innerJoin(appUserJudgeUsers, and(
+      eq(appUserJudgeUsers.userId, submissions.userId),
+      eq(appUserJudgeUsers.appUserId, appUserId),
+      eq(appUserJudgeUsers.role, USER_TYPES.Friend)
+    ))
+    .where(and(
+      eq(submissions.judge, JUDGES.Codeforces),
+      eq(submissions.status, SUBMISSION_STATUSES.AC)
+    ))
+    .groupBy(submissions.problemId)
+    .all();
+  const friendSolvedCountByProblemId = new Map(
+    friendSolvedRows.map((row) => [row.problemId, row.friendSolvedCount])
+  );
+
   const rowsByProblemId = new Map<number, FindProblemRow & { tags: string[] }>();
   const problemIdsByTag = new Map<string, Set<number>>();
 
@@ -78,6 +100,7 @@ export const getFindProblemsOverview = async (
         problemLink: row.problemLink,
         rating: row.rating,
         solvePercentage: row.solvePercentage,
+        friendSolvedCount: friendSolvedCountByProblemId.get(row.problemId) ?? 0,
         tags: []
       });
     }

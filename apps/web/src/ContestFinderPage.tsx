@@ -1,12 +1,13 @@
 import type { ContestFinderRefreshInput } from "@icpc-trainer/api";
-import { CONTEST_FINDER_TABS, JUDGES, JUDGE_PROVIDERS, RUN_STATUSES } from "@icpc-trainer/shared";
+import { JUDGES, JUDGE_PROVIDERS, RUN_STATUSES } from "@icpc-trainer/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Loader2, RefreshCw, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { appPaths } from "./appNavigation.js";
 import { Button, Card } from "./components/ui.js";
 import { ContestFinderContestTab } from "./ContestFinderContestTab.js";
-import { ContestFinderFriendsTab } from "./ContestFinderFriendsTab.js";
 import {
   ContestFinderRefreshPanel,
   type ContestFinderRefreshState
@@ -14,7 +15,6 @@ import {
 import {
   contestFinderSearchText,
   normalizeContestFinderRows,
-  type ContestFinderTabId,
   sortContestFinderRows
 } from "./contestFinderModel.js";
 import {
@@ -52,7 +52,6 @@ const emptyRefreshStates = (): Record<ContestFinderRefreshProvider, ContestFinde
 export function ContestFinderPage(): React.JSX.Element {
   const toaster = useToaster();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<ContestFinderTabId>(CONTEST_FINDER_TABS.Contest);
   const [searchQuery, setSearchQuery] = useState("");
   const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
     defaultJudgeSourceFilters
@@ -153,6 +152,9 @@ export function ContestFinderPage(): React.JSX.Element {
       <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contest Finder</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Find contests your friends solved
+          </p>
         </div>
         <Button type="button" disabled={refreshing} onClick={() => void refresh()}>
           {refreshing ? (
@@ -172,29 +174,16 @@ export function ContestFinderPage(): React.JSX.Element {
         </section>
       ) : null}
 
-      <section className="mb-6 flex gap-4 border-b border-zinc-800">
-        <TabButton active={activeTab === "contest"} onClick={() => setActiveTab("contest")}>
-          Contest
-        </TabButton>
-        <TabButton active={activeTab === "friends"} onClick={() => setActiveTab("friends")}>
-          Friends
-        </TabButton>
-      </section>
-
-      {activeTab === "contest" ? (
-        <ContestFinderContestTab
-          contests={filteredContests}
-          allContests={contests}
-          searchQuery={searchQuery}
-          judgeSourceFilters={judgeSourceFilters}
-          isLoading={overviewQuery.isLoading}
-          error={overviewQuery.error}
-          onSearchQueryChange={setSearchQuery}
-          onJudgeSourceFiltersChange={setJudgeSourceFilters}
-        />
-      ) : (
-        <ContestFinderFriendsTab />
-      )}
+      <ContestFinderContestTab
+        contests={filteredContests}
+        allContests={contests}
+        searchQuery={searchQuery}
+        judgeSourceFilters={judgeSourceFilters}
+        isLoading={overviewQuery.isLoading}
+        error={overviewQuery.error}
+        onSearchQueryChange={setSearchQuery}
+        onJudgeSourceFiltersChange={setJudgeSourceFilters}
+      />
     </main>
   );
 }
@@ -207,34 +196,14 @@ function ContestFinderSetupPrompt(): React.JSX.Element {
         <div>
           <p className="text-sm font-medium text-zinc-100">Add friends first.</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Add friends, then click Refresh to find contests those friends have done.
+            Add friends from{" "}
+            <Link to={appPaths.friends} className="text-blue-300 hover:text-blue-200 hover:underline">
+              Friends
+            </Link>
+            , then click Refresh.
           </p>
         </div>
       </div>
     </Card>
-  );
-}
-
-function TabButton({
-  active,
-  children,
-  onClick
-}: {
-  readonly active: boolean;
-  readonly children: React.ReactNode;
-  readonly onClick: () => void;
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      className={`border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-        active
-          ? "border-blue-400 text-zinc-100"
-          : "border-transparent text-zinc-500 hover:text-zinc-200"
-      }`}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   );
 }

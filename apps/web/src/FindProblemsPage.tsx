@@ -24,6 +24,7 @@ export function FindProblemsPage(): React.JSX.Element {
       <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Find Problems</h1>
+          <p className="mt-1 text-sm text-zinc-500">Find unsolved problems that match your filters</p>
         </div>
         {query.isFetching ? (
           <span className="inline-flex items-center gap-2 text-sm text-zinc-500">

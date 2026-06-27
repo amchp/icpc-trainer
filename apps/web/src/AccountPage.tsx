@@ -54,6 +54,7 @@ export function AccountPage(): React.JSX.Element {
       <section className="mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Judges</h1>
+          <p className="mt-1 text-sm text-zinc-500">Connect or clear judge accounts</p>
         </div>
         <Button
           type="button"

@@ -27,7 +27,7 @@ import { invalidateAfterFriendRosterChange, queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
 import { useRosterMutations } from "./useRosterMutations.js";
 
-export function ContestFinderFriendsTab(): React.JSX.Element {
+export function FriendsRoster(): React.JSX.Element {
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
   const inputRef = useRef<HTMLInputElement | null>(null);

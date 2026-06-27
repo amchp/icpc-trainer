@@ -6,8 +6,10 @@ export const appPaths = {
   contestFinder: "/contest-finder",
   contests: "/contests",
   findProblems: "/find-problems",
+  friends: "/friends",
   judges: "/judges",
   playground: "/playground",
+  resources: "/resources",
   root: "/",
   team: "/team",
   upsolving: "/upsolving"
@@ -18,5 +20,7 @@ export const protectedNavItems = [
   { to: appPaths.upsolving, label: "Upsolving" },
   { to: appPaths.contests, label: "Contests" },
   { to: appPaths.contestFinder, label: "Contest Finder" },
-  { to: appPaths.team, label: "Team" }
+  { to: appPaths.resources, label: "Resources" },
+  { to: appPaths.team, label: "Team" },
+  { to: appPaths.friends, label: "Friends" }
 ] as const;

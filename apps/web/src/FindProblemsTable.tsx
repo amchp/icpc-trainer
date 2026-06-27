@@ -84,6 +84,15 @@ export function FindProblemsTable({
     getSortedRowModel: getSortedRowModel()
   });
   const visibleRows = table.getRowModel().rows;
+  const primarySort = sorting[0];
+  const friendsSortActive = primarySort?.id === "friendSolvedCount" && primarySort.desc === true;
+
+  const sortByFriends = (): void => {
+    setSorting([
+      { id: "friendSolvedCount", desc: true },
+      { id: "rating", desc: false }
+    ]);
+  };
 
   const randomProblem = (): void => {
     if (visibleRows.length === 0) {
@@ -112,6 +121,8 @@ export function FindProblemsTable({
         onMinRatingChange={(value) => setMinRating(clamp(value, ratingFloor, ratingCeiling))}
         onMaxRatingChange={(value) => setMaxRating(clamp(value, ratingFloor, ratingCeiling))}
         onSelectedTagsChange={setSelectedTags}
+        friendsSortActive={friendsSortActive}
+        onSortByFriends={sortByFriends}
         onRandom={randomProblem}
       />
 

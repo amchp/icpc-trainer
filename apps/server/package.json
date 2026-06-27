@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "main": "dist/src/main.js",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local src/main.ts",
