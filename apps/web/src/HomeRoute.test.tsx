@@ -17,6 +17,7 @@ import { CodeforcesConnectJudgePage } from "./CodeforcesConnectJudgePage.js";
 import { AccountPage } from "./AccountPage.js";
 import { PlaygroundPage } from "./PlaygroundPage.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
+import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
 import { SyncProvider } from "./SyncContext.js";
 import { TeamPage } from "./TeamPage.js";
@@ -656,12 +657,64 @@ describe("app shell", () => {
     expect(navigateMock).toHaveBeenCalledWith({ to: "/connect-judges/qoj" });
   });
 
+  it("links to the Codeforces setup tutorial from the connect judges page", () => {
+    renderWithQuery(<CodeforcesConnectJudgePage />);
+
+    const tutorialLink = screen.getByRole("link", { name: /open codeforces setup tutorial/i });
+    expect(tutorialLink).toHaveAttribute(
+      "href",
+      "https://scribehow.com/o/wuKjFIrFRgKoK0RyxQxnQg/viewer/How_to_Create_an_API_Key_on_Codeforces__hvQRpAYRROi3R_6-FTZDiA"
+    );
+    expect(tutorialLink).toHaveAttribute("target", "_blank");
+  });
+
+  it("links to the QOJ setup tutorial from the connect judges page", () => {
+    renderWithQuery(<QojConnectJudgePage />);
+
+    const tutorialLink = screen.getByRole("link", { name: /open qoj setup tutorial/i });
+    expect(tutorialLink).toHaveAttribute("href", "/connect-judges/qoj/tutorial");
+    expect(tutorialLink).not.toHaveAttribute("target");
+  });
+
+  it("renders the QOJ setup tutorial steps", () => {
+    renderWithQuery(<QojConnectJudgeTutorialPage />);
+
+    expect(screen.getByRole("heading", { name: "Create a QOJ cookie credential" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /credential values redacted/i })).toHaveAttribute(
+      "src",
+      "/tutorials/qoj/cookie-values-redacted.png"
+    );
+  });
+
+  it("submits Codeforces credentials when pressing Enter in a credential textarea", async () => {
+    renderWithQuery(<CodeforcesConnectJudgePage />);
+
+    fireEvent.change(screen.getByLabelText("Handle"), { target: { value: "tourist" } });
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "cf-key" } });
+    fireEvent.change(screen.getByLabelText("API secret"), { target: { value: "cf-secret" } });
+    fireEvent.keyDown(screen.getByLabelText("API secret"), { key: "Enter", code: "Enter" });
+
+    await waitFor(() =>
+      expect(trpc.credentials.create.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "codeforces",
+          providerUserKey: "tourist",
+          codeforces: {
+            apiKey: "cf-key",
+            apiSecret: "cf-secret"
+          }
+        })
+      )
+    );
+    expect(navigateMock).toHaveBeenCalledWith({ to: "/judges" });
+  });
+
   it("saves structured cookie fields from the QOJ connect judges page", async () => {
     renderWithQuery(<QojConnectJudgePage />);
 
     fireEvent.change(screen.getByLabelText("Handle"), { target: { value: "qoj-user" } });
     fireEvent.change(screen.getByLabelText("uojsessid"), { target: { value: "session" } });
-    fireEvent.click(screen.getByRole("button", { name: /enter/i }));
+    fireEvent.keyDown(screen.getByLabelText("uojsessid"), { key: "Enter", code: "Enter" });
 
     await waitFor(() =>
       expect(trpc.credentials.create.mutate).toHaveBeenCalledWith(

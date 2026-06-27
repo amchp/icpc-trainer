@@ -3,6 +3,7 @@ export const appPaths = {
   connectJudges: "/connect-judges",
   connectCodeforces: "/connect-judges/codeforces",
   connectQoj: "/connect-judges/qoj",
+  connectQojTutorial: "/connect-judges/qoj/tutorial",
   contestFinder: "/contest-finder",
   contests: "/contests",
   findProblems: "/find-problems",

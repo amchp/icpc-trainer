@@ -696,6 +696,23 @@ describe("Codeforces judge operations", () => {
     });
   });
 
+  it("maps Codeforces request timeouts to unavailable errors", async () => {
+    const abortError = new Error("The operation was aborted.");
+    abortError.name = "AbortError";
+    const fetchMock = vi.fn((_url: unknown, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return Promise.reject(abortError);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runWithCodeforcesAuth(Effect.flip(getCodeforcesUser("tourist")))
+    ).resolves.toMatchObject({
+      _tag: "JudgeUnavailableError",
+      cause: "Codeforces API is unavailable. The request timed out after 30 seconds."
+    });
+  });
+
   it("looks up Codeforces credentials when the API request is made", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({

@@ -45,6 +45,8 @@ const CODEFORCES_CONTEST_URL = "https://codeforces.com/contest";
 const CODEFORCES_GYM_CONTEST_ID_MIN = 100000;
 const CODEFORCES_GYM_CONTEST_ID_MAX = 200000;
 const CODEFORCES_PAGE_SIZE = 100_000;
+const CODEFORCES_REQUEST_TIMEOUT_MS = 30_000;
+const CODEFORCES_REQUEST_TIMEOUT_SECONDS = CODEFORCES_REQUEST_TIMEOUT_MS / 1_000;
 const DIV_ROUND_PATTERN = /\bdiv\.?\s*[1-4]\b/i;
 const WEIRD_REGULAR_CONTEST_PATTERN =
   /\b(?:challenge|marathon|communication|huawei|huawai|april\s+fools|kotlin\s+heroes|experimental|testing\s+round)\b/i;
@@ -151,6 +153,9 @@ interface CodeforcesApiError {
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
+const isAbortError = (cause: unknown): cause is Error =>
+  cause instanceof Error && cause.name === "AbortError";
+
 const hasCodeforcesAuth = (auth: CodeforcesAuth | undefined): auth is Required<CodeforcesAuth> =>
   auth?.apiKey !== undefined &&
   auth.apiKey.trim() !== "" &&
@@ -213,46 +218,66 @@ const parseCodeforcesHttpError = (status: number, body: string): CodeforcesApiEr
   };
 };
 
+const toCodeforcesApiError = (cause: unknown): CodeforcesApiError => {
+  if (typeof cause === "object" && cause !== null && "comment" in cause) {
+    return cause as CodeforcesApiError;
+  }
+
+  const error = toError(cause);
+  if (error instanceof SyntaxError) {
+    return {
+      comment: "Codeforces API is unavailable. It returned an invalid response.",
+      cause: error,
+      unavailable: true
+    };
+  }
+
+  return {
+    comment: "Codeforces API is unavailable. The request could not reach Codeforces.",
+    cause: error,
+    unavailable: true
+  };
+};
+
+const requestCodeforcesApi = async <T>(url: string): Promise<T> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CODEFORCES_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw parseCodeforcesHttpError(response.status, await response.text());
+    }
+
+    const payload = (await response.json()) as CodeforcesApiResponse<T>;
+    if (payload.status === "FAILED") {
+      throw { comment: payload.comment };
+    }
+
+    return payload.result;
+  } catch (cause) {
+    if (isAbortError(cause)) {
+      throw {
+        comment: `Codeforces API is unavailable. The request timed out after ${CODEFORCES_REQUEST_TIMEOUT_SECONDS} seconds.`,
+        cause,
+        unavailable: true
+      };
+    }
+
+    throw cause;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const requestCodeforcesWithAuth = <T>(
   method: string,
   params: Record<string, CodeforcesRequestParam> | undefined,
   auth: Required<CodeforcesAuth>
 ): Effect.Effect<T, CodeforcesApiError> =>
   Effect.tryPromise({
-    try: async () => {
-      const response = await fetch(buildSignedUrl(method, params, auth));
-      if (!response.ok) {
-        return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
-      }
-
-      const payload = (await response.json()) as CodeforcesApiResponse<T>;
-
-      if (payload.status === "FAILED") {
-        return Promise.reject({ comment: payload.comment });
-      }
-
-      return payload.result;
-    },
-    catch: (cause): CodeforcesApiError => {
-      if (typeof cause === "object" && cause !== null && "comment" in cause) {
-        return cause as CodeforcesApiError;
-      }
-
-      const error = toError(cause);
-      if (error instanceof SyntaxError) {
-        return {
-          comment: "Codeforces API is unavailable. It returned an invalid response.",
-          cause: error,
-          unavailable: true
-        };
-      }
-
-      return {
-        comment: "Codeforces API is unavailable. The request could not reach Codeforces.",
-        cause: error,
-        unavailable: true
-      };
-    }
+    try: () => requestCodeforcesApi<T>(buildSignedUrl(method, params, auth)),
+    catch: toCodeforcesApiError
   });
 
 const requestCodeforcesPublic = <T>(
@@ -268,38 +293,9 @@ const requestCodeforcesPublic = <T>(
         }
       }
 
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        return Promise.reject(parseCodeforcesHttpError(response.status, await response.text()));
-      }
-
-      const payload = (await response.json()) as CodeforcesApiResponse<T>;
-      if (payload.status === "FAILED") {
-        return Promise.reject({ comment: payload.comment });
-      }
-
-      return payload.result;
+      return await requestCodeforcesApi<T>(url.toString());
     },
-    catch: (cause): CodeforcesApiError => {
-      if (typeof cause === "object" && cause !== null && "comment" in cause) {
-        return cause as CodeforcesApiError;
-      }
-
-      const error = toError(cause);
-      if (error instanceof SyntaxError) {
-        return {
-          comment: "Codeforces API is unavailable. It returned an invalid response.",
-          cause: error,
-          unavailable: true
-        };
-      }
-
-      return {
-        comment: "Codeforces API is unavailable. The request could not reach Codeforces.",
-        cause: error,
-        unavailable: true
-      };
-    }
+    catch: toCodeforcesApiError
   });
 
 const makeCodeforcesRequester = (): RequestCodeforces =>

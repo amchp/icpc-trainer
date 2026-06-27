@@ -27,7 +27,10 @@ export function ConnectJudgeProviderPage({
           <p className="mt-1 text-sm text-zinc-500">Save credentials for syncing {config.name}</p>
         </div>
 
-        <Form onChangeProvider={() => void navigate({ to: "/connect-judges" })} />
+        <Form
+          onChangeProvider={() => void navigate({ to: "/connect-judges" })}
+          tutorialUrl={config.tutorialUrl}
+        />
       </section>
     </main>
   );

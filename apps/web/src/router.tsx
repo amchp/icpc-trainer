@@ -10,6 +10,7 @@ import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
+import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
 import { TeamRoute } from "./TeamRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
@@ -42,6 +43,12 @@ const connectJudgeProviderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/connect-judges/$provider",
   component: ConnectJudgeProviderRoute
+});
+
+const qojConnectJudgeTutorialRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: appPaths.connectQojTutorial,
+  component: QojConnectJudgeTutorialPage
 });
 
 const playgroundRoute = createRoute({
@@ -121,6 +128,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   playgroundRoute,
   connectJudgesRoute,
+  qojConnectJudgeTutorialRoute,
   connectJudgeProviderRoute
 ]);
 

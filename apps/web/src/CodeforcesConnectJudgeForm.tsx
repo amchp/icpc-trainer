@@ -6,13 +6,14 @@ import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./c
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { ConnectJudgesFormHeader } from "./ConnectJudgesFormHeader.js";
 import { formatConnectJudgeError } from "./connectJudgeErrors.js";
-import type { ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
+import { submitFormOnTextareaEnter, type ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
 import { CodeforcesIcon } from "./JudgeDisplay.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
 export function CodeforcesConnectJudgeForm({
-  onChangeProvider
+  onChangeProvider,
+  tutorialUrl
 }: ProviderConnectJudgeFormProps): React.JSX.Element {
   const navigate = useNavigate();
   const { setCredentialStatus } = useConnectedJudges();
@@ -61,6 +62,7 @@ export function CodeforcesConnectJudgeForm({
               icon={<CodeforcesIcon className="size-4" aria-hidden="true" />}
               disabled={isSubmitting}
               onChangeProvider={onChangeProvider}
+              tutorialUrl={tutorialUrl}
             />
           )}
         </form.Subscribe>
@@ -93,6 +95,7 @@ export function CodeforcesConnectJudgeForm({
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
+                    onKeyDown={(event) => submitFormOnTextareaEnter(event, form.state.isSubmitting)}
                     placeholder="Codeforces API key"
                     autoComplete="off"
                     spellCheck={false}
@@ -111,6 +114,7 @@ export function CodeforcesConnectJudgeForm({
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
+                    onKeyDown={(event) => submitFormOnTextareaEnter(event, form.state.isSubmitting)}
                     placeholder="Codeforces API secret"
                     autoComplete="off"
                     spellCheck={false}

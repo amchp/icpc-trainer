@@ -6,7 +6,7 @@ import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./c
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { ConnectJudgesFormHeader } from "./ConnectJudgesFormHeader.js";
 import { formatConnectJudgeError } from "./connectJudgeErrors.js";
-import { type ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
+import { submitFormOnTextareaEnter, type ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -46,7 +46,10 @@ const buildQojCookieJar = (values: Record<QojCookieKey, string>, handle: string)
     .map(([key, value]) => `${key}=${value}`)
     .join("; ");
 
-export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFormProps): React.JSX.Element {
+export function QojConnectJudgeForm({
+  onChangeProvider,
+  tutorialUrl
+}: ProviderConnectJudgeFormProps): React.JSX.Element {
   const navigate = useNavigate();
   const { setCredentialStatus } = useConnectedJudges();
   const toaster = useToaster();
@@ -87,7 +90,12 @@ export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFo
       >
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <ConnectJudgesFormHeader title="QOJ" disabled={isSubmitting} onChangeProvider={onChangeProvider} />
+            <ConnectJudgesFormHeader
+              title="QOJ"
+              disabled={isSubmitting}
+              onChangeProvider={onChangeProvider}
+              tutorialUrl={tutorialUrl}
+            />
           )}
         </form.Subscribe>
         <Separator />
@@ -120,6 +128,7 @@ export function QojConnectJudgeForm({ onChangeProvider }: ProviderConnectJudgeFo
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
+                      onKeyDown={(event) => submitFormOnTextareaEnter(event, form.state.isSubmitting)}
                       placeholder={cookie.label}
                       autoComplete="off"
                       spellCheck={false}
