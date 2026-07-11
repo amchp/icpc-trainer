@@ -32,9 +32,9 @@
     "test:e2e": "pnpm --filter @icpc-trainer/web test:e2e"
   },
   "devDependencies": {
-    "@types/node": "26.0.0",
+    "@types/node": "26.1.1",
     "concurrently": "^10.0.3",
-    "shadcn": "4.11.0",
-    "typescript": "6.0.3"
+    "shadcn": "4.13.0",
+    "typescript": "7.0.2"
   }
 }
