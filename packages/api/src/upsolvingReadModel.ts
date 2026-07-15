@@ -8,7 +8,7 @@ import {
 } from "@icpc-trainer/shared";
 import { and, asc, avg, count, countDistinct, desc, eq, sum } from "drizzle-orm";
 
-const { contests, problems, submissions, users } = schema;
+const { contests, problems, submissions } = schema;
 const { appUserJudgeUsers, userContestStates } = schema;
 
 export type { UpsolvingProblemStatus };
@@ -98,14 +98,8 @@ export const getUpsolvingOverview = async (
       eq(appUserJudgeUsers.appUserId, appUserId),
       eq(appUserJudgeUsers.role, USER_TYPES.Team)
     ))
-    .innerJoin(users, eq(users.id, submissions.userId))
     .innerJoin(problems, eq(problems.id, submissions.problemId))
     .innerJoin(contests, eq(contests.id, problems.contestId))
-    .innerJoin(userContestStates, and(
-      eq(userContestStates.userId, submissions.userId),
-      eq(userContestStates.contestId, contests.id),
-      eq(userContestStates.simulated, true)
-    ))
     .groupBy(contests.id, submissions.problemId)
     .all();
 

@@ -140,6 +140,7 @@ describe("upsolving router", () => {
       if (!other || !teammate || !friend || !solved || !attempted || !newProblem) {
         throw new Error("Expected seeded users and problems.");
       }
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, other.id, USER_TYPES.Team));
       yield* Effect.promise(() => attachJudgeUser(database, appUser.id, teammate.id, USER_TYPES.Team));
       yield* Effect.promise(() => attachJudgeUser(database, appUser.id, friend.id, USER_TYPES.Friend));
       yield* Effect.promise(() => database.db.insert(userContestStates).values([
@@ -237,7 +238,7 @@ describe("upsolving router", () => {
       expect.objectContaining({
         problemJudgeId: "100B",
         friendSolvedCount: 1,
-        status: "upsolved"
+        status: "attempted"
       })
     ]));
     expect(overview.rows[0]).not.toHaveProperty("submissionCount");
@@ -255,7 +256,7 @@ describe("upsolving router", () => {
       contestCount: 1,
       problemCount: 2,
       solvedCount: 1,
-      attemptedCount: 0
+      attemptedCount: 1
     });
   });
 
