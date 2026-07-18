@@ -1,34 +1,4 @@
 @import "tailwindcss";
-
-.locale-switch {
-  position: relative;
-  overflow: hidden;
-}
-
-.locale-switch::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  content: "";
-  background: #60a5fa;
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
-.locale-switch:active::after {
-  animation: locale-sweep 450ms ease-out;
-}
-
-@keyframes locale-sweep {
-  45% { transform: scaleX(1); }
-  100% { transform: scaleX(0); transform-origin: right; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .locale-switch:active::after { animation: none; }
-}
 @import "@clerk/ui/themes/shadcn.css";
 
 :root {

@@ -9,8 +9,9 @@ import { appPaths } from "./appNavigation.js";
 import { Button } from "./components/ui.js";
 import { cn } from "./lib.js";
 import { GuideCodeBlock } from "./learning/GuideCodeBlock.js";
-import { FunctionTrace, LoopStepper, TypeExplorer } from "./learning/GuideDemos.js";
+import { TypeExplorer } from "./learning/GuideDemos.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
+import { useProgrammingFundamentalsTraces } from "./learning/GuideTraces.js";
 import { PracticeQuestionSet } from "./learning/PracticeQuestionSet.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
 import { useToaster } from "./Toaster.js";
@@ -26,6 +27,7 @@ const accents = {
 type Accent = (typeof accents)[keyof typeof accents];
 export function ProgrammingFundamentalsPage(): React.JSX.Element {
   const { t } = useTranslation("programmingFundamentals");
+  const traces = useProgrammingFundamentalsTraces();
   const { userId } = useAuth();
   const sections = [
     ["bloques", t("sections.blocks")], ["representacion", t("sections.representation")], ["operadores", t("sections.operators")],
@@ -102,7 +104,12 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
       </header>
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
-        <GuideSidebar sections={sections.map(([id, label]) => ({ id, label }))} activeSection={activeSection} />
+        <GuideSidebar
+          sections={sections.map(([id, label]) => ({ id, label }))}
+          activeSection={activeSection}
+          label={t("sidebar.label")}
+          progressLabel={(current, total) => t("sidebar.progress", { current, total })}
+        />
         <div className="min-w-0">
         <GuideSection id="bloques" accent={accents.intro} title={t("blocks.title")}>
           <p>{t("blocks.p1")}</p>
@@ -140,16 +147,14 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
 
         <GuideSection id="condicionales" accent={accents.conditionals} title={t("conditionals.title")}>
           <p>{t("conditionals.p1")}</p>
-          <ConditionalDemo />
-          <GuideCodeBlock code={`if (esta_lloviendo) {\n  cout << "Lleva paraguas";\n} else if (esta_nevando) {\n  cout << "No salgas";\n} else {\n  cout << "Sal tranquilo";\n}`} />
+          <GuideCodeBlock trace={traces.conditionals} />
         </GuideSection>
 
         <GuideSection id="iteracion" accent={accents.iteration} title={t("iteration.title")}>
           <p>{t("iteration.p1")}</p>
-          <LoopStepper />
-          <GuideCodeBlock code={`for (int i = 1; i <= 5; ++i) {\n  cout << i << ' ';\n}\n// imprime: 1 2 3 4 5`} />
+          <GuideCodeBlock trace={traces.forLoop} />
           <p>{t("iteration.whileExplanation")}</p>
-          <GuideCodeBlock code={`int restantes = 3;\nwhile (restantes > 0) {\n  cout << restantes << ' ';\n  --restantes;\n}\n// imprime: 3 2 1`} />
+          <GuideCodeBlock trace={traces.whileLoop} />
           <PracticeQuestionSet questions={[
             { question: t("iteration.question"), options: ["5 4 3 2 1", "5 6", t("iteration.nothing")], correctOption: 2, explanation: t("iteration.explanation") },
             { question: t("iteration.question2"), options: ["1 2 3", "1 2", t("iteration.nothing")], correctOption: 0, explanation: t("iteration.explanation2") }
@@ -158,13 +163,12 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
 
         <GuideSection id="funciones" accent={accents.functions} title={t("functions.title")}>
           <p>{t("functions.p1")}</p>
-          <GuideCodeBlock code={`int sumar(int x, int y) {\n  int resultado = x + y;\n  return resultado;\n}\n\nint total = sumar(7, 3); // 10`} />
-          <FunctionTrace />
+          <GuideCodeBlock trace={traces.functionCall} />
         </GuideSection>
 
         <GuideSection id="vectores" accent={accents.iteration} title={t("vectors.title")}>
           <p>{t("vectors.p1")}</p>
-          <GuideCodeBlock code={`vector<int> valores = {1, 2, 3};\nvalores.push_back(4);\n\nfor (int i = 0; i < valores.size(); ++i) {\n  if (i == 2) continue;\n  cout << valores[i] << ' ';\n}\n// imprime: 1 2 4`} />
+          <GuideCodeBlock trace={traces.vectorTraversal} />
           <p><code>continue</code> {t("vectors.p2Start")} <code>break</code> {t("vectors.p2End")}</p>
           <PracticeQuestionSet questions={[
             { question: t("vectors.question"), options: ["1 2", "1 2 4 5", "3 4 5"], correctOption: 1, explanation: t("vectors.explanation") },
@@ -174,8 +178,7 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
 
         <GuideSection id="recursion" accent={accents.functions} title={t("recursion.title")}>
           <p>{t("recursion.p1")}</p>
-          <RecursionDemo />
-          <GuideCodeBlock code={`int factorial(int x) {\n  if (x == 1) return 1;\n  return x * factorial(x - 1);\n}`} />
+          <GuideCodeBlock trace={traces.recursion} />
           <PracticeQuestionSet questions={[
             { question: t("recursion.question"), options: [t("recursion.parameter"), t("recursion.baseCase"), t("recursion.multiplication")], correctOption: 1, explanation: t("recursion.explanation") },
             { question: t("recursion.question2"), options: ["3", "6", "9"], correctOption: 1, explanation: t("recursion.explanation2") }
@@ -220,26 +223,5 @@ function ConceptStripe({ color, label, delay }: { color: string; label: string; 
   );
 }
 
-function DemoPanel({ label, accent, children }: { label: string; accent: string; children: React.ReactNode }): React.JSX.Element {
-  return (
-    <div className="relative my-10 rounded-lg border border-zinc-800 bg-zinc-900/25 p-6 sm:p-8">
-      <span className={cn("absolute -top-2 left-5 bg-[#09090b] px-2 font-mono text-[10px] uppercase tracking-[0.18em]", accent)}>{label}</span>
-      {children}
-    </div>
-  );
-}
 function Term({ color, children }: { color: string; children: React.ReactNode }): React.JSX.Element { return <strong className={cn("font-semibold", color)}>{children}</strong>; }
 function Block({ color, symbol, title }: { color: string; symbol: string; title: string }): React.JSX.Element { return <div className="bg-zinc-950 p-6 text-center"><span className={cn("mx-auto grid size-12 place-items-center rounded-sm font-mono font-bold text-zinc-950", color)}>{symbol}</span><strong className="mt-3 block text-sm text-zinc-200">{title}</strong></div>; }
-
-function ConditionalDemo(): React.JSX.Element {
-  const { t } = useTranslation("programmingFundamentals");
-  const [rain, setRain] = useState(false); const [snow, setSnow] = useState(false);
-  const result = rain ? t("demos.umbrella") : snow ? t("demos.stayIn") : t("demos.goOut");
-  return <DemoPanel label={t("demos.simulate")} accent="text-amber-300"><div className="grid gap-7 sm:grid-cols-2"><div className="space-y-3">{[[t("demos.raining"), rain, setRain], [t("demos.snowing"), snow, setSnow]].map(([label, checked, setter]) => <label key={String(label)} className="flex cursor-pointer items-center justify-between border-b border-zinc-800 py-3 text-sm"><span>{String(label)}</span><input type="checkbox" checked={Boolean(checked)} onChange={(event) => (setter as React.Dispatch<React.SetStateAction<boolean>>)(event.target.checked)} className="size-4 accent-amber-400" /></label>)}</div><div className="flex min-h-28 items-center border-l-2 border-amber-400 pl-6"><div><span className="font-mono text-xs uppercase tracking-[0.14em] text-zinc-500">{t("demos.selectedBranch")}</span><output className="mt-2 block text-2xl font-semibold text-amber-200">{result}</output></div></div></div></DemoPanel>;
-}
-
-function RecursionDemo(): React.JSX.Element {
-  const { t } = useTranslation("programmingFundamentals");
-  const [depth, setDepth] = useState(1); const calls = [4, 3, 2, 1].slice(0, depth);
-  return <DemoPanel label={t("demos.callStack")} accent="text-emerald-300"><div className="flex min-h-64 flex-col-reverse justify-start gap-2">{calls.map((value, index) => <div key={value} className="flex items-center justify-between rounded-r-md border-l-2 border-emerald-400 bg-emerald-400/5 px-4 py-3 font-mono text-sm" style={{ marginLeft: `${index * 18}px` }}><span>factorial({value})</span><span className="text-emerald-300">{value === 1 ? "return 1" : `${value} × factorial(${value - 1})`}</span></div>)}</div><div className="mt-5 flex gap-2"><button type="button" className="rounded-md border border-zinc-700 px-3 py-2 text-sm transition-colors hover:border-zinc-500 disabled:opacity-40" disabled={depth === 1} onClick={() => setDepth((value) => value - 1)}>{t("demos.previous")}</button><button type="button" className="rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-emerald-400 disabled:opacity-40" disabled={depth === 4} onClick={() => setDepth((value) => value + 1)}>{t("demos.nextCall")}</button></div></DemoPanel>;
-}

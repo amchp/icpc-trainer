@@ -34,33 +34,50 @@ describe("ResourcesPage", () => {
     progressState.refetch.mockReset();
   });
 
-  it("renders the two-topic blueprint and keeps Introduction unavailable", () => {
+  it("renders Introduction as a link and Fundamentals as locked", () => {
     render(<ResourcesPage />);
-    expect(screen.getByRole("heading", { name: "Introduction" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Introduction/ })).toHaveAttribute("href", "/resources/introduction");
+    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Programming Fundamentals" })).toBeInTheDocument();
     expect(screen.getByText("Coming soon")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toHaveAttribute(
-      "href",
-      "/resources/programming-fundamentals"
-    );
-    expect(screen.queryByRole("link", { name: "Introduction" })).not.toBeInTheDocument();
+    expect(screen.getByText("0 / 1 completed")).toBeInTheDocument();
+  });
+
+  it("does not expose a Fundamentals destination", () => {
+    render(<ResourcesPage />);
+    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
   });
 
   it("shows saved completion state", () => {
+    progressState.data = [LEARNING_GUIDE_IDS.Introduction, LEARNING_GUIDE_IDS.ProgrammingFundamentals].map((guideId) => ({
+      guideId,
+      status: LEARNING_PROGRESS_STATUSES.Completed,
+      startedAt: "2026-07-16T00:00:00.000Z",
+      completedAt: "2026-07-16T01:00:00.000Z",
+      updatedAt: "2026-07-16T01:00:00.000Z"
+    }));
+    render(<ResourcesPage />);
+    expect(screen.getAllByText("Completed")).toHaveLength(1);
+    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
+  });
+
+  it("counts one completed guide independently", () => {
     progressState.data = [{
-      guideId: LEARNING_GUIDE_IDS.ProgrammingFundamentals,
+      guideId: LEARNING_GUIDE_IDS.Introduction,
       status: LEARNING_PROGRESS_STATUSES.Completed,
       startedAt: "2026-07-16T00:00:00.000Z",
       completedAt: "2026-07-16T01:00:00.000Z",
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
     progressState.isError = true;
     render(<ResourcesPage />);
     expect(screen.getByText(/Progress could not be loaded/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Introduction/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
   });
 });

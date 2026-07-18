@@ -48,12 +48,8 @@ export const common = {
     item_other: "items"
   },
   locale: {
-    switchToEnglish: "Switch language to English",
-    switchToSpanish: "Switch language to Spanish",
     english: "English",
     spanish: "Español",
-    syncing: "Saving language preference...",
-    menuLabel: "Choose language",
-    current: "Current language: {{language}}"
+    menuLabel: "Choose language"
   }
 } as const;

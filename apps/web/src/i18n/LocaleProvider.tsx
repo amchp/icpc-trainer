@@ -1,4 +1,4 @@
-import { APP_LOCALES, type AppLocale } from "@icpc-trainer/shared";
+import type { AppLocale } from "@icpc-trainer/shared";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { i18n, initialLocale } from "./i18n.js";
@@ -46,6 +46,3 @@ export function LocaleProvider({ children }: { readonly children: ReactNode }): 
 export const useLocale = (): LocaleContextValue => {
   return useContext(LocaleContext);
 };
-
-export const peerLocale = (locale: AppLocale): AppLocale =>
-  locale === APP_LOCALES.English ? APP_LOCALES.Spanish : APP_LOCALES.English;

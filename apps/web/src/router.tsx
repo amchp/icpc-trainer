@@ -8,8 +8,8 @@ import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
+import { IntroductionRoute } from "./IntroductionRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
-import { ProgrammingFundamentalsRoute } from "./ProgrammingFundamentalsRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
@@ -111,7 +111,15 @@ const resourcesRoute = createRoute({
 const programmingFundamentalsRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.programmingFundamentals,
-  component: ProgrammingFundamentalsRoute
+  beforeLoad: () => {
+    throw redirect({ to: appPaths.resources });
+  }
+});
+
+const introductionRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.introduction,
+  component: IntroductionRoute
 });
 
 const teamRoute = createRoute({
@@ -146,7 +154,7 @@ const routeTree = rootRoute.addChildren([
     teamRoute,
     upsolvingRoute
   ]),
-  resourcesAppRoute.addChildren([resourcesRoute, programmingFundamentalsRoute]),
+  resourcesAppRoute.addChildren([resourcesRoute, introductionRoute, programmingFundamentalsRoute]),
   standaloneRoute.addChildren([
     playgroundRoute,
     connectJudgesRoute,

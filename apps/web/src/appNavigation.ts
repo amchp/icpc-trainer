@@ -11,6 +11,7 @@ export const appPaths = {
   judges: "/judges",
   playground: "/playground",
   resources: "/resources",
+  introduction: "/resources/introduction",
   programmingFundamentals: "/resources/programming-fundamentals",
   root: "/",
   team: "/team",
@@ -22,9 +23,7 @@ import type { TFunction } from "i18next";
 export const protectedNavItems = (t: TFunction<"shell">) => [
   { to: appPaths.findProblems, label: t("nav.findProblems"), activePaths: [appPaths.findProblems] },
   { to: appPaths.upsolving, label: t("nav.upsolving"), activePaths: [appPaths.upsolving] },
-  { to: appPaths.contests, label: t("nav.contests"), activePaths: [appPaths.contests] },
   { to: appPaths.contestFinder, label: t("nav.contestFinder"), activePaths: [appPaths.contestFinder] },
-  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.programmingFundamentals] },
-  { to: appPaths.team, label: t("nav.team"), activePaths: [appPaths.team] },
-  { to: appPaths.friends, label: t("nav.friends"), activePaths: [appPaths.friends] }
+  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals] },
+  { to: appPaths.team, label: t("nav.team"), activePaths: [appPaths.team] }
 ] as const;

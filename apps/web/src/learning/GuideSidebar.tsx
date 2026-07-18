@@ -1,5 +1,4 @@
 import { cn } from "../lib.js";
-import { useTranslation } from "react-i18next";
 
 export interface GuideSectionLink {
   readonly id: string;
@@ -8,24 +7,27 @@ export interface GuideSectionLink {
 
 export function GuideSidebar({
   sections,
-  activeSection
+  activeSection,
+  label,
+  progressLabel
 }: {
   readonly sections: readonly GuideSectionLink[];
   readonly activeSection: string;
+  readonly label: string;
+  readonly progressLabel: (current: number, total: number) => string;
 }): React.JSX.Element {
-  const { t } = useTranslation("programmingFundamentals");
   const activeIndex = Math.max(0, sections.findIndex(({ id }) => id === activeSection));
 
   return (
     <aside
       className="sticky top-0 z-20 -mx-5 self-start border-y border-zinc-800 bg-[#09090b]/95 py-3 backdrop-blur sm:-mx-8 lg:top-6 lg:z-10 lg:mx-0 lg:border-y-0 lg:bg-transparent lg:py-20 lg:backdrop-blur-none"
-      aria-label={t("sidebar.label")}
+      aria-label={label}
     >
       <div className="flex items-center gap-4 px-5 sm:px-8 lg:block lg:px-0">
         <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:block lg:mb-4">
-          {t("sidebar.progress", { current: activeIndex + 1, total: sections.length })}
+          {progressLabel(activeIndex + 1, sections.length)}
         </p>
-        <nav className="min-w-0 flex-1 overflow-x-auto lg:overflow-visible" aria-label={t("sidebar.label")}>
+        <nav className="min-w-0 flex-1 overflow-x-auto lg:overflow-visible" aria-label={label}>
           <ol className="flex min-w-max items-center lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-1" role="list">
             {sections.map(({ id, label }, index) => (
               <li key={id} className="flex items-center lg:block">

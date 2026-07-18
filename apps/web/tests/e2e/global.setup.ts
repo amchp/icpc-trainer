@@ -59,6 +59,6 @@ setup("authenticate with Clerk", async ({ page }) => {
   await page.goto("/");
   await clerk.signIn({ page, emailAddress: testUserEmail() });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Connect Judges" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^(Connect Judges|Conectar jueces)$/ })).toBeVisible();
   await page.context().storageState({ path: authStatePath });
 });
