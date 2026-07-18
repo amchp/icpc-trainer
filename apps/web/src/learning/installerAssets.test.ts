@@ -13,12 +13,15 @@ describe("Introduction installer assets", () => {
     expect(source.indexOf("& $compiler --version")).toBeLessThan(source.indexOf("C++ setup complete"));
   });
 
-  it("guards Apple Silicon and bundles the macOS toolchain markers", async () => {
+  it("bundles the current Apple Silicon macOS installer", async () => {
     const source = await readFile("public/setup/install-cpp-vscode-macos.sh", "utf8");
-    expect(source).toContain('"$(uname -m)" != "arm64"');
-    expect(source).toContain("brew install gcc");
+    expect(source).toContain("require_macos");
+    expect(source).toContain('[[ "$(uname -m)" == "arm64" ]]');
+    expect(source).toContain('run "$BREW_BIN" install gcc');
     expect(source).toContain("ms-vscode.cpptools");
-    expect(source).not.toContain('"C_Cpp.default.cppStandard"');
-    expect(source).toContain('"C_Cpp.default.intelliSenseMode": "macos-gcc-arm64"');
+    expect(source).toContain('/usr/bin/osascript -l JavaScript');
+    expect(source).toContain('settings["C_Cpp.default.cppStandard"]');
+    expect(source).toContain('settings["C_Cpp.default.cStandard"]');
+    expect(source).toContain('local intellisense_mode="macos-gcc-arm64"');
   });
 });
