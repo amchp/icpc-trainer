@@ -1,0 +1,21 @@
+export const findProblems = {
+  title: "Buscar problemas",
+  subtitle: "Encuentra problemas sin resolver que coincidan con tus filtros",
+  loading: "Cargando",
+  loadError: "No se pudieron cargar los problemas.",
+  searchLabel: "Buscar problemas",
+  searchPlaceholder: "Buscar por nombre",
+  minRating: "Rating mínimo",
+  maxRating: "Rating máximo",
+  random: "Aleatorio",
+  allTags: "Todas las etiquetas",
+  selectedTags: "{{count}} etiquetas",
+  filterByTag: "Filtrar por etiqueta",
+  tagOptions: "Opciones de etiquetas",
+  allTagsLabel: "Todas las etiquetas, {{count}} opciones",
+  problemCount_one: "problema",
+  problemCount_other: "problemas",
+  empty: "Aún no hay problemas sin resolver. Selecciona Sincronizar para actualizar tus datos.",
+  noMatch: "Ningún problema coincide con los filtros actuales.",
+  columns: { problem: "Problema", tags: "Etiquetas", untagged: "Sin etiquetas", rating: "Rating", solve: "% resuelto", friends: "Amigos" }
+} as const;

@@ -1,4 +1,5 @@
 import type { PlaygroundProvider } from "@icpc-trainer/api";
+import { useTranslation } from "react-i18next";
 
 import { useConnectedJudges } from "../ConnectedJudgesContext.js";
 import { FieldLabel, Label, Select } from "./ui.js";
@@ -9,11 +10,12 @@ interface ProviderDropdownProps {
 }
 
 export function ProviderDropdown({ onChange, value }: ProviderDropdownProps): React.JSX.Element {
+  const { t } = useTranslation("playground");
   const { connectedJudges } = useConnectedJudges();
 
   return (
     <Label>
-      <FieldLabel>Provider</FieldLabel>
+      <FieldLabel>{t("provider")}</FieldLabel>
       <Select
         value={value}
         onChange={(event) => onChange(event.target.value as PlaygroundProvider)}

@@ -6,23 +6,24 @@ import type {
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Braces, Loader2, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import { trpc } from "./trpc.js";
 import { ProviderDropdown } from "./components/ProviderDropdown.js";
 import { Button, Card, FieldLabel, Input, Label, Select, Separator } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 
-const operations: Array<{ value: PlaygroundOperation; label: string }> = [
-  { value: "contests", label: "Contests" },
-  { value: "contest", label: "Contest" },
-  { value: "user", label: "User" },
-  { value: "submissions", label: "Submissions" }
-];
-
 const isPlaygroundFailure = (value: unknown): value is Extract<PlaygroundResult, { ok: false }> =>
   typeof value === "object" && value !== null && "ok" in value && value.ok === false;
 
 export function PlaygroundPanel(): React.JSX.Element {
+  const { t } = useTranslation("playground");
+  const operations: Array<{ value: PlaygroundOperation; label: string }> = [
+    { value: "contests", label: t("operations.contests") },
+    { value: "contest", label: t("operations.contest") },
+    { value: "user", label: t("operations.user") },
+    { value: "submissions", label: t("operations.submissions") }
+  ];
   const {
     connectedJudges,
     hasConnectedJudge,
@@ -103,13 +104,13 @@ export function PlaygroundPanel(): React.JSX.Element {
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
               <Braces className="size-4 text-blue-300" aria-hidden="true" />
-              API playground
+              {t("panelTitle")}
             </div>
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="secondary" onClick={resetInputs}>
               <RotateCcw className="size-4" aria-hidden="true" />
-              Reset
+              {t("reset")}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? (
@@ -117,7 +118,7 @@ export function PlaygroundPanel(): React.JSX.Element {
               ) : (
                 <Play className="size-4" aria-hidden="true" />
               )}
-              Run
+              {t("run")}
             </Button>
           </div>
         </div>
@@ -129,7 +130,7 @@ export function PlaygroundPanel(): React.JSX.Element {
             <div className="grid gap-3 sm:grid-cols-2">
               <ProviderDropdown value={provider} onChange={setProvider} />
               <Label>
-                <FieldLabel>Operation</FieldLabel>
+                <FieldLabel>{t("operation")}</FieldLabel>
                 <Select
                   value={operation}
                   onChange={(event) => setOperation(event.target.value as PlaygroundOperation)}
@@ -145,7 +146,7 @@ export function PlaygroundPanel(): React.JSX.Element {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Label>
-                <FieldLabel>Contest ID</FieldLabel>
+                <FieldLabel>{t("contestId")}</FieldLabel>
                 <Input
                   value={contestId}
                   onChange={(event) => setContestId(event.target.value)}
@@ -154,7 +155,7 @@ export function PlaygroundPanel(): React.JSX.Element {
                 />
               </Label>
               <Label>
-                <FieldLabel>User handle</FieldLabel>
+                <FieldLabel>{t("userHandle")}</FieldLabel>
                 <Input
                   value={userHandle}
                   onChange={(event) => setUserHandle(event.target.value)}
@@ -167,11 +168,11 @@ export function PlaygroundPanel(): React.JSX.Element {
 
           <div className="min-w-0">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-xs font-medium uppercase text-zinc-500">Output</span>
+              <span className="text-xs font-medium uppercase text-zinc-500">{t("output")}</span>
               {mutation.isError || hasApiError ? (
                 <span className="inline-flex items-center gap-1 text-xs text-red-300">
                   <AlertTriangle className="size-3.5" aria-hidden="true" />
-                  Error
+                  {t("error")}
                 </span>
               ) : null}
             </div>

@@ -3,6 +3,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Button,
@@ -24,12 +25,14 @@ import { JudgeDisplay, type JudgeDisplayId } from "./JudgeDisplay.js";
 import { judgeLabel, type JudgeProvider } from "./judgeConfig.js";
 import { invalidateAfterTeamRosterChange, queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
+import { PeopleRouteTabs } from "./SectionRouteTabs.js";
 import { useRosterMutations } from "./useRosterMutations.js";
 
 const toJudge = (value: JudgeProvider | JUDGES): JUDGES =>
   value === JUDGES.Qoj ? JUDGES.Qoj : JUDGES.Codeforces;
 
 export function TeamPage(): React.JSX.Element {
+  const { t } = useTranslation("roster");
   const { connectedJudges, hasConnectedJudge, status } = useConnectedJudges();
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
@@ -42,7 +45,7 @@ export function TeamPage(): React.JSX.Element {
   const roster = query.data ?? { users: [], updatedAt: null } satisfies TeamRoster;
   const rosterMutations = useRosterMutations<TeamRoster>({
     add: trpc.team.add.mutate,
-    errorTitle: "User was not saved",
+    errorTitle: t("userSaveError"),
     invalidateAfterSave: invalidateAfterTeamRosterChange,
     queryKey: queryKeys.teamRoster,
     replace: trpc.team.replace.mutate
@@ -75,10 +78,11 @@ export function TeamPage(): React.JSX.Element {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+      <PeopleRouteTabs />
       <section className="mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
-          <p className="mt-1 text-sm text-zinc-500">Manage handles counted as your team</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("teamTitle")}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{t("teamSubtitle")}</p>
         </div>
       </section>
 
@@ -90,7 +94,7 @@ export function TeamPage(): React.JSX.Element {
         }}
       >
           <Label>
-            <FieldLabel>Handle</FieldLabel>
+            <FieldLabel>{t("handle")}</FieldLabel>
             <Input
               ref={inputRef}
               value={draftUsername}
@@ -100,7 +104,7 @@ export function TeamPage(): React.JSX.Element {
             />
           </Label>
           <Label>
-            <FieldLabel>Judge</FieldLabel>
+            <FieldLabel>{t("judge")}</FieldLabel>
             <Select
               value={selectedJudge}
               onChange={(event) => setDraftJudge(toJudge(event.target.value as JudgeProvider))}
@@ -123,7 +127,7 @@ export function TeamPage(): React.JSX.Element {
             ) : (
               <Plus className="size-4" aria-hidden="true" />
             )}
-            Add user
+            {t("addUser")}
           </Button>
         </form>
 
@@ -133,15 +137,15 @@ export function TeamPage(): React.JSX.Element {
           ) : roster.users.length > 0 ? (
             <>
               <div className="mb-2 flex justify-end">
-                <TableCount count={roster.users.length} itemName="user" />
+                <TableCount count={roster.users.length} itemName={t("userCount", { count: 1 })} pluralItemName={t("userCount", { count: 2 })} />
               </div>
               <Table className="border-t border-zinc-800">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">#</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Judge</TableHead>
-                    <TableHead className="w-24 text-right">Action</TableHead>
+                    <TableHead>{t("user")}</TableHead>
+                    <TableHead>{t("judge")}</TableHead>
+                    <TableHead className="w-24 text-right">{t("action")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -163,10 +167,10 @@ export function TeamPage(): React.JSX.Element {
                           className="h-8 text-zinc-400 hover:text-red-300"
                           onClick={() => void removeUser(user.username, user.judge)}
                           disabled={rosterMutations.saving}
-                          aria-label={`Remove ${user.username}`}
+                          aria-label={t("removeLabel", { username: user.username })}
                         >
                           <X className="size-3.5" aria-hidden="true" />
-                          Remove
+                          {t("remove")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -177,10 +181,10 @@ export function TeamPage(): React.JSX.Element {
           ) : (
             <>
               <div className="mb-2 flex justify-end">
-                <TableCount count={roster.users.length} itemName="user" />
+                <TableCount count={roster.users.length} itemName={t("userCount", { count: 1 })} pluralItemName={t("userCount", { count: 2 })} />
               </div>
               <p className="py-8 text-center text-sm text-zinc-500">
-                No team users added yet. Add the first handle above.
+                {t("noTeam")}
               </p>
             </>
           )}

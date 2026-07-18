@@ -1,8 +1,11 @@
 import { JUDGE_SOURCE_FILTERS, type JudgeProvider, type JudgeSourceFilterId } from "@icpc-trainer/shared";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { DropdownContent, DropdownItem, DropdownTrigger } from "./components/ui.js";
+import { formatNumber } from "./i18n/format.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
 
 export type { JudgeSourceFilterId };
 
@@ -53,10 +56,26 @@ export function JudgeSourceFilterDropdown({
   readonly counts: Record<JudgeSourceFilterId, number>;
   readonly onChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("common");
+  const { locale } = useLocale();
+  const localizedOptions = judgeSourceFilterOptions.map((option) => ({
+    ...option,
+    label: option.value === JUDGE_SOURCE_FILTERS.CodeforcesContest
+      ? t("judgeFilter.codeforcesContest")
+      : option.value === JUDGE_SOURCE_FILTERS.CodeforcesGym
+        ? t("judgeFilter.codeforcesGym")
+        : t("judgeFilter.qoj")
+  }));
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedSet = new Set(selectedSources);
-  const selectedLabel = labelForSelection(selectedSources);
+  const selectedLabel = selectedSources.length === localizedOptions.length
+    ? t("judgeFilter.all")
+    : selectedSources.length === 0
+      ? t("judgeFilter.none")
+      : selectedSources.length === 1
+        ? localizedOptions.find((option) => option.value === selectedSources[0])?.label ?? t("judgeFilter.one")
+        : t("judgeFilter.selected", { count: selectedSources.length });
 
   useEffect(() => {
     if (!open) {
@@ -99,7 +118,7 @@ export function JudgeSourceFilterDropdown({
   return (
     <div ref={menuRef} className="relative">
       <DropdownTrigger
-        aria-label="Filter by judge"
+        aria-label={t("judgeFilter.filter")}
         aria-haspopup="menu"
         aria-expanded={open}
         className="min-w-56"
@@ -110,22 +129,20 @@ export function JudgeSourceFilterDropdown({
       </DropdownTrigger>
 
       {open && (
-        <DropdownContent role="menu" aria-label="Judge filter options">
-          {judgeSourceFilterOptions.map((option) => (
+        <DropdownContent role="menu" aria-label={t("judgeFilter.options")}>
+          {localizedOptions.map((option) => (
             <DropdownItem
               key={option.value}
               role="menuitemcheckbox"
               aria-checked={selectedSet.has(option.value)}
-              aria-label={`${option.label}, ${counts[option.value]} ${
-                counts[option.value] === 1 ? "item" : "items"
-              }`}
+              aria-label={`${option.label}, ${formatNumber(counts[option.value], locale)} ${t("judgeFilter.item", { count: counts[option.value] })}`}
               onClick={() => toggleSource(option.value)}
             >
               <span className="w-4 text-blue-300">
                 {selectedSet.has(option.value) && <Check className="size-3.5" aria-hidden="true" />}
               </span>
               <span className="flex-1">{option.label}</span>
-              <span className="tabular-nums text-zinc-500">{counts[option.value]}</span>
+              <span className="tabular-nums text-zinc-500">{formatNumber(counts[option.value], locale)}</span>
             </DropdownItem>
           ))}
         </DropdownContent>
@@ -133,19 +150,3 @@ export function JudgeSourceFilterDropdown({
     </div>
   );
 }
-
-const labelForSelection = (selectedSources: readonly JudgeSourceFilterId[]): string => {
-  if (selectedSources.length === judgeSourceFilterOptions.length) {
-    return "All judges";
-  }
-
-  if (selectedSources.length === 0) {
-    return "No judges";
-  }
-
-  if (selectedSources.length === 1) {
-    return judgeSourceFilterOptions.find((option) => option.value === selectedSources[0])?.label ?? "Judge";
-  }
-
-  return `${selectedSources.length} judges`;
-};

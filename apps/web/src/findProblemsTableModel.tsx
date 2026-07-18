@@ -1,8 +1,12 @@
 import type { FindProblemRow } from "@icpc-trainer/api";
 import { type ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Badge } from "./components/ui.js";
+import { formatNumber, formatPercent } from "./i18n/format.js";
+import { i18n } from "./i18n/i18n.js";
+import type { AppLocale } from "@icpc-trainer/shared";
 
 export type SearchableFindProblemRow = FindProblemRow & {
   readonly displayProblemName: string;
@@ -13,8 +17,6 @@ export const findProblemsGridTemplateColumns =
   "3.25rem minmax(16rem, 40%) minmax(0, 26%) minmax(5rem, 9%) minmax(5rem, 9%) minmax(6rem, 10%)";
 
 const problemLetterPattern = /^[A-Z][0-9]?\.\s+/;
-
-const formatPercentage = (value: number): string => `${value}%`;
 
 const problemLetterFromJudgeId = (row: FindProblemRow): string | null => {
   const match = row.problemJudgeId.match(/([A-Z][0-9]?)$/);
@@ -41,10 +43,13 @@ export const toSearchableFindProblemRow = (
   searchText: searchableText(row)
 });
 
-export const createFindProblemColumns = (): Array<ColumnDef<SearchableFindProblemRow>> => [
+export const createFindProblemColumns = (
+  t: TFunction<"findProblems">,
+  locale: AppLocale
+): Array<ColumnDef<SearchableFindProblemRow>> => [
   {
     accessorKey: "displayProblemName",
-    header: "Problem",
+    header: t("columns.problem"),
     cell: ({ row }) => (
       <div className="min-w-0 whitespace-normal">
         <a
@@ -60,11 +65,11 @@ export const createFindProblemColumns = (): Array<ColumnDef<SearchableFindProble
   },
   {
     accessorKey: "tags",
-    header: "Tags",
+    header: t("columns.tags"),
     enableSorting: false,
     cell: ({ row }) => (
       row.original.tags.length === 0 ? (
-        <span className="text-xs text-zinc-600">Untagged</span>
+        <span className="text-xs text-zinc-600">{t("columns.untagged")}</span>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {row.original.tags.map((tag) => (
@@ -83,37 +88,37 @@ export const createFindProblemColumns = (): Array<ColumnDef<SearchableFindProble
     accessorKey: "rating",
     header: ({ column }) => (
       <SortableHeader
-        label="Rating"
+        label={t("columns.rating")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       />
     ),
-    cell: ({ row }) => <span className="tabular-nums">{row.original.rating}</span>
+    cell: ({ row }) => <span className="tabular-nums">{formatNumber(row.original.rating, locale)}</span>
   },
   {
     accessorKey: "solvePercentage",
     header: ({ column }) => (
       <SortableHeader
-        label="Solve %"
+        label={t("columns.solve")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
       />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{formatPercentage(row.original.solvePercentage)}</span>
+      <span className="tabular-nums">{formatPercent(row.original.solvePercentage, locale)}</span>
     )
   },
   {
     accessorKey: "friendSolvedCount",
     header: ({ column }) => (
       <SortableHeader
-        label="Friends"
+        label={t("columns.friends")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
       />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.friendSolvedCount}</span>
+      <span className="tabular-nums">{formatNumber(row.original.friendSolvedCount, locale)}</span>
     )
   }
 ];
@@ -129,7 +134,7 @@ function SortableHeader({
 }): React.JSX.Element {
   const Icon = direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ArrowUpDown;
   const directionLabel =
-    direction === "asc" ? "sorted ascending" : direction === "desc" ? "sorted descending" : "not sorted";
+    direction === "asc" ? i18n.t("table.ascending") : direction === "desc" ? i18n.t("table.descending") : i18n.t("table.unsorted");
 
   return (
     <button

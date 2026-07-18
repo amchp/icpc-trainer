@@ -3,6 +3,7 @@ import {
   FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   PROVIDER_STATE_EVENT_TYPES,
   type JudgeProvider,
+  type LocalizedMessageReference,
   type RunStatus
 } from "@icpc-trainer/shared";
 import { TRPCError } from "@trpc/server";
@@ -19,7 +20,7 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 
 export interface FriendSubmissionSyncWarning {
   readonly judge: JudgeProvider;
-  readonly message: string;
+  readonly message: LocalizedMessageReference;
 }
 
 export interface FriendSubmissionSyncResult {
@@ -66,7 +67,7 @@ export type FriendSubmissionSyncEvent =
     })
   | (FriendSubmissionSyncEventBase & {
       readonly type: FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning;
-      readonly message: string;
+      readonly message: LocalizedMessageReference;
       readonly userHandle?: string;
     })
   | {
@@ -84,9 +85,9 @@ export interface FriendSubmissionSyncProviderState {
   readonly progress: number;
   readonly stepsTotal: number;
   readonly stepsLeft: number;
-  readonly current: string | null;
+  readonly current: LocalizedMessageReference | null;
   readonly friendsProcessed: number;
-  readonly warnings: readonly string[];
+  readonly warnings: readonly LocalizedMessageReference[];
 }
 
 export type FriendSubmissionSyncObserveEvent = FriendSubmissionSyncProviderState;

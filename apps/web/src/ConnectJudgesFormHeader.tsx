@@ -1,5 +1,6 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "./components/ui.js";
 import type { ProviderConnectJudgeFormProps } from "./connectJudgesShared.js";
@@ -17,6 +18,7 @@ export function ConnectJudgesFormHeader({
   tutorialUrl,
   title
 }: ConnectJudgesFormHeaderProps): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const tutorialIsExternal = tutorialUrl?.startsWith("http://") === true ||
     tutorialUrl?.startsWith("https://") === true;
 
@@ -28,7 +30,7 @@ export function ConnectJudgesFormHeader({
           variant="ghost"
           className="size-9 shrink-0 p-0"
           disabled={disabled}
-          aria-label="Back to provider selection"
+          aria-label={t("back")}
           onClick={onChangeProvider}
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
@@ -44,9 +46,9 @@ export function ConnectJudgesFormHeader({
           href={tutorialUrl}
           target={tutorialIsExternal ? "_blank" : undefined}
           rel={tutorialIsExternal ? "noreferrer" : undefined}
-          aria-label={`Open ${title} setup tutorial`}
+          aria-label={t("tutorialLabel", { judge: title })}
         >
-          Setup tutorial
+          {t("tutorial")}
           <ExternalLink className="size-3.5" aria-hidden="true" />
         </a>
       )}

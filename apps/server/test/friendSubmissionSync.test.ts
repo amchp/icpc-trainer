@@ -140,7 +140,10 @@ describe("createFriendSubmissionSyncService", () => {
         provider: "codeforces",
         status: "running",
         progress: 50,
-        current: "tourist (1/2)",
+        current: {
+          code: "friend_syncing_handle",
+          params: { handle: "tourist", current: 1, total: 2 }
+        },
         stepsTotal: 2,
         stepsLeft: 1
       });

@@ -1,5 +1,6 @@
 import type { PlaygroundProvider } from "@icpc-trainer/api";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { connectJudgeProviderById } from "./connectJudgeProviders.js";
 
@@ -8,6 +9,7 @@ export function ConnectJudgeProviderPage({
 }: {
   readonly provider: PlaygroundProvider;
 }): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const navigate = useNavigate();
   const config = connectJudgeProviderById.get(provider);
 
@@ -23,8 +25,8 @@ export function ConnectJudgeProviderPage({
     <main className="flex min-h-screen items-center justify-center px-5 py-8 text-zinc-100 sm:px-8">
       <section className="mx-auto flex w-full max-w-2xl flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Connect Judges</h1>
-          <p className="mt-1 text-sm text-zinc-500">Save credentials for syncing {config.name}</p>
+          <h1 className="text-2xl font-semibold tracking-normal">{t("connectTitle")}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{t("saveCredentials", { judge: config.name })}</p>
         </div>
 
         <Form

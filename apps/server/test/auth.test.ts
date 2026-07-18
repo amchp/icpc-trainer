@@ -1,4 +1,6 @@
 import { DatabaseLive, DatabaseServiceTag, schema, type DatabaseService } from "@icpc-trainer/db";
+import { APP_LOCALES } from "@icpc-trainer/shared";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import type { IncomingMessage } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -88,6 +90,33 @@ describe("Clerk server auth", () => {
         primaryEmail: "user@example.com",
         displayName: "Example User",
         imageUrl: "https://example.com/avatar.png"
+      });
+    });
+  });
+
+  it("does not reset the saved locale during authenticated profile upserts", async () => {
+    await withDatabase(async (database) => {
+      clerkMocks.verifyToken.mockResolvedValue({ sub: "user_locale", name: "First Name" });
+      const first = await appUserFromConnectionParams({
+        config: { jwtKey: "jwt-key", authorizedParties: [] },
+        database
+      }, { token: "valid" });
+      if (first === undefined) throw new Error("Expected authenticated app user.");
+
+      await database.db.update(appUsers)
+        .set({ preferredLocale: APP_LOCALES.Spanish })
+        .where(eq(appUsers.id, first.id))
+        .run();
+      clerkMocks.verifyToken.mockResolvedValue({ sub: "user_locale", name: "Updated Name" });
+
+      const updated = await appUserFromConnectionParams({
+        config: { jwtKey: "jwt-key", authorizedParties: [] },
+        database
+      }, { token: "valid-again" });
+
+      expect(updated).toMatchObject({
+        displayName: "Updated Name",
+        preferredLocale: APP_LOCALES.Spanish
       });
     });
   });

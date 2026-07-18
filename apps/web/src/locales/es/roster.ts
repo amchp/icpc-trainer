@@ -1,0 +1,23 @@
+export const roster = {
+  teamTitle: "Equipo",
+  teamSubtitle: "Administra los handles que cuentan como tu equipo",
+  friendsTitle: "Amigos",
+  friendsSubtitle: "Sigue los handles que usas para buscar concursos",
+  handle: "Handle",
+  judge: "Juez",
+  addUser: "Agregar usuario",
+  addFriend: "Agregar amigo",
+  user: "Usuario",
+  action: "Acción",
+  remove: "Eliminar",
+  removeLabel: "Eliminar a {{username}}",
+  noTeam: "Aún no agregaste usuarios al equipo. Agrega el primer handle arriba.",
+  noFriends: "Aún no agregaste amigos.",
+  syncFriends: "Sincronizar envíos de amigos",
+  userSaveError: "No se guardó el usuario",
+  friendSaveError: "No se guardó el amigo",
+  userCount_one: "usuario",
+  userCount_other: "usuarios",
+  friendCount_one: "amigo",
+  friendCount_other: "amigos"
+} as const;

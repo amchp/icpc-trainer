@@ -80,6 +80,22 @@ _Avoid_: Gym finder
 The app page where a user browses saved Codeforces **Problems** by difficulty and tags, then selects a random visible **Problem** for practice.
 _Avoid_: Problem finder, Codeforces catalog, practice picker
 
+**Learning Roadmap**:
+A visual sequence of recommended **Learning Topics**. Its order guides an **App User** but never locks access to an available **Learning Guide**.
+_Avoid_: Resource sidebar, prerequisite lock
+
+**Learning Topic**:
+A competitive-programming subject represented by one node in the **Learning Roadmap**.
+_Avoid_: Resource link, lesson
+
+**Learning Guide**:
+An in-app lesson for an available **Learning Topic**.
+_Avoid_: External resource, article link
+
+**Learning Progress**:
+An **App User**'s saved status for a **Learning Guide**.
+_Avoid_: Quiz score, reading position
+
 ## Example Dialogue
 
 Dev: "Should sync fetch submissions for every Codeforces user?"

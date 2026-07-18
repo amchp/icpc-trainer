@@ -5,8 +5,10 @@ import {
 } from "@icpc-trainer/api";
 import {
   FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
+  LOCALIZED_MESSAGE_CODES,
   PROVIDER_STATE_EVENT_TYPES,
-  RUN_STATUSES
+  RUN_STATUSES,
+  type LocalizedMessageReference
 } from "@icpc-trainer/shared";
 
 type Provider = FriendSubmissionSyncInput["provider"];
@@ -32,13 +34,19 @@ export const emptyFriendSubmissionSyncState = (provider: Provider): FriendSubmis
   warnings: []
 });
 
-const warningMessages = (warnings: unknown): readonly string[] =>
+const isLocalizedMessageReference = (value: unknown): value is LocalizedMessageReference =>
+  value !== null && typeof value === "object" && "code" in value &&
+  Object.values(LOCALIZED_MESSAGE_CODES).includes(
+    (value as { readonly code: string }).code as LOCALIZED_MESSAGE_CODES
+  );
+
+const warningMessages = (warnings: unknown): readonly LocalizedMessageReference[] =>
   Array.isArray(warnings)
     ? warnings.flatMap((warning) =>
         warning !== null &&
         typeof warning === "object" &&
         "message" in warning &&
-        typeof warning.message === "string"
+        isLocalizedMessageReference(warning.message)
           ? [warning.message]
           : []
       )
@@ -68,28 +76,42 @@ export const applyFriendSubmissionSyncEventToState = (
     return {
       ...withProgress(emptyFriendSubmissionSyncState(event.provider), event),
       status: RUN_STATUSES.Running,
-      current: "Preparing friend submission sync"
+      current: { code: LOCALIZED_MESSAGE_CODES.FriendSyncPreparing }
     };
   }
 
   if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendsSyncing) {
     return {
       ...withProgress(current, event),
-      current: event.friendsTotal === 0 ? "No friends to sync" : "Syncing friend submissions"
+      current: {
+        code: event.friendsTotal === 0
+          ? LOCALIZED_MESSAGE_CODES.FriendSyncNoFriends
+          : LOCALIZED_MESSAGE_CODES.FriendSyncing
+      }
     };
   }
 
   if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSyncing) {
     return {
       ...withProgress(current, event),
-      current: `${event.userHandle} (${event.friendIndex}/${event.friendsTotal})`
+      current: {
+        code: LOCALIZED_MESSAGE_CODES.FriendSyncingHandle,
+        params: {
+          handle: event.userHandle,
+          current: event.friendIndex,
+          total: event.friendsTotal
+        }
+      }
     };
   }
 
   if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.FriendSynced) {
     return {
       ...withProgress(current, event),
-      current: `${event.userHandle} synced`,
+      current: {
+        code: LOCALIZED_MESSAGE_CODES.FriendSyncedHandle,
+        params: { handle: event.userHandle }
+      },
       friendsProcessed: current.friendsProcessed + finiteNumber(event.friendsProcessed)
     };
   }
@@ -97,10 +119,14 @@ export const applyFriendSubmissionSyncEventToState = (
   if (event.type === FRIEND_SUBMISSION_SYNC_EVENT_TYPES.Warning) {
     const message = event.userHandle === undefined
       ? event.message
-      : `${event.userHandle}: ${event.message}`;
+      : {
+          ...event.message,
+          params: { ...event.message.params, handle: event.userHandle }
+        };
+    const key = JSON.stringify(message);
     return {
       ...current,
-      warnings: current.warnings.includes(message)
+      warnings: current.warnings.some((warning) => JSON.stringify(warning) === key)
         ? current.warnings
         : [...current.warnings, message]
     };
@@ -124,6 +150,6 @@ export const applyFriendSubmissionSyncEventToState = (
   return {
     ...current,
     status: RUN_STATUSES.Error,
-    current: "Sync status unavailable"
+    current: { code: LOCALIZED_MESSAGE_CODES.FriendSyncStatusUnavailable }
   };
 };

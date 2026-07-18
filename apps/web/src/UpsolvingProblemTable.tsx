@@ -6,8 +6,10 @@ import {
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Card } from "./components/ui.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
 import {
   defaultJudgeSourceFilters,
   emptyJudgeSourceCounts,
@@ -28,6 +30,8 @@ export function UpsolvingProblemTable({
 }: {
   readonly rows: readonly UpsolvingProblemRow[];
 }): React.JSX.Element {
+  const { t } = useTranslation("upsolving");
+  const { locale } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("upsolved");
@@ -67,7 +71,7 @@ export function UpsolvingProblemTable({
     [normalizedSearchQuery, selectedJudgeSources, statusFilter, tableRows]
   );
   const statusCounts = useMemo(() => statusCountsFor(tableRows), [tableRows]);
-  const columns = useMemo(() => createUpsolvingProblemColumns(), []);
+  const columns = useMemo(() => createUpsolvingProblemColumns(t, locale), [locale, t]);
 
   const table = useReactTable({
     data: filteredRows,
@@ -97,11 +101,11 @@ export function UpsolvingProblemTable({
 
       {rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No simulated contests yet. Click the Sync button to update data.
+          {t("empty")}
         </div>
       ) : visibleRows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No problems match the current filters.
+          {t("noMatch")}
         </div>
       ) : (
         <UpsolvingProblemTableGrid table={table} />

@@ -169,3 +169,63 @@ export enum JUDGE_REQUEST_ERROR_KINDS {
 }
 
 export type JudgeRequestErrorKind = `${JUDGE_REQUEST_ERROR_KINDS}`;
+
+export enum LEARNING_GUIDE_IDS {
+  ProgrammingFundamentals = "programming-fundamentals",
+}
+
+export type LearningGuideId = `${LEARNING_GUIDE_IDS}`;
+
+export const LEARNING_GUIDE_ID_VALUES = Object.freeze(Object.values(LEARNING_GUIDE_IDS)) as readonly [
+  LearningGuideId,
+  ...LearningGuideId[]
+];
+
+export enum LEARNING_PROGRESS_STATUSES {
+  InProgress = "in_progress",
+  Completed = "completed",
+}
+
+export type LearningProgressStatus = `${LEARNING_PROGRESS_STATUSES}`;
+
+export enum APP_LOCALES {
+  English = "en",
+  Spanish = "es",
+}
+
+export type AppLocale = `${APP_LOCALES}`;
+
+export const APP_LOCALE_VALUES = Object.freeze(Object.values(APP_LOCALES)) as readonly [
+  AppLocale,
+  ...AppLocale[]
+];
+
+export const isAppLocale = (value: string): value is AppLocale =>
+  (APP_LOCALE_VALUES as readonly string[]).includes(value);
+
+export enum LOCALIZED_MESSAGE_CODES {
+  GenericError = "generic_error",
+  Unauthorized = "unauthorized",
+  Forbidden = "forbidden",
+  NotFound = "not_found",
+  Conflict = "conflict",
+  RateLimited = "rate_limited",
+  Unavailable = "unavailable",
+  SyncOperationFailed = "sync_operation_failed",
+  SyncNotImplemented = "sync_not_implemented",
+  FriendSyncPreparing = "friend_sync_preparing",
+  FriendSyncNoFriends = "friend_sync_no_friends",
+  FriendSyncing = "friend_syncing",
+  FriendSyncingHandle = "friend_syncing_handle",
+  FriendSyncedHandle = "friend_synced_handle",
+  FriendSyncStatusUnavailable = "friend_sync_status_unavailable",
+  FriendSyncWarning = "friend_sync_warning"
+}
+
+export type LocalizedMessageCode = `${LOCALIZED_MESSAGE_CODES}`;
+
+export interface LocalizedMessageReference {
+  readonly code: LocalizedMessageCode;
+  readonly params?: Readonly<Record<string, string | number>>;
+  readonly technicalDetail?: string;
+}

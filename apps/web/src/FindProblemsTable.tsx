@@ -6,8 +6,11 @@ import {
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Card } from "./components/ui.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
+import { compareText } from "./i18n/format.js";
 import { FindProblemsTableFilters } from "./FindProblemsTableFilters.js";
 import { FindProblemsTableGrid } from "./FindProblemsTableGrid.js";
 import {
@@ -26,6 +29,8 @@ export function FindProblemsTable({
 }: {
   readonly overview: FindProblemsOverview;
 }): React.JSX.Element {
+  const { t } = useTranslation("findProblems");
+  const { locale } = useLocale();
   const ratingFloor = overview.ratingRange.min ?? defaultMinRating;
   const ratingCeiling = overview.ratingRange.max ?? defaultMaxRating;
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,13 +45,20 @@ export function FindProblemsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "rating", desc: false }
   ]);
+  const localizedTags = useMemo(
+    () => [...overview.tags].sort((left, right) => compareText(left.name, right.name, locale)),
+    [locale, overview.tags]
+  );
   const availableTagNames = useMemo(
-    () => new Set(overview.tags.map((tag) => tag.name)),
-    [overview.tags]
+    () => new Set(localizedTags.map((tag) => tag.name)),
+    [localizedTags]
   );
   const tableRows = useMemo(
-    () => overview.rows.map(toSearchableFindProblemRow),
-    [overview.rows]
+    () => overview.rows.map((row) => toSearchableFindProblemRow({
+      ...row,
+      tags: [...row.tags].sort((left, right) => compareText(left, right, locale))
+    })),
+    [locale, overview.rows]
   );
   const activeSelectedTags = useMemo(
     () => selectedTags.filter((tag) => availableTagNames.has(tag)),
@@ -71,7 +83,7 @@ export function FindProblemsTable({
       }),
     [normalizedSearchQuery, safeMaxRating, safeMinRating, selectedTagSet, tableRows]
   );
-  const columns = useMemo(() => createFindProblemColumns(), []);
+  const columns = useMemo(() => createFindProblemColumns(t, locale), [locale, t]);
   const table = useReactTable({
     data: filteredRows,
     columns,
@@ -105,7 +117,7 @@ export function FindProblemsTable({
         maxRating={displayedMaxRating}
         ratingFloor={ratingFloor}
         ratingCeiling={ratingCeiling}
-        tags={overview.tags}
+        tags={localizedTags}
         selectedTags={activeSelectedTags}
         visibleCount={visibleRows.length}
         onSearchQueryChange={setSearchQuery}
@@ -117,11 +129,11 @@ export function FindProblemsTable({
 
       {overview.rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No unsolved Codeforces problems yet. Click the Sync button to update data.
+          {t("empty")}
         </div>
       ) : visibleRows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
-          No problems match the current filters.
+          {t("noMatch")}
         </div>
       ) : (
         <FindProblemsTableGrid table={table} />

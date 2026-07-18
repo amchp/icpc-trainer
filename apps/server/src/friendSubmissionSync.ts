@@ -10,6 +10,7 @@ import { type DatabaseService, DatabaseServiceTag, schema } from "@icpc-trainer/
 import {
   FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
   JUDGE_PROVIDERS,
+  LOCALIZED_MESSAGE_CODES,
   RUN_STATUSES,
   USER_TYPES,
   isJudgeProvider,
@@ -41,11 +42,15 @@ const supportedProviders: readonly Provider[] = JUDGE_PROVIDERS;
 
 const warning = (judge: Provider, error: unknown): FriendSubmissionSyncWarning => ({
   judge,
-  message: error instanceof Error
+  message: {
+    code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+    params: { judge },
+    technicalDetail: error instanceof Error
     ? error.message
     : typeof error === "object" && error !== null && "_tag" in error
       ? formatJudgeError(error as never)
       : String(error)
+  }
 });
 
 const friendProviders = async (database: DatabaseService, appUserId: number): Promise<readonly Provider[]> =>
@@ -117,7 +122,11 @@ export const createFriendSubmissionSyncService = (
     if (judge === undefined) {
       const missingWarning = {
         judge: provider,
-        message: `${provider} is not configured.`
+        message: {
+          code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+          params: { judge: provider },
+          technicalDetail: `${provider} is not configured.`
+        } as const
       };
       warnings.push(missingWarning);
       emit({

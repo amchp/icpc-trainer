@@ -3,6 +3,7 @@ import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react
 import { useCallback, useState } from "react";
 
 import { useToaster } from "./Toaster.js";
+import { localizedErrorMessage } from "./i18n/localizedMessage.js";
 
 interface RosterUserInput {
   readonly username: string;
@@ -46,7 +47,7 @@ export function useRosterMutations<TRoster extends RosterResult>({
   const showError = useCallback((error: unknown) => {
     toaster.error({
       title: errorTitle,
-      description: error instanceof Error ? error.message : String(error)
+      description: localizedErrorMessage(error)
     });
   }, [errorTitle, toaster]);
 

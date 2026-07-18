@@ -699,7 +699,11 @@ describe("createJudgeSyncService", () => {
         provider: "codeforces",
         phase: "submissions",
         step: "submissions",
-        message: "Could not sync codeforces submissions for user tourist: Codeforces API is unavailable (HTTP 503): Service unavailable."
+        message: {
+          code: "sync_operation_failed",
+          params: { judge: "codeforces" },
+          technicalDetail: "Codeforces API is unavailable (HTTP 503): Service unavailable."
+        }
       });
       expect(events.at(-1)).toMatchObject({
         type: "completed",
@@ -933,7 +937,11 @@ describe("createJudgeSyncService", () => {
       phase: "submissions",
       step: "submissions",
       userHandle: "qoj-user",
-      message: "Could not sync qoj submissions for user qoj-user: Judge API rejected the request for qoj. rate limited"
+      message: {
+        code: "sync_operation_failed",
+        params: { judge: "qoj" },
+        technicalDetail: "Judge API rejected the request for qoj. rate limited"
+      }
     }));
   });
 
@@ -2245,7 +2253,11 @@ describe("createJudgeSyncService", () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: "error",
       phase: "database",
-      message: "Could not sync codeforces submission 49644212 for user tourist: Problem 100566A from contest 100566 was not found after contest sync."
+      message: {
+        code: "sync_operation_failed",
+        params: { judge: "codeforces" },
+        technicalDetail: "Problem 100566A from contest 100566 was not found after contest sync."
+      }
     }));
     expect(events.at(-1)).toMatchObject({
       type: "completed",

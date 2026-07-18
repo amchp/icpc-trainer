@@ -1,7 +1,10 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, DropdownContent, DropdownItem, DropdownTrigger, Input, Label, TableCount } from "./components/ui.js";
+import { compareText, formatNumber } from "./i18n/format.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
 
 export interface FindProblemTagOption {
   readonly name: string;
@@ -37,30 +40,31 @@ export function FindProblemsTableFilters({
   readonly onSelectedTagsChange: (value: readonly string[]) => void;
   readonly onRandom: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("findProblems");
   return (
     <div className="grid gap-3 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
         <label className="relative min-w-0">
-          <span className="sr-only">Search problems</span>
+          <span className="sr-only">{t("searchLabel")}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
           <Input
             className="pl-9"
             type="search"
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder="Search problem names"
+            placeholder={t("searchPlaceholder")}
           />
         </label>
 
         <RatingInput
-          label="Min rating"
+          label={t("minRating")}
           value={minRating}
           min={ratingFloor}
           max={maxRating}
           onChange={onMinRatingChange}
         />
         <RatingInput
-          label="Max rating"
+          label={t("maxRating")}
           value={maxRating}
           min={minRating}
           max={ratingCeiling}
@@ -79,9 +83,9 @@ export function FindProblemsTableFilters({
           disabled={visibleCount === 0}
           onClick={onRandom}
         >
-          Random
+          {t("random")}
         </Button>
-        <TableCount count={visibleCount} itemName="problem" />
+        <TableCount count={visibleCount} itemName={t("problemCount", { count: 1 })} pluralItemName={t("problemCount", { count: 2 })} />
       </div>
     </div>
   );
@@ -130,14 +134,16 @@ function TagFilterDropdown({
   readonly selectedTags: readonly string[];
   readonly onChange: (value: readonly string[]) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation("findProblems");
+  const { locale } = useLocale();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedTagSet = new Set(selectedTags);
   const selectedLabel = selectedTags.length === 0
-    ? "All tags"
+    ? t("allTags")
     : selectedTags.length === 1
       ? selectedTags[0]
-      : `${selectedTags.length} tags`;
+      : t("selectedTags", { count: selectedTags.length });
 
   useEffect(() => {
     if (!open) {
@@ -170,7 +176,7 @@ function TagFilterDropdown({
   return (
     <div ref={menuRef} className="relative">
       <DropdownTrigger
-        aria-label="Filter by tag"
+        aria-label={t("filterByTag")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -182,19 +188,19 @@ function TagFilterDropdown({
       {open && (
         <DropdownContent
           role="menu"
-          aria-label="Tag filter options"
+          aria-label={t("tagOptions")}
           className="max-h-80 overflow-y-auto"
         >
           <DropdownItem
             role="menuitemcheckbox"
             aria-checked={selectedTags.length === 0}
-            aria-label={`All tags, ${tags.length} options`}
+            aria-label={t("allTagsLabel", { count: tags.length })}
             onClick={() => onChange([])}
           >
             <span className="w-4 text-blue-300">
               {selectedTags.length === 0 && <Check className="size-3.5" aria-hidden="true" />}
             </span>
-            <span className="flex-1">All tags</span>
+            <span className="flex-1">{t("allTags")}</span>
           </DropdownItem>
 
           {tags.map((tag) => {
@@ -204,12 +210,12 @@ function TagFilterDropdown({
                 key={tag.name}
                 role="menuitemcheckbox"
                 aria-checked={selected}
-                aria-label={`${tag.name}, ${tag.count} ${tag.count === 1 ? "problem" : "problems"}`}
+                aria-label={`${tag.name}, ${tag.count} ${t("problemCount", { count: tag.count })}`}
                 onClick={() => {
                   onChange(
                     selected
                       ? selectedTags.filter((value) => value !== tag.name)
-                      : [...selectedTags, tag.name].sort((a, b) => a.localeCompare(b))
+                      : [...selectedTags, tag.name].sort((a, b) => compareText(a, b, locale))
                   );
                 }}
               >
@@ -217,7 +223,7 @@ function TagFilterDropdown({
                   {selected && <Check className="size-3.5" aria-hidden="true" />}
                 </span>
                 <span className="flex-1">{tag.name}</span>
-                <span className="tabular-nums text-zinc-500">{tag.count}</span>
+                <span className="tabular-nums text-zinc-500">{formatNumber(tag.count, locale)}</span>
               </DropdownItem>
             );
           })}

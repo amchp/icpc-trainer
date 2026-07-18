@@ -3,6 +3,7 @@ import { JUDGES } from "@icpc-trainer/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Button,
@@ -28,6 +29,7 @@ import { trpc } from "./trpc.js";
 import { useRosterMutations } from "./useRosterMutations.js";
 
 export function FriendsRoster(): React.JSX.Element {
+  const { t } = useTranslation("roster");
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -38,7 +40,7 @@ export function FriendsRoster(): React.JSX.Element {
   const roster = query.data ?? { users: [], updatedAt: null } satisfies FriendsRoster;
   const rosterMutations = useRosterMutations<FriendsRoster>({
     add: trpc.friends.add.mutate,
-    errorTitle: "Friend was not saved",
+    errorTitle: t("friendSaveError"),
     invalidateAfterSave: invalidateAfterFriendRosterChange,
     queryKey: queryKeys.friendsRoster,
     replace: trpc.friends.replace.mutate
@@ -66,7 +68,7 @@ export function FriendsRoster(): React.JSX.Element {
         }}
       >
         <Label>
-          <FieldLabel>Handle</FieldLabel>
+          <FieldLabel>{t("handle")}</FieldLabel>
           <Input
             ref={inputRef}
             value={draftUsername}
@@ -76,7 +78,7 @@ export function FriendsRoster(): React.JSX.Element {
           />
         </Label>
         <Label>
-          <FieldLabel>Judge</FieldLabel>
+          <FieldLabel>{t("judge")}</FieldLabel>
           <Select
             value={draftJudge}
             onChange={(event) => setDraftJudge(toJudge(event.target.value as JudgeProvider))}
@@ -92,7 +94,7 @@ export function FriendsRoster(): React.JSX.Element {
           ) : (
             <Plus className="size-4" aria-hidden="true" />
           )}
-          Add friend
+          {t("addFriend")}
         </Button>
       </form>
 
@@ -102,23 +104,23 @@ export function FriendsRoster(): React.JSX.Element {
         ) : roster.users.length === 0 ? (
           <>
             <div className="mb-2 flex justify-end">
-              <TableCount count={roster.users.length} itemName="friend" />
+              <TableCount count={roster.users.length} itemName={t("friendCount", { count: 1 })} pluralItemName={t("friendCount", { count: 2 })} />
             </div>
             <p className="py-8 text-center text-sm text-zinc-500">
-              No friends added yet.
+              {t("noFriends")}
             </p>
           </>
         ) : (
           <>
             <div className="mb-2 flex justify-end">
-              <TableCount count={roster.users.length} itemName="friend" />
+              <TableCount count={roster.users.length} itemName={t("friendCount", { count: 1 })} pluralItemName={t("friendCount", { count: 2 })} />
             </div>
             <Table className="border-t border-zinc-800">
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Judge</TableHead>
-                  <TableHead className="w-24 text-right">Action</TableHead>
+                  <TableHead>{t("user")}</TableHead>
+                  <TableHead>{t("judge")}</TableHead>
+                  <TableHead className="w-24 text-right">{t("action")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -135,10 +137,10 @@ export function FriendsRoster(): React.JSX.Element {
                         className="h-8 text-zinc-400 hover:text-red-300"
                         onClick={() => void removeUser(user.username, user.judge)}
                         disabled={rosterMutations.saving}
-                        aria-label={`Remove ${user.username}`}
+                        aria-label={t("removeLabel", { username: user.username })}
                       >
                         <X className="size-3.5" aria-hidden="true" />
-                        Remove
+                        {t("remove")}
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -3,6 +3,8 @@ import type { ButtonVariant } from "@icpc-trainer/shared";
 import * as React from "react";
 
 import { cn } from "../lib.js";
+import { formatNumber } from "../i18n/format.js";
+import { useLocale } from "../i18n/LocaleProvider.js";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: ButtonVariant;
@@ -226,17 +228,19 @@ export function TableCount({
   readonly itemName: string;
   readonly pluralItemName?: string;
 }): React.JSX.Element {
+  const { locale } = useLocale();
   const countLabel = count === 1 ? itemName : pluralItemName;
+  const formattedCount = formatNumber(count, locale);
 
   return (
     <div
-      aria-label={`${count.toLocaleString()} ${countLabel}`}
+      aria-label={`${formattedCount} ${countLabel}`}
       className={cn(
         "inline-flex h-9 min-w-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900/70 px-3 text-xs font-medium tabular-nums text-zinc-300",
         className
       )}
     >
-      {count.toLocaleString()}
+      {formattedCount}
     </div>
   );
 }
