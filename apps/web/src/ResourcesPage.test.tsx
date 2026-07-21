@@ -34,22 +34,19 @@ describe("ResourcesPage", () => {
     progressState.refetch.mockReset();
   });
 
-  it("renders Introduction as a link and Fundamentals as locked", () => {
+  it("renders all three available guides as links", () => {
     render(<ResourcesPage />);
     expect(screen.getByRole("link", { name: /Introduction/ })).toHaveAttribute("href", "/resources/introduction");
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Programming Fundamentals" })).toBeInTheDocument();
-    expect(screen.getByText("Coming soon")).toBeInTheDocument();
-    expect(screen.getByText("0 / 1 completed")).toBeInTheDocument();
-  });
-
-  it("does not expose a Fundamentals destination", () => {
-    render(<ResourcesPage />);
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toHaveAttribute(
+      "href",
+      "/resources/programming-fundamentals"
+    );
+    expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toHaveAttribute("href", "/resources/time-complexity");
+    expect(screen.getByText("0 / 3 completed")).toBeInTheDocument();
   });
 
   it("shows saved completion state", () => {
-    progressState.data = [LEARNING_GUIDE_IDS.Introduction, LEARNING_GUIDE_IDS.ProgrammingFundamentals].map((guideId) => ({
+    progressState.data = [LEARNING_GUIDE_IDS.Introduction, LEARNING_GUIDE_IDS.ProgrammingFundamentals, LEARNING_GUIDE_IDS.TimeComplexity].map((guideId) => ({
       guideId,
       status: LEARNING_PROGRESS_STATUSES.Completed,
       startedAt: "2026-07-16T00:00:00.000Z",
@@ -57,8 +54,8 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }));
     render(<ResourcesPage />);
-    expect(screen.getAllByText("Completed")).toHaveLength(1);
-    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed")).toHaveLength(3);
+    expect(screen.getByText("3 / 3 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -70,7 +67,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 3 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -78,6 +75,7 @@ describe("ResourcesPage", () => {
     render(<ResourcesPage />);
     expect(screen.getByText(/Progress could not be loaded/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Introduction/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toBeInTheDocument();
   });
 });

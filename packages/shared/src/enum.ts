@@ -173,6 +173,7 @@ export type JudgeRequestErrorKind = `${JUDGE_REQUEST_ERROR_KINDS}`;
 export enum LEARNING_GUIDE_IDS {
   Introduction = "introduction",
   ProgrammingFundamentals = "programming-fundamentals",
+  TimeComplexity = "time-complexity",
 }
 
 export type LearningGuideId = `${LEARNING_GUIDE_IDS}`;

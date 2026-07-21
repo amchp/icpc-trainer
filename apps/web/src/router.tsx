@@ -10,12 +10,14 @@ import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { IntroductionRoute } from "./IntroductionRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
+import { ProgrammingFundamentalsRoute } from "./ProgrammingFundamentalsRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
 import { ResourcesLayout } from "./ResourcesLayout.js";
 import { StandaloneLayout } from "./StandaloneLayout.js";
 import { TeamRoute } from "./TeamRoute.js";
+import { TimeComplexityRoute } from "./TimeComplexityRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
 
 const rootRoute = createRootRoute({
@@ -111,15 +113,19 @@ const resourcesRoute = createRoute({
 const programmingFundamentalsRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.programmingFundamentals,
-  beforeLoad: () => {
-    throw redirect({ to: appPaths.resources });
-  }
+  component: ProgrammingFundamentalsRoute
 });
 
 const introductionRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.introduction,
   component: IntroductionRoute
+});
+
+const timeComplexityRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.timeComplexity,
+  component: TimeComplexityRoute
 });
 
 const teamRoute = createRoute({
@@ -154,7 +160,7 @@ const routeTree = rootRoute.addChildren([
     teamRoute,
     upsolvingRoute
   ]),
-  resourcesAppRoute.addChildren([resourcesRoute, introductionRoute, programmingFundamentalsRoute]),
+  resourcesAppRoute.addChildren([resourcesRoute, introductionRoute, programmingFundamentalsRoute, timeComplexityRoute]),
   standaloneRoute.addChildren([
     playgroundRoute,
     connectJudgesRoute,

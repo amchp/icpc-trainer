@@ -24,5 +24,6 @@ describe("protected navigation", () => {
       "Team"
     ]);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.introduction);
+    expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.timeComplexity);
   });
 });

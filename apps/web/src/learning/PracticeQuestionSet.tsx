@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../lib.js";
+import { GuideCodeBlock } from "./GuideCodeBlock.js";
 
 export interface PracticeQuestion {
   readonly question: string;
+  readonly code?: string;
   readonly options: readonly string[];
   readonly correctOption: number;
   readonly explanation: string;
@@ -72,7 +74,12 @@ export function PracticeQuestionSet({
       <h3 aria-live="polite" className="mt-4 text-lg font-semibold leading-7 text-zinc-100">
         {activeQuestion.question}
       </h3>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      {activeQuestion.code === undefined ? null : (
+        <div aria-label={t("practice.questionCode")} className="[&>div]:my-4">
+          <GuideCodeBlock code={activeQuestion.code} />
+        </div>
+      )}
+      <div className={cn("mt-4 grid gap-2", activeQuestion.options.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
         {activeQuestion.options.map((option, optionIndex) => {
           const selected = activeAnswer === optionIndex;
           const correct = optionIndex === activeQuestion.correctOption;
