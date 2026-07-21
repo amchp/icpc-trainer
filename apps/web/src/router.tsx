@@ -19,6 +19,7 @@ import { ResourcesRoute } from "./ResourcesRoute.js";
 import { ResourcesLayout } from "./ResourcesLayout.js";
 import { StandaloneLayout } from "./StandaloneLayout.js";
 import { TeamRoute } from "./TeamRoute.js";
+import { TimeComplexityRoute } from "./TimeComplexityRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
 
 const rootRoute = createRootRoute({
@@ -141,6 +142,12 @@ const resourcesSubpathRoute = createRoute({
   component: ResourcesRoute
 });
 
+const timeComplexityRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.timeComplexity,
+  component: TimeComplexityRoute
+});
+
 const teamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.team,
@@ -179,6 +186,7 @@ const routeTree = rootRoute.addChildren([
     bruteForceRoute,
     introductionRoute,
     programmingFundamentalsRoute,
+    timeComplexityRoute,
     resourcesSubpathRoute
   ]),
   standaloneRoute.addChildren([

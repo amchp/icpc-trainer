@@ -17,7 +17,10 @@ export function ResourcesPage(): React.JSX.Element {
   const fundamentals = progressQuery.data?.find(
     (row) => row.guideId === LEARNING_GUIDE_IDS.ProgrammingFundamentals
   );
-  const completedCount = [introduction, fundamentals].filter(
+  const timeComplexity = progressQuery.data?.find(
+    (row) => row.guideId === LEARNING_GUIDE_IDS.TimeComplexity
+  );
+  const completedCount = [introduction, fundamentals, timeComplexity].filter(
     (guide) => guide?.status === LEARNING_PROGRESS_STATUSES.Completed
   ).length;
 
@@ -58,10 +61,10 @@ export function ResourcesPage(): React.JSX.Element {
 
         <div className="relative flex items-baseline justify-between gap-4 border-b border-zinc-800/80 pb-4">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{t("sequence")}</p>
-          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: 2 })}</p>
+          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: 3 })}</p>
         </div>
 
-        <div className="relative mt-7 grid items-stretch gap-5 md:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:gap-6">
+        <div className="relative mt-7 grid items-stretch gap-5 md:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)_3rem_minmax(0,1fr)] md:gap-4">
           <Link
             to={appPaths.introduction}
             className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-cyan-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(34,211,238,0.06)] transition-all hover:bg-zinc-800 hover:shadow-[0_0_0_5px_rgba(34,211,238,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
@@ -123,6 +126,39 @@ export function ResourcesPage(): React.JSX.Element {
             </p>
           </Link>
 
+          <div className="flex min-h-14 items-center justify-center text-zinc-500" aria-hidden="true">
+            <div className="hidden w-full items-center md:flex">
+              <span className="flex-1 border-t border-dashed border-zinc-600" />
+              <ArrowRight className="-ml-px size-5 shrink-0" strokeWidth={1.5} />
+            </div>
+            <div className="flex h-full flex-col items-center md:hidden">
+              <span className="flex-1 border-l border-dashed border-zinc-600" />
+              <ArrowDown className="-mt-px size-5 shrink-0" strokeWidth={1.5} />
+            </div>
+          </div>
+
+          <Link
+            to={appPaths.timeComplexity}
+            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-violet-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(167,139,250,0.07)] transition-all hover:bg-violet-400/[0.08] hover:shadow-[0_0_0_5px_rgba(167,139,250,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className={cn("font-mono text-[11px]", timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-violet-300/80")}>03</span>
+              {timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
+                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
+              ) : (
+                <ArrowRight className="size-4 shrink-0 text-violet-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+              )}
+            </div>
+            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("timeComplexity")}</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">{t("timeComplexityDescription")}</p>
+            <p className={cn(
+              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
+              timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-violet-300"
+            )}>
+              <span aria-hidden="true" className={cn("size-1.5 rounded-full", timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-violet-400")} />
+              {progressQuery.isLoading ? t("status.loading") : statusLabel(timeComplexity?.status)}
+            </p>
+          </Link>
         </div>
       </section>
       <BruteForceResourceCard />

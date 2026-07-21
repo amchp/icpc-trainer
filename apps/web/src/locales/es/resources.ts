@@ -12,5 +12,7 @@ export const resources = {
   comingSoon: "Próximamente",
   fundamentals: "Fundamentos de programación",
   fundamentalsDescription: "Aprende variables, decisiones, ciclos y funciones con ejemplos interactivos.",
+  timeComplexity: "Complejidad temporal y espacial",
+  timeComplexityDescription: "Estima el tiempo y la memoria antes de elegir un algoritmo.",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
 } as const;

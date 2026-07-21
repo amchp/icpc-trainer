@@ -35,4 +35,9 @@ describe("router", () => {
     await router.navigate({ to: "/leaderboard" });
     expect(router.state.location.pathname).toBe("/leaderboard");
   });
+
+  it("recognizes the stable Time & Space Complexity guide URL", async () => {
+    await router.navigate({ to: "/resources/time-complexity" });
+    expect(router.state.location.pathname).toBe("/resources/time-complexity");
+  });
 });
