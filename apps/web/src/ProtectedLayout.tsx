@@ -1,18 +1,16 @@
-import { Navigate, Outlet, useLocation } from "@tanstack/react-router";
+import { Navigate, Outlet } from "@tanstack/react-router";
 
 import { AppHeader } from "./AppHeader.js";
 import { Card, Skeleton } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
-import { isResourcesPath } from "./firstUserFlow.js";
 import { SyncPanel } from "./SyncPanel.js";
 import { useSync } from "./SyncContext.js";
 
 export function ProtectedLayout(): React.JSX.Element {
   const sync = useSync();
   const { hasConnectedJudge, status } = useConnectedJudges();
-  const location = useLocation();
 
-  if (status === "ready" && !hasConnectedJudge && !isResourcesPath(location.pathname)) {
+  if (status === "ready" && !hasConnectedJudge) {
     return <Navigate to="/connect-judges" />;
   }
 

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resources roadmap revamp — implementation plan</title>
+  <script>
+    (() => {
+      const saved = localStorage.getItem("icpc-plan-theme");
+      const dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", dark);
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    })();
+  </script>
+  <style>
+    :root {
+      --page: #f4f7fb;
+      --panel: #ffffff;
+      --panel-soft: #edf2f8;
+      --ink: #152033;
+      --muted: #627087;
+      --line: #cbd5e1;
+      --blue: #2563eb;
+      --cyan: #0891b2;
+      --amber: #d97706;
+      --violet: #7c3aed;
+      --green: #059669;
+      --danger: #dc2626;
+      --shadow: 0 18px 46px rgba(35, 55, 85, .08);
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    html.dark {
+      --page: #09090b;
+      --panel: #12141a;
+      --panel-soft: #191c24;
+      --ink: #f4f4f5;
+      --muted: #9ca3af;
+      --line: #303541;
+      --blue: #60a5fa;
+      --cyan: #22d3ee;
+      --amber: #fbbf24;
+      --violet: #a78bfa;
+      --green: #34d399;
+      --danger: #fb7185;
+      --shadow: 0 18px 54px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--blue) 11%, transparent), transparent 30rem),
+        var(--page);
+      color: var(--ink);
+      font: 15px/1.6 var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+    a { color: inherit; }
+    code { font: .9em var(--mono); }
+
+    .shell { max-width: 1140px; margin: 0 auto; padding: 28px 24px 96px; }
+    .topbar { display: flex; justify-content: flex-end; margin-bottom: 38px; }
+    .theme-toggle {
+      border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+      border-radius: 9px; padding: 7px 11px; cursor: pointer; box-shadow: var(--shadow);
+      font: 12px var(--mono);
+    }
+    .theme-toggle:focus-visible, a:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 3px; }
+
+    .hero { max-width: 860px; margin-bottom: 34px; }
+    .eyebrow { margin-bottom: 10px; color: var(--blue); font: 700 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(34px, 6vw, 62px); line-height: 1.02; letter-spacing: -.045em; }
+    .lead { max-width: 760px; margin: 0; color: var(--muted); font-size: 17px; }
+
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 32px 0 72px; }
+    .metric { min-height: 110px; padding: 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+    .metric .k { color: var(--muted); font: 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .metric .v { margin-top: 10px; font-size: 19px; font-weight: 750; letter-spacing: -.02em; }
+    .metric .v.accent { color: var(--blue); }
+
+    section { margin: 0 0 72px; scroll-margin-top: 24px; }
+    .section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .num { min-width: 30px; color: var(--blue); font: 700 11px var(--mono); }
+    h2 { margin: 0; font-size: 25px; letter-spacing: -.025em; }
+    .intro { max-width: 760px; margin: 0 0 24px 42px; color: var(--muted); }
+
+    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
+    .decision { padding: 20px 22px; border-left: 4px solid var(--blue); }
+    .decision strong { display: block; margin-bottom: 5px; }
+    .decision p { margin: 0; color: var(--muted); }
+
+    .roadmap { position: relative; min-height: 315px; padding: 36px; overflow: hidden; }
+    .roadmap::before {
+      content: ""; position: absolute; left: 20%; right: 20%; top: 50%; height: 2px;
+      background: linear-gradient(90deg, var(--line), var(--blue), var(--line));
+    }
+    .roadmap::after {
+      content: "recommended sequence"; position: absolute; left: 50%; top: calc(50% - 30px); transform: translateX(-50%);
+      color: var(--muted); background: var(--panel); padding: 3px 10px; font: 10px var(--mono); letter-spacing: .05em; text-transform: uppercase;
+    }
+    .nodes { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(220px, 330px)); justify-content: space-between; align-items: center; min-height: 240px; }
+    .node { position: relative; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+    .node.available { border-color: color-mix(in srgb, var(--blue) 70%, var(--line)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--blue) 10%, transparent), var(--shadow); }
+    .node.soon { opacity: .72; }
+    .node .status { display: inline-flex; margin-bottom: 22px; padding: 4px 8px; border-radius: 7px; background: var(--panel-soft); color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .node.available .status { background: color-mix(in srgb, var(--blue) 14%, var(--panel)); color: var(--blue); }
+    .node h3 { margin: 0 0 6px; font-size: 21px; }
+    .node p { margin: 0; color: var(--muted); font-size: 13px; }
+    .block-dots { display: flex; gap: 5px; margin-top: 18px; }
+    .block-dots i { display: block; width: 23px; height: 8px; border-radius: 3px; }
+    .cyan { background: var(--cyan); } .amber { background: var(--amber); } .violet { background: var(--violet); } .green { background: var(--green); }
+
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 34px; padding: 28px; }
+    .flow-step { position: relative; padding: 17px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 12px; }
+    .flow-step:not(:last-child)::after { content: "→"; position: absolute; right: -25px; top: 50%; transform: translateY(-50%); color: var(--blue); font: 22px var(--mono); }
+    .flow-step .label { color: var(--blue); font: 700 10px var(--mono); text-transform: uppercase; }
+    .flow-step strong { display: block; margin: 6px 0 3px; }
+    .flow-step span { color: var(--muted); font-size: 12px; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .panel { padding: 22px; }
+    .panel h3 { margin: 0 0 14px; font-size: 17px; }
+    .clean-list { list-style: none; margin: 0; padding: 0; }
+    .clean-list li { position: relative; padding: 10px 0 10px 22px; border-top: 1px solid var(--line); }
+    .clean-list li::before { content: ""; position: absolute; left: 2px; top: 18px; width: 7px; height: 7px; border-radius: 2px; background: var(--blue); }
+    .clean-list small { display: block; color: var(--muted); }
+
+    .sections-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .lesson { padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    .lesson .tag { color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .lesson h3 { margin: 5px 0 5px; font-size: 16px; }
+    .lesson p { margin: 0; color: var(--muted); font-size: 13px; }
+    .lesson:nth-child(4n+1) { border-top: 3px solid var(--cyan); }
+    .lesson:nth-child(4n+2) { border-top: 3px solid var(--amber); }
+    .lesson:nth-child(4n+3) { border-top: 3px solid var(--violet); }
+    .lesson:nth-child(4n+4) { border-top: 3px solid var(--green); }
+
+    .contract { overflow-x: auto; }
+    table { width: 100%; min-width: 720px; border-collapse: collapse; background: var(--panel); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); background: var(--panel-soft); font: 700 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    td code { color: var(--blue); }
+
+    .timeline { margin-left: 15px; border-left: 2px solid var(--line); }
+    .phase { position: relative; padding: 0 0 28px 28px; }
+    .phase::before { content: ""; position: absolute; left: -8px; top: 4px; width: 12px; height: 12px; border: 2px solid var(--page); border-radius: 50%; background: var(--blue); }
+    .phase h3 { margin: 0 0 4px; font-size: 17px; }
+    .phase p { max-width: 760px; margin: 0; color: var(--muted); }
+    .phase code { display: inline-block; margin-top: 7px; padding: 3px 7px; border-radius: 6px; background: var(--panel-soft); color: var(--blue); }
+
+    .checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .check { padding: 17px; }
+    .check strong { display: block; margin-bottom: 7px; }
+    .check ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+    .scope { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .scope .panel:first-child { border-top: 3px solid var(--green); }
+    .scope .panel:last-child { border-top: 3px solid var(--danger); }
+
+    footer { padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 850px) {
+      .summary, .flow { grid-template-columns: repeat(2, 1fr); }
+      .flow-step:nth-child(2)::after { display: none; }
+      .roadmap::before { left: 50%; right: auto; top: 22%; bottom: 22%; width: 2px; height: auto; }
+      .roadmap::after { top: 50%; }
+      .nodes { grid-template-columns: minmax(0, 1fr); gap: 72px; }
+      .node { max-width: 480px; width: 100%; margin: auto; }
+      .split, .scope, .checks { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .shell { padding: 20px 16px 72px; }
+      .summary, .flow, .sections-grid { grid-template-columns: 1fr; }
+      .flow-step::after { display: none; }
+      .intro { margin-left: 0; }
+      .roadmap { padding: 22px 14px; }
+      .node { padding: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar"><button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">Theme</button></div>
+
+    <header class="hero">
+      <div class="eyebrow">Implementation plan · ICPC Trainer</div>
+      <h1>Turn Resources into a learning roadmap</h1>
+      <p class="lead">Replace the external-link sidebar with a connected roadmap, one complete Spanish React guide, and App User-owned progress. This is a two-node blueprint designed to prove the system before the curriculum grows.</p>
+    </header>
+
+    <div class="summary" aria-label="Plan summary">
+      <div class="metric"><div class="k">Roadmap</div><div class="v accent">2 topics</div></div>
+      <div class="metric"><div class="k">Complete content</div><div class="v">1 React guide</div></div>
+      <div class="metric"><div class="k">Persistence</div><div class="v">1 progress table</div></div>
+      <div class="metric"><div class="k">Baseline</div><div class="v"><code>origin/main</code></div></div>
+    </div>
+
+    <section id="outcome">
+      <div class="section-head"><span class="num">01</span><h2>Outcome</h2></div>
+      <p class="intro">The old catalog disappears. Resources becomes a first-party learning surface with stable guide URLs and persistent progress.</p>
+      <div class="card decision">
+        <strong>Blueprint, not full curriculum</strong>
+        <p>Ship Introduction as a disabled “Coming soon” topic and Programming Fundamentals as the only available guide. The connection recommends order but never locks access.</p>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head"><span class="num">02</span><h2>Roadmap surface</h2></div>
+      <p class="intro">A responsive fixed composition: semantic nodes, an SVG connector, normal scrolling, and no pan/zoom dependency.</p>
+      <div class="card roadmap" aria-label="Roadmap blueprint">
+        <div class="nodes">
+          <article class="node soon">
+            <span class="status">Coming soon</span>
+            <h3>Introduction</h3>
+            <p>Orientation to competitive programming and the learning path.</p>
+          </article>
+          <article class="node available">
+            <span class="status">Available · progress-aware</span>
+            <h3>Programming Fundamentals</h3>
+            <p>A complete Spanish guide taught through interactive C++ examples.</p>
+            <div class="block-dots" aria-label="Representation, conditionals, iteration, functions">
+              <i class="cyan"></i><i class="amber"></i><i class="violet"></i><i class="green"></i>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="section-head"><span class="num">03</span><h2>Learner flow</h2></div>
+      <p class="intro">Opening starts progress automatically. Practice gives feedback, while completion stays a deliberate, reversible action.</p>
+      <div class="card flow">
+        <div class="flow-step"><span class="label">Route</span><strong>Open Resources</strong><span>Fetch the App User’s progress.</span></div>
+        <div class="flow-step"><span class="label">Guide</span><strong>Open Fundamentals</strong><span>Idempotently mark it in progress.</span></div>
+        <div class="flow-step"><span class="label">Learn</span><strong>Explore and practice</strong><span>Step code and retry checks freely.</span></div>
+        <div class="flow-step"><span class="label">Persist</span><strong>Mark complete</strong><span>Update the roadmap; allow reversal.</span></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head"><span class="num">04</span><h2>Architecture changes</h2></div>
+      <p class="intro">Use the current Clerk-authenticated App User and libSQL/Turso-compatible data layer. Do not duplicate Clerk IDs in progress rows.</p>
+      <div class="split">
+        <article class="card panel">
+          <h3>Application shell</h3>
+          <ul class="clean-list">
+            <li>Keep Clerk authentication app-wide.<small>Resources requires sign-in.</small></li>
+            <li>Separate authentication from the Judge connection gate.<small>Resources works before a Judge is connected.</small></li>
+            <li>Add <code>/resources/programming-fundamentals</code>.<small>Direct links and refreshes remain stable.</small></li>
+            <li>Keep Resources active on nested routes.<small>Browser Back returns to the roadmap.</small></li>
+          </ul>
+        </article>
+        <article class="card panel">
+          <h3>Progress ownership</h3>
+          <ul class="clean-list">
+            <li><code>learning_progress.app_user_id</code><small>Foreign key to <code>app_users.id</code>.</small></li>
+            <li><code>guide_id</code> + status<small><code>programming-fundamentals</code>; in progress or completed.</small></li>
+            <li>Server timestamps<small>Started, completed, and updated times.</small></li>
+            <li>Composite primary key<small>One row per App User and guide.</small></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="guide">
+      <div class="section-head"><span class="num">05</span><h2>Programming Fundamentals guide</h2></div>
+      <p class="intro">Adapt all 46 slides into neutral Latin American Spanish. Teach transferable concepts through C++; do not turn the guide into a compiler setup course.</p>
+      <div class="sections-grid">
+        <article class="lesson"><span class="tag">01 · Mental model</span><h3>Programar es construir con bloques</h3><p>Skills combine into systems; introduce the four core blocks.</p></article>
+        <article class="lesson"><span class="tag">02 · Representation</span><h3>Representación y tipos</h3><p>Bits, <code>bool</code>, <code>int</code>, <code>double</code>, and <code>char</code>.</p></article>
+        <article class="lesson"><span class="tag">03 · Operations</span><h3>Operadores y conversiones</h3><p>Arithmetic, modulo, comparisons, boolean logic, and casting.</p></article>
+        <article class="lesson"><span class="tag">04 · Branching</span><h3>Condicionales</h3><p>Boolean expressions and <code>if / else if / else</code>.</p></article>
+        <article class="lesson"><span class="tag">05 · Repetition</span><h3>Iteración</h3><p><code>for</code>, <code>while</code>, boundaries, and termination.</p></article>
+        <article class="lesson"><span class="tag">06 · Reuse</span><h3>Funciones</h3><p>Parameters, return values, and tracing a call.</p></article>
+        <article class="lesson"><span class="tag">07 · Collections</span><h3>Vectores y control de ciclos</h3><p>Indexing, iteration, <code>push_back</code>, <code>break</code>, and <code>continue</code>.</p></article>
+        <article class="lesson"><span class="tag">08 · Calls</span><h3>Recursión</h3><p>Base cases and a factorial call-stack walkthrough.</p></article>
+      </div>
+    </section>
+
+    <section id="components">
+      <div class="section-head"><span class="num">06</span><h2>Learning interactions</h2></div>
+      <p class="intro">Author pure TSX and build a small reusable component vocabulary. Code is read-only, highlighted, copyable, and stepped through predetermined traces.</p>
+      <div class="split">
+        <article class="card panel">
+          <h3>Interactive visuals</h3>
+          <ul class="clean-list">
+            <li>Representation explorer<small>Inspect how types hold values.</small></li>
+            <li>Conditional branch demo<small>Change inputs and see the selected path.</small></li>
+            <li>Loop stepper<small>Track initialization, condition, body, and update.</small></li>
+            <li>Function and recursion demos<small>Trace values and stack frames.</small></li>
+          </ul>
+        </article>
+        <article class="card panel">
+          <h3>Practice and navigation</h3>
+          <ul class="clean-list">
+            <li>Immediate-feedback checks<small>Retry freely; no completion gate.</small></li>
+            <li>Sticky horizontal progress rail<small>Section anchors and reading position only.</small></li>
+            <li>Accessible step controls<small>Previous, next, reset, play/pause, and text summaries.</small></li>
+            <li>Completion footer<small>Complete or return to in progress.</small></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="api">
+      <div class="section-head"><span class="num">07</span><h2>Public contracts</h2></div>
+      <p class="intro">Validate guide IDs centrally. Unknown guides and unauthenticated requests fail before touching persistence.</p>
+      <div class="card contract">
+        <table>
+          <thead><tr><th>Contract</th><th>Input</th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td><code>learningProgress.list</code></td><td>None</td><td>Return only the authenticated App User’s guide-level progress.</td></tr>
+            <tr><td><code>learningProgress.start</code></td><td><code>{ guideId }</code></td><td>Insert in progress if absent; remain idempotent; never downgrade completed.</td></tr>
+            <tr><td><code>learningProgress.setStatus</code></td><td><code>{ guideId, status }</code></td><td>Complete with server time, or return to in progress and clear completion time.</td></tr>
+            <tr><td><code>LearningGuideId</code></td><td>Shared type</td><td>Initially only <code>programming-fundamentals</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="delivery">
+      <div class="section-head"><span class="num">08</span><h2>Implementation sequence</h2></div>
+      <p class="intro">Work from the current remote baseline. Land the contract before the content-heavy React guide.</p>
+      <div class="timeline">
+        <div class="phase"><h3>1. Align and name</h3><p>Bring work onto current <code>origin/main</code>. Add Learning Roadmap, Topic, Guide, and Progress to the domain glossary.</p><code>CONTEXT.md · packages/shared</code></div>
+        <div class="phase"><h3>2. Persist progress</h3><p>Add the schema, Drizzle migration, authenticated tRPC router, validation, and isolation tests.</p><code>packages/db · packages/api</code></div>
+        <div class="phase"><h3>3. Fix route boundaries</h3><p>Split the authenticated shell from the Judge-required shell; add the nested guide route.</p><code>apps/web/src/router.tsx</code></div>
+        <div class="phase"><h3>4. Replace Resources</h3><p>Remove the external catalog. Build the two-node responsive roadmap with loading, error, and persisted status states.</p><code>ResourcesPage.tsx</code></div>
+        <div class="phase"><h3>5. Build the guide system</h3><p>Create reusable TSX learning components, author the Spanish guide, wire progress mutations, and add minimal analytics.</p><code>apps/web/src/learning/*</code></div>
+        <div class="phase"><h3>6. Verify the vertical slice</h3><p>Run API, database, component, route, e2e, accessibility, reduced-motion, and responsive checks.</p><code>pnpm typecheck · pnpm test · pnpm test:e2e</code></div>
+      </div>
+    </section>
+
+    <section id="tests">
+      <div class="section-head"><span class="num">09</span><h2>Acceptance checks</h2></div>
+      <p class="intro">The blueprint is done when identity, routing, content, accessibility, and persistence work together—not when the roadmap merely looks complete.</p>
+      <div class="checks">
+        <article class="card check"><strong>Data and API</strong><ul><li>App User isolation</li><li>Idempotent start</li><li>Completion reversal</li><li>Unknown guide rejection</li></ul></article>
+        <article class="card check"><strong>Roadmap and guide</strong><ul><li>Exactly two nodes</li><li>Coming-soon state</li><li>Direct guide URL</li><li>Accessible interactions</li></ul></article>
+        <article class="card check"><strong>End to end</strong><ul><li>No Judge required</li><li>Reload restores status</li><li>Complete updates roadmap</li><li>Mobile has no overflow</li></ul></article>
+      </div>
+    </section>
+
+    <section id="scope">
+      <div class="section-head"><span class="num">10</span><h2>Scope guardrails</h2></div>
+      <p class="intro">The first release proves one polished learning path. It deliberately avoids platform work that the blueprint does not need.</p>
+      <div class="scope">
+        <article class="card panel"><h3>Included</h3><ul class="clean-list"><li>One Spanish guide</li><li>Four interactive visual families</li><li>Manual reversible completion</li><li>Minimal milestone analytics</li><li>Responsive and reduced-motion support</li></ul></article>
+        <article class="card panel"><h3>Not included</h3><ul class="clean-list"><li>Full curriculum</li><li>External resource archive</li><li>MDX authoring</li><li>Arbitrary C++ execution</li><li>Persisted quiz answers or section progress</li><li>Pan/zoom graph library</li></ul></article>
+      </div>
+    </section>
+
+    <footer>Plan baseline: <code>origin/main</code> at or after <code>c684c46</code> · Content source: 46-slide “Fundamentos para Programación Competitiva” PDF · No ADR required.</footer>
+  </div>
+
+  <script>
+    const button = document.getElementById("themeToggle");
+    const updateLabel = () => {
+      button.textContent = document.documentElement.classList.contains("dark") ? "Light theme" : "Dark theme";
+    };
+    updateLabel();
+    button.addEventListener("click", () => {
+      const dark = !document.documentElement.classList.contains("dark");
+      document.documentElement.classList.toggle("dark", dark);
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      localStorage.setItem("icpc-plan-theme", dark ? "dark" : "light");
+      updateLabel();
+    });
+  </script>
+</body>
+</html>

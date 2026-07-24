@@ -9,6 +9,7 @@ import {
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
 import {
   JUDGE_RESOURCES,
+  LOCALIZED_MESSAGE_CODES,
   SYNC_ERROR_PHASES,
   SYNC_OPERATION_PHASES,
   type SyncOperationPhase
@@ -120,9 +121,13 @@ const rawErrorMessage = (error: unknown): string => {
 
 const syncErrorMessage = (
   provider: JudgeSyncInput["provider"],
-  action: string,
+  _action: string,
   error: unknown
-): string => `Could not sync ${provider} ${action}: ${rawErrorMessage(error)}`;
+) => ({
+  code: LOCALIZED_MESSAGE_CODES.SyncOperationFailed,
+  params: { judge: provider },
+  technicalDetail: rawErrorMessage(error)
+} as const);
 
 const eventPhase = (phase: SyncOperationPhase): JudgeSyncErrorPhase =>
   phase === SYNC_OPERATION_PHASES.Submissions

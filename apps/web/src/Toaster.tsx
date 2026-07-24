@@ -1,6 +1,7 @@
 import { TOAST_VARIANTS, type ToastVariant } from "@icpc-trainer/shared";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "./lib.js";
 
@@ -26,6 +27,7 @@ const TOAST_DURATION_MS = 20_000;
 let nextToastId = 1;
 
 export function ToasterProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const { t } = useTranslation("common");
   const [toasts, setToasts] = useState<ReadonlyArray<Toast>>([]);
 
   const dismiss = useCallback((id: number) => {
@@ -92,7 +94,7 @@ export function ToasterProvider({ children }: { readonly children: ReactNode }):
                 <button
                   type="button"
                   className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                  aria-label="Dismiss notification"
+                  aria-label={t("close")}
                   onClick={() => dismiss(toast.id)}
                 >
                   <X className="size-4" aria-hidden="true" />

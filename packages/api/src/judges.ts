@@ -5,7 +5,8 @@ import {
   PROVIDER_STATE_EVENT_TYPES,
   RUN_STATUSES as SyncRunStatus,
   SYNC_ERROR_PHASES,
-  SYNC_STEP_STATUSES as SyncStepStatus
+  SYNC_STEP_STATUSES as SyncStepStatus,
+  type LocalizedMessageReference
 } from "@icpc-trainer/shared";
 import { z } from "zod";
 
@@ -76,7 +77,7 @@ export type JudgeSyncEvent =
       readonly type: JudgeSyncEventType.Error;
       readonly phase: JudgeSyncStep | SYNC_ERROR_PHASES;
       readonly step?: JudgeSyncStep;
-      readonly message: string;
+      readonly message: LocalizedMessageReference;
       readonly userHandle?: string;
       readonly contestJudgeId?: string;
       readonly judgeId?: string;

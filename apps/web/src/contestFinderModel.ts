@@ -1,6 +1,7 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
-import { CONTEST_FINDER_TABS, JUDGES, isJudgeProvider } from "@icpc-trainer/shared";
+import { APP_LOCALES, CONTEST_FINDER_TABS, JUDGES, isJudgeProvider, type AppLocale } from "@icpc-trainer/shared";
 
+import { compareText } from "./i18n/format.js";
 import type { JudgeProvider } from "./judgeConfig.js";
 
 export type { ContestFinderTabId } from "@icpc-trainer/shared";
@@ -68,7 +69,8 @@ export const contestFinderSearchText = (contest: ContestFinderRow): string =>
 
 export const sortContestFinderRows = (
   left: ContestFinderRow,
-  right: ContestFinderRow
+  right: ContestFinderRow,
+  locale: AppLocale = APP_LOCALES.English
 ): number => {
   const leftFriendCount = Number.isFinite(left.friendCount) ? left.friendCount : 0;
   const rightFriendCount = Number.isFinite(right.friendCount) ? right.friendCount : 0;
@@ -77,8 +79,8 @@ export const sortContestFinderRows = (
     return rightFriendCount - leftFriendCount;
   }
 
-  const judgeOrder = stringOrFallback(left.judge, "").localeCompare(stringOrFallback(right.judge, ""));
+  const judgeOrder = compareText(stringOrFallback(left.judge, ""), stringOrFallback(right.judge, ""), locale);
   return judgeOrder === 0
-    ? stringOrFallback(left.name, "").localeCompare(stringOrFallback(right.name, ""))
+    ? compareText(stringOrFallback(left.name, ""), stringOrFallback(right.name, ""), locale)
     : judgeOrder;
 };

@@ -1,8 +1,12 @@
 import type { UpsolvingContestRow } from "@icpc-trainer/api";
+import type { AppLocale } from "@icpc-trainer/shared";
 import { type ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
+import { formatNumber } from "./i18n/format.js";
+import { i18n } from "./i18n/i18n.js";
 
 export type SearchableContestRow = UpsolvingContestRow & {
   readonly searchText: string;
@@ -23,10 +27,13 @@ export const toSearchableContestRow = (contest: UpsolvingContestRow): Searchable
   searchText: searchableText(contest)
 });
 
-export const createContestColumns = (): Array<ColumnDef<SearchableContestRow>> => [
+export const createContestColumns = (
+  t: TFunction<"contests">,
+  locale: AppLocale
+): Array<ColumnDef<SearchableContestRow>> => [
   {
     accessorKey: "name",
-    header: "Contest",
+    header: t("columns.contest"),
     cell: ({ row }) => (
       <div className="min-w-0 whitespace-normal">
         <a
@@ -42,7 +49,7 @@ export const createContestColumns = (): Array<ColumnDef<SearchableContestRow>> =
   },
   {
     accessorKey: "judge",
-    header: "Judge",
+    header: t("columns.judge"),
     cell: ({ row }) => (
       <JudgeDisplay judge={row.original.judge} />
     )
@@ -52,14 +59,14 @@ export const createContestColumns = (): Array<ColumnDef<SearchableContestRow>> =
     accessorFn: (row) => row.problemCount - row.solvedCount,
     header: ({ column }) => (
       <SortableHeader
-        label="Solved"
+        label={t("columns.solved")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       />
     ),
     cell: ({ row }) => (
       <span className="tabular-nums">
-        {row.original.solvedCount} / {row.original.problemCount}
+        {formatNumber(row.original.solvedCount, locale)} / {formatNumber(row.original.problemCount, locale)}
       </span>
     )
   }
@@ -76,7 +83,7 @@ function SortableHeader({
 }): React.JSX.Element {
   const Icon = direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ArrowUpDown;
   const directionLabel =
-    direction === "asc" ? "sorted ascending" : direction === "desc" ? "sorted descending" : "not sorted";
+    direction === "asc" ? i18n.t("table.ascending") : direction === "desc" ? i18n.t("table.descending") : i18n.t("table.unsorted");
 
   return (
     <button

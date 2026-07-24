@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/icpc_trainer.png" />
     <title>ICPC Trainer</title>
+    <script>
+      (() => {
+        try {
+          const valid = (value) => value === "en" || value === "es";
+          const pending = localStorage.getItem("icpc-trainer.locale.pending");
+          const mirror = localStorage.getItem("icpc-trainer.locale");
+          const browser = navigator.languages.some((language) => language.toLowerCase().startsWith("es")) ? "es" : "en";
+          document.documentElement.lang = valid(pending) ? pending : valid(mirror) ? mirror : browser;
+        } catch {
+          document.documentElement.lang = navigator.language.toLowerCase().startsWith("es") ? "es" : "en";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

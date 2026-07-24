@@ -1,0 +1,21 @@
+export const findProblems = {
+  title: "Find Problems",
+  subtitle: "Find unsolved problems that match your filters",
+  loading: "Loading",
+  loadError: "Unable to load problems.",
+  searchLabel: "Search problems",
+  searchPlaceholder: "Search problem names",
+  minRating: "Min rating",
+  maxRating: "Max rating",
+  random: "Random",
+  allTags: "All tags",
+  selectedTags: "{{count}} tags",
+  filterByTag: "Filter by tag",
+  tagOptions: "Tag filter options",
+  allTagsLabel: "All tags, {{count}} options",
+  problemCount_one: "problem",
+  problemCount_other: "problems",
+  empty: "No unsolved problems yet. Select Sync to update your data.",
+  noMatch: "No problems match the current filters.",
+  columns: { problem: "Problem", tags: "Tags", untagged: "Untagged", rating: "Rating", solve: "Solve %", friends: "Friends" }
+} as const;

@@ -10,7 +10,7 @@ import {
   SyncRunStatus
 } from "@icpc-trainer/api";
 import { type DatabaseService, DatabaseServiceTag } from "@icpc-trainer/db";
-import { SYNC_ERROR_PHASES } from "@icpc-trainer/shared";
+import { LOCALIZED_MESSAGE_CODES, SYNC_ERROR_PHASES } from "@icpc-trainer/shared";
 import { Effect } from "effect";
 
 import type { Judge } from "../judges.js";
@@ -40,7 +40,10 @@ export async function* notImplementedJudgeSync(input: JudgeSyncInput): AsyncIter
     type: JudgeSyncEventType.Error,
     provider: input.provider,
     phase: SYNC_ERROR_PHASES.Database,
-    message: `${input.provider} sync is not implemented yet.`,
+    message: {
+      code: LOCALIZED_MESSAGE_CODES.SyncNotImplemented,
+      params: { judge: input.provider }
+    },
     stepsTotal: 0,
     stepsLeft: 0
   };
@@ -132,7 +135,11 @@ const syncFailureEvent = (
   type: JudgeSyncEventType.Error,
   provider,
     phase: SYNC_ERROR_PHASES.Database,
-  message: error instanceof Error ? error.message : String(error),
+  message: {
+    code: LOCALIZED_MESSAGE_CODES.SyncOperationFailed,
+    params: { judge: provider },
+    technicalDetail: error instanceof Error ? error.message : String(error)
+  },
   stepsTotal: 0,
   stepsLeft: 0
 });

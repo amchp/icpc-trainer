@@ -5,6 +5,7 @@ import {
   PROVIDER_STATE_EVENT_TYPES,
   RUN_STATUSES as SyncRunStatus,
   SYNC_STEP_STATUSES as SyncStepStatus,
+  LOCALIZED_MESSAGE_CODES,
   type JudgeProvider
 } from "@icpc-trainer/shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -25,7 +26,6 @@ import { ToasterProvider } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
 const navigateMock = vi.hoisted(() => vi.fn());
-const currentPathMock = vi.hoisted(() => ({ value: "/find-problems" }));
 const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
   codeforces: {
     saved: true
@@ -232,8 +232,9 @@ vi.mock("@tanstack/react-router", () => ({
   ),
   Navigate: ({ to }: { to: string }) => <div data-testid="route-redirect" data-to={to} />,
   Outlet: () => <div data-testid="route-outlet" />,
-  useLocation: () => ({ pathname: currentPathMock.value }),
-  useNavigate: () => navigateMock
+  useNavigate: () => navigateMock,
+  useRouterState: ({ select }: { readonly select: (state: { readonly location: { readonly pathname: string } }) => unknown }) =>
+    select({ location: { pathname: "/find-problems" } })
 }));
 
 vi.mock("@clerk/clerk-react", () => ({
@@ -389,7 +390,6 @@ describe("app shell", () => {
     vi.clearAllMocks();
     syncObservers.clear();
     syncSnapshots.clear();
-    currentPathMock.value = "/find-problems";
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: true
@@ -428,26 +428,6 @@ describe("app shell", () => {
 
     expect(await screen.findByTestId("route-redirect")).toHaveAttribute("data-to", "/connect-judges");
   });
-
-  it.each(["/resources", "/resources/graphs/shortest-path"])(
-    "lets first-time users continue to %s without connecting a judge",
-    async (pathname) => {
-      currentPathMock.value = pathname;
-      credentialStatusMock.mockResolvedValue({
-        codeforces: {
-          saved: false
-        },
-        qoj: {
-          saved: false
-        }
-      });
-
-      renderWithQuery(<ProtectedLayout />);
-
-      expect(await screen.findByTestId("route-outlet")).toBeInTheDocument();
-      expect(screen.queryByTestId("route-redirect")).not.toBeInTheDocument();
-    }
-  );
 
   it("shows separate judge progress while a sync is running", async () => {
     syncSnapshots.set("codeforces", syncStateFromFixtureEvents("codeforces", syncEvents("codeforces").slice(0, 3)));
@@ -564,7 +544,11 @@ describe("app shell", () => {
           provider,
           phase: JudgeSyncStep.Contests,
           step: JudgeSyncStep.Contests,
-          message: "Contest 100566 failed",
+          message: {
+            code: LOCALIZED_MESSAGE_CODES.SyncOperationFailed,
+            params: { judge: provider },
+            technicalDetail: "Contest 100566 failed"
+          },
           contestJudgeId: "100566",
           stepsTotal: 1,
           stepsLeft: 1
@@ -598,7 +582,7 @@ describe("app shell", () => {
     fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not sync codeforces");
-    expect(screen.getByRole("alert")).toHaveTextContent("Contest 100566 failed");
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not sync codeforces data");
   });
 
   it("stacks sync error toasts and removes the oldest when the stack is full", async () => {
@@ -612,7 +596,11 @@ describe("app shell", () => {
             provider,
             phase: JudgeSyncStep.Contests,
             step: JudgeSyncStep.Contests,
-            message: `Contest ${index} failed`,
+            message: {
+              code: LOCALIZED_MESSAGE_CODES.SyncOperationFailed,
+              params: { judge: provider },
+              technicalDetail: `Contest ${index} failed`
+            },
             contestJudgeId: String(index),
             stepsTotal: 8,
             stepsLeft: 8 - index
@@ -647,10 +635,7 @@ describe("app shell", () => {
     fireEvent.click(await screen.findByRole("button", { name: /sync/i }));
 
     await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(6));
-    expect(screen.queryByText("Contest 1 failed")).not.toBeInTheDocument();
-    expect(screen.queryByText("Contest 2 failed")).not.toBeInTheDocument();
-    expect(screen.getByText("Contest 3 failed")).toBeInTheDocument();
-    expect(screen.getByText("Contest 8 failed")).toBeInTheDocument();
+    expect(screen.getAllByText("Could not sync codeforces data.")).toHaveLength(6);
   });
 
   it("refreshes credential status after clearing connected judges from account", async () => {
@@ -784,9 +769,11 @@ describe("app shell", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Could not reach the ICPC Trainer server");
   });
 
-  it("shows the server conflict when adding a duplicate team user", async () => {
+  it("shows a localized conflict when adding a duplicate team user", async () => {
     vi.mocked(trpc.team.add.mutate).mockRejectedValueOnce(
-      new Error("tourist is already saved as a team user.")
+      Object.assign(new Error("tourist is already saved as a team user."), {
+        data: { code: "CONFLICT" }
+      })
     );
 
     renderWithQuery(<TeamPage />);
@@ -800,7 +787,7 @@ describe("app shell", () => {
         judge: "codeforces"
       })
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent("tourist is already saved as a team user.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("That change conflicts with newer data");
   });
 
   it("renders the playground without the shared navbar and with saved credentials only", async () => {

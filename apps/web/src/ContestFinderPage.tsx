@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
 import { Card } from "./components/ui.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
 import { ContestFinderContestTab } from "./ContestFinderContestTab.js";
 import { FriendSubmissionSyncPanel } from "./FriendSubmissionSyncPanel.js";
 import {
@@ -18,10 +20,13 @@ import {
   type JudgeSourceFilterId
 } from "./JudgeSourceFilter.js";
 import { queryKeys } from "./queryKeys.js";
+import { ContestRouteTabs } from "./SectionRouteTabs.js";
 import { trpc } from "./trpc.js";
 import { useFriendSubmissionSync } from "./useFriendSubmissionSync.js";
 
 export function ContestFinderPage(): React.JSX.Element {
+  const { t } = useTranslation("contestFinder");
+  const { locale } = useLocale();
   const friendSubmissionSync = useFriendSubmissionSync();
   const [searchQuery, setSearchQuery] = useState("");
   const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
@@ -45,17 +50,18 @@ export function ContestFinderPage(): React.JSX.Element {
           selectedJudgeSources.has(judgeSourceFor(contest)) &&
           (normalizedSearchQuery === "" || contestFinderSearchText(contest).includes(normalizedSearchQuery))
         )
-        .sort(sortContestFinderRows),
-    [contests, normalizedSearchQuery, selectedJudgeSources]
+        .sort((left, right) => sortContestFinderRows(left, right, locale)),
+    [contests, locale, normalizedSearchQuery, selectedJudgeSources]
   );
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+      <ContestRouteTabs />
       <section className="mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contest Finder</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Find contests your friends solved
+            {t("subtitle")}
           </p>
         </div>
       </section>
@@ -83,18 +89,19 @@ export function ContestFinderPage(): React.JSX.Element {
 }
 
 function ContestFinderSetupPrompt(): React.JSX.Element {
+  const { t } = useTranslation("contestFinder");
   return (
     <Card className="p-5">
       <div className="flex items-start gap-3">
         <UsersRound className="mt-0.5 size-4 text-blue-300" aria-hidden="true" />
         <div>
-          <p className="text-sm font-medium text-zinc-100">Add friends first.</p>
+          <p className="text-sm font-medium text-zinc-100">{t("addFriendsTitle")}</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Add friends from{" "}
+            {t("addFriendsBefore")}{" "}
             <Link to={appPaths.friends} className="text-blue-300 hover:text-blue-200 hover:underline">
-              Friends
+              {t("addFriendsLink")}
             </Link>
-            , then sync friend submissions.
+            {t("addFriendsAfter")}
           </p>
         </div>
       </div>

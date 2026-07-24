@@ -8,10 +8,13 @@ import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
+import { IntroductionRoute } from "./IntroductionRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
+import { ResourcesLayout } from "./ResourcesLayout.js";
+import { StandaloneLayout } from "./StandaloneLayout.js";
 import { TeamRoute } from "./TeamRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
 
@@ -25,6 +28,18 @@ const appRoute = createRoute({
   component: ProtectedLayout
 });
 
+const resourcesAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "resources-app",
+  component: ResourcesLayout
+});
+
+const standaloneRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "standalone",
+  component: StandaloneLayout
+});
+
 const indexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.root,
@@ -34,25 +49,25 @@ const indexRoute = createRoute({
 });
 
 const connectJudgesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => standaloneRoute,
   path: appPaths.connectJudges,
   component: ConnectJudgesRoute
 });
 
 const connectJudgeProviderRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => standaloneRoute,
   path: "/connect-judges/$provider",
   component: ConnectJudgeProviderRoute
 });
 
 const qojConnectJudgeTutorialRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => standaloneRoute,
   path: appPaths.connectQojTutorial,
   component: QojConnectJudgeTutorialPage
 });
 
 const playgroundRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => standaloneRoute,
   path: appPaths.playground,
   component: PlaygroundRoute
 });
@@ -88,13 +103,27 @@ const friendsRoute = createRoute({
 });
 
 const resourcesRoute = createRoute({
-  getParentRoute: () => appRoute,
+  getParentRoute: () => resourcesAppRoute,
   path: appPaths.resources,
   component: ResourcesRoute
 });
 
+const programmingFundamentalsRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.programmingFundamentals,
+  beforeLoad: () => {
+    throw redirect({ to: appPaths.resources });
+  }
+});
+
+const introductionRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.introduction,
+  component: IntroductionRoute
+});
+
 const resourcesSubpathRoute = createRoute({
-  getParentRoute: () => appRoute,
+  getParentRoute: () => resourcesAppRoute,
   path: `${appPaths.resources}/$`,
   component: ResourcesRoute
 });
@@ -128,15 +157,21 @@ const routeTree = rootRoute.addChildren([
     contestsRoute,
     findProblemsRoute,
     friendsRoute,
-    resourcesRoute,
-    resourcesSubpathRoute,
     teamRoute,
     upsolvingRoute
   ]),
-  playgroundRoute,
-  connectJudgesRoute,
-  qojConnectJudgeTutorialRoute,
-  connectJudgeProviderRoute
+  resourcesAppRoute.addChildren([
+    resourcesRoute,
+    introductionRoute,
+    programmingFundamentalsRoute,
+    resourcesSubpathRoute
+  ]),
+  standaloneRoute.addChildren([
+    playgroundRoute,
+    connectJudgesRoute,
+    qojConnectJudgeTutorialRoute,
+    connectJudgeProviderRoute
+  ])
 ]);
 
 export const router = createRouter({ routeTree });

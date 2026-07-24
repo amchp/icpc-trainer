@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>English + Spanish internationalization — implementation plan</title>
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem("icpc-i18n-plan-theme");
+        const dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      } catch {
+        document.documentElement.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches);
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      --page: #f4f7fb;
+      --panel: #ffffff;
+      --panel-soft: #edf2f8;
+      --panel-strong: #e3eaf4;
+      --ink: #152033;
+      --muted: #627087;
+      --line: #cbd5e1;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --cyan: #0891b2;
+      --green: #059669;
+      --amber: #d97706;
+      --rose: #e11d48;
+      --shadow: 0 18px 46px rgba(35, 55, 85, .08);
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    html.dark {
+      --page: #09090b;
+      --panel: #12141a;
+      --panel-soft: #191c24;
+      --panel-strong: #222631;
+      --ink: #f4f4f5;
+      --muted: #9ca3af;
+      --line: #303541;
+      --blue: #60a5fa;
+      --blue-soft: #172554;
+      --cyan: #22d3ee;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --shadow: 0 18px 54px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--blue) 12%, transparent), transparent 31rem),
+        var(--page);
+      color: var(--ink);
+      font: 15px/1.6 var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+    a { color: inherit; }
+    code { font: .9em var(--mono); }
+
+    .shell { max-width: 1160px; margin: 0 auto; padding: 28px 24px 96px; }
+    .topbar { display: flex; justify-content: flex-end; margin-bottom: 38px; }
+    .theme-toggle {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel);
+      color: var(--ink);
+      padding: 7px 11px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font: 12px var(--mono);
+    }
+    button:focus-visible, a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--blue) 50%, transparent);
+      outline-offset: 3px;
+    }
+
+    .hero { max-width: 900px; margin-bottom: 34px; }
+    .eyebrow { margin-bottom: 10px; color: var(--blue); font: 700 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(36px, 6vw, 64px); line-height: 1.01; letter-spacing: -.05em; }
+    .lead { max-width: 800px; margin: 0; color: var(--muted); font-size: 17px; }
+
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 32px 0 72px; }
+    .metric { min-height: 108px; padding: 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+    .metric .k { color: var(--muted); font: 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .metric .v { margin-top: 10px; font-size: 19px; font-weight: 750; letter-spacing: -.02em; }
+    .metric .v.accent { color: var(--blue); }
+
+    section { margin: 0 0 72px; scroll-margin-top: 24px; }
+    .section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .section-kicker { min-width: 34px; color: var(--blue); font: 700 11px var(--mono); }
+    h2 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+    .intro { max-width: 800px; margin: 0 0 24px 46px; color: var(--muted); }
+
+    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
+    .decision { padding: 22px; border-left: 4px solid var(--blue); }
+    .decision strong { display: block; margin-bottom: 5px; }
+    .decision p { margin: 0; color: var(--muted); }
+
+    .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .choice { position: relative; padding: 20px; overflow: hidden; }
+    .choice.selected { border-color: color-mix(in srgb, var(--blue) 72%, var(--line)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--blue) 10%, transparent), var(--shadow); }
+    .choice .state { display: inline-block; margin-bottom: 18px; padding: 4px 7px; border-radius: 6px; background: var(--panel-soft); color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+    .choice.selected .state { background: color-mix(in srgb, var(--blue) 15%, var(--panel)); color: var(--blue); }
+    .choice h3 { margin: 0 0 6px; font-size: 17px; }
+    .choice p { margin: 0; color: var(--muted); font-size: 13px; }
+    .mini-control { margin: 18px 0; min-height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-soft); font: 700 12px var(--mono); }
+    .rail span { padding: 0 8px; }
+    .rail .on { color: var(--blue); text-decoration: underline 2px; text-underline-offset: 6px; }
+    .popover-demo { display: grid; gap: 4px; }
+    .popover-demo small { display: block; padding: 5px 8px; border-radius: 5px; background: var(--panel); color: var(--muted); }
+
+    .demo { margin-top: 24px; overflow: hidden; }
+    .demo-label { padding: 10px 15px; border-bottom: 1px solid var(--line); background: var(--panel-soft); color: var(--muted); font: 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .app-frame { background: #09090b; color: #f4f4f5; }
+    .app-header { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 10px 16px; }
+    .brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 750; }
+    .logo { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #3f3f46; border-radius: 8px; color: #60a5fa; font: 800 10px var(--mono); }
+    .demo-nav { display: flex; gap: 5px; padding: 8px 16px 10px; border-top: 1px solid #27272a; color: #a1a1aa; font-size: 12px; }
+    .demo-nav span { padding: 6px 9px; white-space: nowrap; }
+    .menu-demo { display: none; padding: 12px 16px; border-top: 1px solid #27272a; color: #a1a1aa; font-size: 12px; }
+    .menu-demo strong { display: block; margin-bottom: 5px; color: #f4f4f5; }
+    .demo-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .sync-demo { border: 1px solid #3f3f46; border-radius: 7px; padding: 7px 10px; color: #d4d4d8; font-size: 12px; }
+    .language-demo {
+      position: relative;
+      min-width: 104px;
+      min-height: 40px;
+      overflow: hidden;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      background: #18181b;
+      color: #f4f4f5;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .language-demo::after { content: ""; position: absolute; inset: auto 0 0; height: 2px; background: #60a5fa; transform: scaleX(0); transform-origin: left; }
+    .language-demo.changed::after { animation: sweep .45s ease-out; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #27272a; border: 1px solid #3f3f46; }
+    .demo-note { padding: 12px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    @keyframes sweep { 45% { transform: scaleX(1); } 100% { transform: scaleX(0); transform-origin: right; } }
+
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; padding: 28px; }
+    .flow-step { position: relative; padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+    .flow-step:not(:last-child)::after { content: "→"; position: absolute; right: -23px; top: 50%; transform: translateY(-50%); color: var(--blue); font: 22px var(--mono); }
+    .flow-step .label { color: var(--blue); font: 700 10px var(--mono); text-transform: uppercase; }
+    .flow-step strong { display: block; margin: 6px 0 3px; }
+    .flow-step span { color: var(--muted); font-size: 12px; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel { padding: 22px; }
+    .panel h3 { margin: 0 0 13px; font-size: 17px; }
+    .clean-list { list-style: none; margin: 0; padding: 0; }
+    .clean-list li { position: relative; padding: 10px 0 10px 22px; border-top: 1px solid var(--line); }
+    .clean-list li::before { content: ""; position: absolute; left: 2px; top: 18px; width: 7px; height: 7px; border-radius: 2px; background: var(--blue); }
+    .clean-list small { display: block; color: var(--muted); }
+
+    .contract { overflow-x: auto; }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; background: var(--panel); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); background: var(--panel-soft); font: 700 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    td code { color: var(--blue); }
+
+    .catalog { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .tree { padding: 20px; }
+    .tree h3 { margin: 0 0 12px; font-size: 16px; }
+    .tree pre { margin: 0; overflow-x: auto; color: var(--muted); font: 12px/1.7 var(--mono); }
+    .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+    .rule { padding: 17px; }
+    .rule strong { display: block; margin-bottom: 6px; }
+    .rule p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .timeline { margin-left: 15px; border-left: 2px solid var(--line); }
+    .phase { position: relative; padding: 0 0 29px 28px; }
+    .phase::before { content: ""; position: absolute; left: -8px; top: 4px; width: 12px; height: 12px; border: 2px solid var(--page); border-radius: 50%; background: var(--blue); }
+    .phase h3 { margin: 0 0 4px; font-size: 17px; }
+    .phase p { max-width: 800px; margin: 0; color: var(--muted); }
+    .phase code { display: inline-block; margin-top: 7px; padding: 3px 7px; border-radius: 6px; background: var(--panel-soft); color: var(--blue); }
+
+    .checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .check { padding: 18px; border-top: 3px solid var(--green); }
+    .check:nth-child(2) { border-top-color: var(--cyan); }
+    .check:nth-child(3) { border-top-color: var(--amber); }
+    .check strong { display: block; margin-bottom: 7px; }
+    .check ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+    .risks { display: grid; gap: 10px; }
+    .risk { display: grid; grid-template-columns: 1.2fr 2fr; gap: 18px; padding: 17px 20px; }
+    .risk strong { color: var(--rose); }
+    .risk p { margin: 0; color: var(--muted); }
+    .sources { margin-top: 18px; padding: 20px; }
+    .sources h3 { margin: 0 0 10px; }
+    .sources ul { margin: 0; padding-left: 20px; color: var(--muted); }
+    .sources a { text-decoration-color: color-mix(in srgb, var(--blue) 60%, transparent); text-underline-offset: 3px; }
+
+    footer { padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 950px) {
+      .summary, .flow { grid-template-columns: repeat(2, 1fr); }
+      .choices, .rules, .checks { grid-template-columns: 1fr; }
+      .flow-step:nth-child(2)::after { display: none; }
+      .demo-nav { display: none; }
+      .menu-demo { display: block; }
+    }
+    @media (max-width: 700px) {
+      .shell { padding: 20px 16px 72px; }
+      .summary, .flow, .split, .catalog { grid-template-columns: 1fr; }
+      .flow-step::after { display: none; }
+      .intro { margin-left: 0; }
+      .sync-demo { width: 38px; overflow: hidden; color: transparent; }
+      .sync-demo::before { content: "↻"; display: block; color: #d4d4d8; text-align: center; font-size: 16px; }
+      .app-header { gap: 8px; }
+      .brand span { display: none; }
+      .language-demo { display: none; }
+      .risk { grid-template-columns: 1fr; gap: 4px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .language-demo.changed::after { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar"><button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">Theme</button></div>
+
+    <header class="hero">
+      <div class="eyebrow">Implementation plan · ICPC Trainer</div>
+      <h1>English + Spanish, without a second-class language</h1>
+      <p class="lead">Localize every app-owned surface with typed catalogs, account-synced preference, structured errors, and a one-click peer-language control. Keep judge data, code, routes, and training state intact.</p>
+    </header>
+
+    <div class="summary" aria-label="Plan summary">
+      <div class="metric"><div class="k">Languages</div><div class="v accent">English · Español</div></div>
+      <div class="metric"><div class="k">Coverage</div><div class="v">Every user surface</div></div>
+      <div class="metric"><div class="k">Persistence</div><div class="v">Account + local mirror</div></div>
+      <div class="metric"><div class="k">Route changes</div><div class="v">None</div></div>
+    </div>
+
+    <section id="outcome">
+      <div class="section-head"><span class="section-kicker">01</span><h2>Outcome and boundaries</h2></div>
+      <p class="intro">A language is complete only when the surrounding states—errors, accessibility text, auth, progress, and realtime feedback—are complete too.</p>
+      <div class="card decision">
+        <strong>One product, two complete presentations</strong>
+        <p>Every app-owned screen and Learning Guide is available in English and neutral Latin American Spanish. Spanish uses a direct “tú” voice. “Upsolving” remains the canonical label in both languages.</p>
+      </div>
+      <div class="split" style="margin-top:16px">
+        <article class="card panel">
+          <h3>Translate</h3>
+          <ul class="clean-list">
+            <li>Navigation, forms, filters, tables, statuses and actions</li>
+            <li>Auth and in-app Clerk components</li>
+            <li>Toasts, loading, empty and failure states</li>
+            <li>ARIA labels, alt text and guide content</li>
+            <li>Number, date, time, percent and visible sort behavior</li>
+          </ul>
+        </article>
+        <article class="card panel">
+          <h3>Keep verbatim</h3>
+          <ul class="clean-list">
+            <li>Judge, contest and problem names from providers</li>
+            <li>Handles, tags and technical identifiers</li>
+            <li>C++ code, values and executable expressions</li>
+            <li>Raw Playground payloads and diagnostic output</li>
+            <li>Routes, analytics events and machine-facing enums</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="switcher">
+      <div class="section-head"><span class="section-kicker">02</span><h2>Language control</h2></div>
+      <p class="intro">Three researched patterns were considered. The direct peer button fits exactly two languages: visible, one-click, native-name copy, and no menu state.</p>
+      <div class="choices">
+        <article class="card choice selected">
+          <span class="state">Selected</span>
+          <h3>Direct peer</h3>
+          <div class="mini-control">◎&nbsp; Español</div>
+          <p>Always names the other available language. Compact, independent, and immediate.</p>
+        </article>
+        <article class="card choice">
+          <span class="state">Not selected</span>
+          <h3>Compiler rail</h3>
+          <div class="mini-control rail"><span class="on">English</span><span>|</span><span>Español</span></div>
+          <p>Distinctive and explicit, but too wide for an already dense training header.</p>
+        </article>
+        <article class="card choice">
+          <span class="state">Not selected</span>
+          <h3>Checked popover</h3>
+          <div class="mini-control popover-demo"><b>◎ English⌄</b><small>✓ English &nbsp; · &nbsp; Español</small></div>
+          <p>Future-ready, but adds a second interaction that two languages do not need.</p>
+        </article>
+      </div>
+
+      <div class="card demo">
+        <div class="demo-label">Interactive header mock · utilities and navigation do not share a row</div>
+        <div class="app-frame">
+          <div class="app-header">
+            <div class="brand"><span class="logo">ICPC</span><span>ICPC Trainer</span></div>
+            <div class="demo-actions">
+              <span class="sync-demo" id="syncDemo">Sync</span>
+              <button class="language-demo" id="languageDemo" type="button" aria-label="Switch language to Spanish"><span aria-hidden="true">◎</span> <span id="languageLabel" lang="es">Español</span></button>
+              <span class="avatar" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="demo-nav" id="demoNav"><span>Find Problems</span><span>Upsolving</span><span>Contests</span><span>Contest Finder</span><span>Resources</span><span>Team</span><span>Friends</span></div>
+          <div class="menu-demo"><strong>Compact header</strong>Navigation and the full peer-language row move into the menu below <code>lg</code>.</div>
+        </div>
+        <div class="demo-note" id="languageStatus" role="status">Desktop: utilities above, full-width navigation below. Compact: menu navigation. Small mobile: icon-only Sync and language inside the menu.</div>
+      </div>
+
+      <div class="split" style="margin-top:16px">
+        <article class="card panel">
+          <h3><code>lg</code> and wider</h3>
+          <ul class="clean-list">
+            <li>Row 1: brand, Sync, Judges, peer language and avatar.</li>
+            <li>Row 2: the seven primary navigation links use the full content width.</li>
+            <li>Navigation stays on one line; no truncation or wrapping.</li>
+          </ul>
+        </article>
+        <article class="card panel">
+          <h3>Below <code>lg</code></h3>
+          <ul class="clean-list">
+            <li>Primary navigation and Judges move into the menu.</li>
+            <li>From <code>sm</code>, the peer-language button remains in the utility row.</li>
+            <li>Below <code>sm</code>, Sync is icon-only and language becomes a full-width menu row.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="resolution">
+      <div class="section-head"><span class="section-kicker">03</span><h2>Preference lifecycle</h2></div>
+      <p class="intro">Render immediately from a local decision, then reconcile with the authenticated App User without exposing a mixed-language protected page.</p>
+      <div class="card flow">
+        <div class="flow-step"><span class="label">Before paint</span><strong>Resolve locally</strong><span>Pending choice → mirror → browser → English.</span></div>
+        <div class="flow-step"><span class="label">Document</span><strong>Set language</strong><span>Update <code>&lt;html lang&gt;</code> and initialize i18next.</span></div>
+        <div class="flow-step"><span class="label">Authenticated</span><strong>Reconcile account</strong><span>Server preference wins unless a pending choice needs retry.</span></div>
+        <div class="flow-step"><span class="label">On change</span><strong>Apply immediately</strong><span>Keep route and state; sync in the background.</span></div>
+      </div>
+      <div class="split" style="margin-top:16px">
+        <article class="card panel">
+          <h3>Local contract</h3>
+          <ul class="clean-list">
+            <li><code>icpc-trainer.locale</code><small>Immediate first-paint mirror.</small></li>
+            <li><code>icpc-trainer.locale.pending</code><small>Explicit choice waiting for account persistence.</small></li>
+            <li>Failed account sync keeps the selected local language and retries later.</li>
+          </ul>
+        </article>
+        <article class="card panel">
+          <h3>Provider order</h3>
+          <ul class="clean-list">
+            <li><code>QueryClientProvider</code></li>
+            <li><code>LocaleProvider → localized ClerkProvider</code></li>
+            <li><code>AuthGate → AuthenticatedLocaleSync</code></li>
+            <li>Existing judge, sync, toaster and router providers</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="contracts">
+      <div class="section-head"><span class="section-kicker">04</span><h2>Public contracts</h2></div>
+      <p class="intro">Locale is an App User preference. Normal UI receives stable codes and parameters—not English prose—from the server.</p>
+      <div class="card contract">
+        <table>
+          <thead><tr><th>Surface</th><th>Change</th><th>Contract</th></tr></thead>
+          <tbody>
+            <tr><td>Shared</td><td>Supported locale enum</td><td><code>AppLocale = "en" | "es"</code></td></tr>
+            <tr><td>Database</td><td>Nullable App User preference</td><td><code>app_users.preferred_locale</code> · migration <code>0002</code></td></tr>
+            <tr><td>Account API</td><td>Read preference</td><td><code>account.locale.query() → { locale: AppLocale | null }</code></td></tr>
+            <tr><td>Account API</td><td>Save preference</td><td><code>account.setLocale.mutate({ locale }) → { locale }</code></td></tr>
+            <tr><td>Errors</td><td>Localized message reference</td><td><code>{ code, params?, technicalDetail? }</code></td></tr>
+            <tr><td>Realtime</td><td>Structured warnings/errors</td><td>Judge and friend sync events carry codes; raw detail stays diagnostic.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="catalogs">
+      <div class="section-head"><span class="section-kicker">05</span><h2>Catalog system</h2></div>
+      <p class="intro">Use <code>i18next</code> + <code>react-i18next</code>, checked-in feature namespaces, generated key types, English fallback, and CI parity enforcement.</p>
+      <div class="catalog">
+        <article class="card tree">
+          <h3>English source</h3>
+          <pre>src/locales/en/
+├─ common
+├─ shell
+├─ auth
+├─ judges
+├─ findProblems
+├─ upsolving
+├─ contests
+├─ contestFinder
+├─ roster
+├─ resources
+├─ programmingFundamentals
+└─ playground</pre>
+        </article>
+        <article class="card tree">
+          <h3>Spanish parity</h3>
+          <pre>src/locales/es/
+└─ identical namespaces
+   ├─ identical keys
+   ├─ identical plural forms
+   ├─ identical interpolation params
+   └─ natural LatAm wording</pre>
+        </article>
+      </div>
+      <div class="rules">
+        <article class="card rule"><strong>Typed at use sites</strong><p>Generated declarations make missing or misspelled keys a TypeScript error.</p></article>
+        <article class="card rule"><strong>Structured, not duplicated</strong><p>Static navigation, filters, columns and tutorials become locale-aware factories or hooks.</p></article>
+        <article class="card rule"><strong>Checked in CI</strong><p>Catalog parity, plural parameters, empty values and hard-coded UI strings fail before merge.</p></article>
+      </div>
+    </section>
+
+    <section id="learning">
+      <div class="section-head"><span class="section-kicker">06</span><h2>Learning Guide rule</h2></div>
+      <p class="intro">Programming Fundamentals remains one React lesson and one progress identity. Language changes presentation, never curriculum state.</p>
+      <div class="card decision">
+        <strong>One curriculum, natural translation</strong>
+        <p>Share section anchors, examples, interactions, code, progress, and outcomes. Translate all teaching prose and controls naturally; do not create English and Spanish page components that can drift apart.</p>
+      </div>
+    </section>
+
+    <section id="implementation">
+      <div class="section-head"><span class="section-kicker">07</span><h2>Implementation slices</h2></div>
+      <p class="intro">Merge in reviewable layers, but keep the user-facing selector hidden until every namespace and flow has parity.</p>
+      <div class="timeline">
+        <div class="phase"><h3>Plan artifact and contracts</h3><p>Land this document, shared locale/error types, the additive App User column, and account API tests.</p><code>docs · shared · db · api</code></div>
+        <div class="phase"><h3>Runtime and persistence</h3><p>Add i18next, before-paint resolution, provider hierarchy, Clerk mapping, local pending state, and account reconciliation.</p><code>apps/web/src/i18n</code></div>
+        <div class="phase"><h3>Shell and language control</h3><p>Add the direct peer button to AppHeader, auth, Resources and a shared standalone layout. Split desktop utilities and navigation into two rows; collapse navigation below <code>lg</code>.</p><code>AppHeader · AuthGate · StandaloneLayout</code></div>
+        <div class="phase"><h3>Surface migration</h3><p>Convert navigation, judge setup, training pages, rosters, realtime feedback, Resources, Playground chrome and accessibility copy.</p><code>feature namespaces</code></div>
+        <div class="phase"><h3>Errors and formatting</h3><p>Replace surfaced server prose with stable codes; centralize number, date, percent and collator behavior.</p><code>api errors · format helpers</code></div>
+        <div class="phase"><h3>Guide, enforcement and release</h3><p>Finish the bilingual guide, run catalog lint/type generation, complete both-language browser flows, then expose the selector.</p><code>guide namespace · CI · e2e</code></div>
+      </div>
+    </section>
+
+    <section id="verification">
+      <div class="section-head"><span class="section-kicker">08</span><h2>Verification</h2></div>
+      <p class="intro">The release bar covers persistence, interaction continuity, catalog completeness, assistive technology, and every major workflow.</p>
+      <div class="checks">
+        <article class="card check">
+          <strong>Contracts and runtime</strong>
+          <ul><li>Only <code>en</code>/<code>es</code> accepted</li><li>Preference isolated per App User</li><li>Auth upsert never resets locale</li><li>Pending sync retries safely</li><li><code>&lt;html lang&gt;</code> always matches</li></ul>
+        </article>
+        <article class="card check">
+          <strong>Interaction and access</strong>
+          <ul><li>Route, forms and filters survive switching</li><li>Correct native peer label</li><li>Keyboard focus stays visible</li><li>320px and 400% zoom pass</li><li>Reduced motion disables sweep</li></ul>
+        </article>
+        <article class="card check">
+          <strong>Coverage and flows</strong>
+          <ul><li>Catalog key/parameter parity</li><li>No unapproved hard-coded UI copy</li><li>Auth and judge connection</li><li>All training and roster pages</li><li>Resources, guide and Playground</li></ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="risks">
+      <div class="section-head"><span class="section-kicker">09</span><h2>Risks and research</h2></div>
+      <div class="risks">
+        <article class="card risk"><strong>Header overflow</strong><p>Spanish labels are longer, so desktop utilities and navigation get separate rows. Below <code>lg</code>, navigation moves into the menu; below <code>sm</code>, Sync is icon-only and language becomes a full-width menu row.</p></article>
+        <article class="card risk"><strong>Silent English leakage</strong><p>Use typed keys, namespace parity tests and <code>i18next-cli lint</code>. Production fallback is safety, not the completeness check.</p></article>
+        <article class="card risk"><strong>Server prose as contract</strong><p>Convert normal UI paths to error codes and parameters. Preserve raw detail only for logs and Playground diagnostics.</p></article>
+        <article class="card risk"><strong>Clerk localization maturity</strong><p>Use <code>esMX</code> behind an adapter, add project overrides, and test in-app Clerk surfaces. The hosted Account Portal remains external.</p></article>
+        <article class="card risk"><strong>In-progress Resources work</strong><p>Treat the current dirty working tree as the baseline. Refactor the existing guide and roadmap without discarding or recreating those changes.</p></article>
+      </div>
+      <article class="card sources">
+        <h3>Research used</h3>
+        <ul>
+          <li><a href="https://designsystem.digital.gov/patterns/select-a-language/two-languages/">USWDS · Select between two languages</a></li>
+          <li><a href="https://designsystem.digital.gov/components/language-selector/accessibility-tests/">USWDS · Language selector accessibility tests</a></li>
+          <li><a href="https://www.w3.org/International/questions/qa-when-lang-neg">W3C · When to use language negotiation</a></li>
+          <li><a href="https://www.w3.org/International/questions/qa-html-language-declarations.html">W3C · Declaring language in HTML</a></li>
+          <li><a href="https://www.i18next.com/overview/typescript">i18next · TypeScript</a> and <a href="https://www.i18next.com/principles/namespaces">namespaces</a></li>
+          <li><a href="https://github.com/i18next/i18next-cli">i18next CLI · catalog types, status and hard-coded-string linting</a></li>
+          <li><a href="https://clerk.com/docs/guides/customizing-clerk/localization">Clerk · localization</a></li>
+        </ul>
+      </article>
+    </section>
+
+    <footer>No CONTEXT.md or ADR change is required: locale infrastructure is implementation detail, and the selected choices are reversible. Existing English domain terms remain canonical in code.</footer>
+  </div>
+
+  <script>
+    const themeToggle = document.getElementById("themeToggle");
+    const refreshThemeLabel = () => {
+      themeToggle.textContent = document.documentElement.classList.contains("dark") ? "Light mode" : "Dark mode";
+    };
+    refreshThemeLabel();
+    themeToggle.addEventListener("click", () => {
+      const dark = !document.documentElement.classList.contains("dark");
+      document.documentElement.classList.toggle("dark", dark);
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      localStorage.setItem("icpc-i18n-plan-theme", dark ? "dark" : "light");
+      refreshThemeLabel();
+    });
+
+    const languageDemo = document.getElementById("languageDemo");
+    const languageLabel = document.getElementById("languageLabel");
+    const demoNav = document.getElementById("demoNav");
+    const syncDemo = document.getElementById("syncDemo");
+    const languageStatus = document.getElementById("languageStatus");
+    let demoLocale = "en";
+
+    languageDemo.addEventListener("click", () => {
+      demoLocale = demoLocale === "en" ? "es" : "en";
+      languageDemo.classList.remove("changed");
+      void languageDemo.offsetWidth;
+      languageDemo.classList.add("changed");
+
+      if (demoLocale === "es") {
+        languageLabel.textContent = "English";
+        languageLabel.lang = "en";
+        languageDemo.setAttribute("aria-label", "Cambiar idioma a inglés");
+        demoNav.innerHTML = "<span>Buscar problemas</span><span>Upsolving</span><span>Concursos</span><span>Buscar concursos</span><span>Recursos</span><span>Equipo</span><span>Amigos</span>";
+        syncDemo.textContent = "Sincronizar";
+        languageStatus.textContent = "Idioma cambiado a español. La ruta y el estado de la pantalla no cambiaron.";
+      } else {
+        languageLabel.textContent = "Español";
+        languageLabel.lang = "es";
+        languageDemo.setAttribute("aria-label", "Switch language to Spanish");
+        demoNav.innerHTML = "<span>Find Problems</span><span>Upsolving</span><span>Contests</span><span>Contest Finder</span><span>Resources</span><span>Team</span><span>Friends</span>";
+        syncDemo.textContent = "Sync";
+        languageStatus.textContent = "Language changed to English. The route and screen state did not change.";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 import type { FriendSubmissionSyncInput } from "@icpc-trainer/api";
-import { JUDGE_PROVIDERS, JUDGES, RUN_STATUSES } from "@icpc-trainer/shared";
+import { JUDGE_PROVIDERS, JUDGES, LOCALIZED_MESSAGE_CODES, RUN_STATUSES } from "@icpc-trainer/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 
 import { type FriendSubmissionSyncState } from "./FriendSubmissionSyncPanel.js";
+import { localizedErrorMessage, localizedMessageText } from "./i18n/localizedMessage.js";
 import { judgeLabel } from "./judgeConfig.js";
 import { useProviderStateSubscriptions } from "./providerRunObserver.js";
 import { invalidateAfterFriendSubmissionSync } from "./queryKeys.js";
@@ -49,12 +50,15 @@ export function useFriendSubmissionSync(): {
       [event.provider]: event
     }));
     const latestWarning = event.warnings.at(-1);
-    const warningKey = latestWarning === undefined ? null : `${event.provider}:${latestWarning}`;
+    const warningKey = latestWarning === undefined ? null : `${event.provider}:${JSON.stringify(latestWarning)}`;
     if (latestWarning !== undefined && warningKey !== null && !shownWarningsRef.current.has(warningKey)) {
       shownWarningsRef.current.add(warningKey);
       toaster.warning({
-        title: `${judgeLabel(event.provider)} friend submission sync warning`,
-        description: latestWarning
+        title: localizedMessageText({
+          code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+          params: { judge: judgeLabel(event.provider) }
+        }),
+        description: localizedMessageText(latestWarning)
       });
     }
     if (event.status === RUN_STATUSES.Running) {
@@ -83,8 +87,8 @@ export function useFriendSubmissionSync(): {
     error: Error
   ) => {
     toaster.error({
-      title: `${judgeLabel(provider)} friend submission sync status failed`,
-      description: error.message
+      title: localizedMessageText({ code: LOCALIZED_MESSAGE_CODES.Unavailable }),
+      description: localizedErrorMessage(error)
     });
   }, [toaster]);
 
@@ -100,8 +104,8 @@ export function useFriendSubmissionSync(): {
       await trpc.contestFinder.syncFriendSubmissions.mutate();
     } catch (error) {
       toaster.error({
-        title: "Friend submission sync failed",
-        description: error instanceof Error ? error.message : String(error)
+        title: localizedMessageText({ code: LOCALIZED_MESSAGE_CODES.GenericError }),
+        description: localizedErrorMessage(error)
       });
     }
   }, [toaster]);

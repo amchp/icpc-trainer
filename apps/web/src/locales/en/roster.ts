@@ -1,0 +1,23 @@
+export const roster = {
+  teamTitle: "Team",
+  teamSubtitle: "Manage handles counted as your team",
+  friendsTitle: "Friends",
+  friendsSubtitle: "Track handles used to find contests",
+  handle: "Handle",
+  judge: "Judge",
+  addUser: "Add user",
+  addFriend: "Add friend",
+  user: "User",
+  action: "Action",
+  remove: "Remove",
+  removeLabel: "Remove {{username}}",
+  noTeam: "No team users added yet. Add the first handle above.",
+  noFriends: "No friends added yet.",
+  syncFriends: "Sync friend submissions",
+  userSaveError: "User was not saved",
+  friendSaveError: "Friend was not saved",
+  userCount_one: "user",
+  userCount_other: "users",
+  friendCount_one: "friend",
+  friendCount_other: "friends"
+} as const;

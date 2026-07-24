@@ -1,4 +1,5 @@
 import type { FriendSubmissionSyncEvent } from "@icpc-trainer/api";
+import { LOCALIZED_MESSAGE_CODES } from "@icpc-trainer/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,7 +19,10 @@ describe("friend submission sync state reducer", () => {
       type: "warning",
       provider: "codeforces",
       userHandle: "tourist",
-      message: "rate limited",
+      message: {
+        code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+        technicalDetail: "rate limited"
+      },
       stepsTotal: 4,
       stepsLeft: 2
     };
@@ -33,17 +37,33 @@ describe("friend submission sync state reducer", () => {
       stepsLeft: 0,
       summary: {
         friendsProcessed: 2,
-        warnings: [{ judge: "codeforces", message: "rate limited" }]
+        warnings: [{
+          judge: "codeforces",
+          message: {
+            code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+            technicalDetail: "rate limited"
+          }
+        }]
       }
     });
 
-    expect(started).toMatchObject({ status: "running", current: "Preparing friend submission sync" });
-    expect(warned.warnings).toEqual(["tourist: rate limited"]);
+    expect(started).toMatchObject({
+      status: "running",
+      current: { code: LOCALIZED_MESSAGE_CODES.FriendSyncPreparing }
+    });
+    expect(warned.warnings).toEqual([{
+      code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+      params: { handle: "tourist" },
+      technicalDetail: "rate limited"
+    }]);
     expect(completed).toMatchObject({
       status: "completed",
       progress: 100,
       friendsProcessed: 2,
-      warnings: ["rate limited"]
+      warnings: [{
+        code: LOCALIZED_MESSAGE_CODES.FriendSyncWarning,
+        technicalDetail: "rate limited"
+      }]
     });
   });
 });

@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
@@ -15,6 +16,7 @@ export function CodeforcesConnectJudgeForm({
   onChangeProvider,
   tutorialUrl
 }: ProviderConnectJudgeFormProps): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const navigate = useNavigate();
   const { setCredentialStatus } = useConnectedJudges();
   const toaster = useToaster();
@@ -39,7 +41,7 @@ export function CodeforcesConnectJudgeForm({
         void navigate({ to: "/judges" });
       } catch (error) {
         toaster.error({
-          title: "Could not connect Codeforces",
+          title: t("connectError", { judge: "Codeforces" }),
           description: formatConnectJudgeError(error)
         });
       }
@@ -72,7 +74,7 @@ export function CodeforcesConnectJudgeForm({
           <form.Field name="handle">
             {(field) => (
               <Label>
-                <FieldLabel>Handle</FieldLabel>
+                <FieldLabel>{t("handle")}</FieldLabel>
                 <Input
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -90,7 +92,7 @@ export function CodeforcesConnectJudgeForm({
             <form.Field name="apiKey">
               {(field) => (
                 <Label>
-                  <FieldLabel>API key</FieldLabel>
+                  <FieldLabel>{t("apiKey")}</FieldLabel>
                   <Textarea
                     value={field.state.value}
                     onBlur={field.handleBlur}
@@ -109,7 +111,7 @@ export function CodeforcesConnectJudgeForm({
             <form.Field name="apiSecret">
               {(field) => (
                 <Label>
-                  <FieldLabel>API secret</FieldLabel>
+                  <FieldLabel>{t("apiSecret")}</FieldLabel>
                   <Textarea
                     value={field.state.value}
                     onBlur={field.handleBlur}
@@ -131,7 +133,7 @@ export function CodeforcesConnectJudgeForm({
             {(isSubmitting) => (
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                Enter
+                {t("enter")}
               </Button>
             )}
           </form.Subscribe>

@@ -11,6 +11,7 @@ import {
   appUserJudgeUsers,
   appUsers,
   healthChecks,
+  learningProgress,
   providerCredentials,
   schema,
   userContestStates,
@@ -31,6 +32,7 @@ export {
   appUserJudgeUsers,
   appUsers,
   healthChecks,
+  learningProgress,
   providerCredentials,
   userContestStates,
   users

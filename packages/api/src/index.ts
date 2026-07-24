@@ -17,6 +17,7 @@ import {
 import { createFindProblemsRouter } from "./findProblems.js";
 import { createFriendsRouter } from "./friends.js";
 import { createJudgesRouter, type JudgeSyncService } from "./judges.js";
+import { createLearningProgressRouter } from "./learningProgress.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 import {
   createUpsolvingRouter,
@@ -85,6 +86,7 @@ export const appRouter = t.router({
   findProblems: createFindProblemsRouter(t),
   friends: createFriendsRouter(t),
   judges: createJudgesRouter(t),
+  learningProgress: createLearningProgressRouter(t),
   playground: createPlaygroundRouter(t),
   team: createTeamRouter(t),
   upsolving: createUpsolvingRouter(t)
@@ -139,6 +141,8 @@ export type {
 export type {
   FriendsRoster,
 } from "./friends.js";
+
+export type { LearningProgressRow } from "./learningProgress.js";
 
 export type {
   StoredCodeforcesCredentials,

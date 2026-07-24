@@ -12,10 +12,12 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "typecheck": "tsc -b",
     "test": "vitest run",
+    "i18n:check": "vitest run src/locales/catalogs.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.3",
+    "@clerk/localizations": "^4.13.5",
     "@clerk/ui": "^1.23.0",
     "@icpc-trainer/api": "workspace:*",
     "@icpc-trainer/shared": "workspace:*",
@@ -30,9 +32,12 @@
     "@trpc/react-query": "11.18.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "i18next": "^26.3.6",
     "lucide-react": "1.21.0",
+    "prism-react-renderer": "^2.4.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
+    "react-i18next": "^17.0.10",
     "tailwind-merge": "3.6.0",
     "zod": "^4.4.3"
   },

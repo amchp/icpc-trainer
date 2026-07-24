@@ -1,14 +1,18 @@
 import { ClerkProvider } from "@clerk/clerk-react";
+import { enUS, esMX } from "@clerk/localizations";
+import { APP_LOCALES } from "@icpc-trainer/shared";
 import { shadcn } from "@clerk/ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { StrictMode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./styles.css";
 import { AuthGate } from "./AuthGate.js";
 import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { env } from "./env.js";
+import "./i18n/i18n.js";
+import { LocaleProvider, useLocale } from "./i18n/LocaleProvider.js";
 import { router } from "./router.js";
 import { SyncProvider } from "./SyncContext.js";
 import { ToasterProvider } from "./Toaster.js";
@@ -107,20 +111,36 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
+function LocalizedClerkProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const { locale } = useLocale();
+  return (
+    <ClerkProvider
+      publishableKey={env.VITE_CLERK_PUBLISHABLE_KEY}
+      appearance={clerkAppearance}
+      localization={locale === APP_LOCALES.Spanish ? esMX : enUS}
+      afterSignOutUrl="/"
+    >
+      {children}
+    </ClerkProvider>
+  );
+}
+
 createRoot(root).render(
   <StrictMode>
-    <ClerkProvider publishableKey={env.VITE_CLERK_PUBLISHABLE_KEY} appearance={clerkAppearance} afterSignOutUrl="/">
-      <QueryClientProvider client={queryClient}>
-        <ToasterProvider>
-          <AuthGate>
-            <ConnectedJudgesProvider>
-              <SyncProvider>
-                <RouterProvider router={router} />
-              </SyncProvider>
-            </ConnectedJudgesProvider>
-          </AuthGate>
-        </ToasterProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+    <QueryClientProvider client={queryClient}>
+      <LocaleProvider>
+        <LocalizedClerkProvider>
+          <ToasterProvider>
+            <AuthGate>
+              <ConnectedJudgesProvider>
+                <SyncProvider>
+                  <RouterProvider router={router} />
+                </SyncProvider>
+              </ConnectedJudgesProvider>
+            </AuthGate>
+          </ToasterProvider>
+        </LocalizedClerkProvider>
+      </LocaleProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

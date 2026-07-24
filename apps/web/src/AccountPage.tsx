@@ -1,18 +1,21 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Badge,
   Button,
 } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
+import { localizedErrorMessage } from "./i18n/localizedMessage.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
 import { judgeConfigs, judgeLabel, type JudgeProvider } from "./judgeConfig.js";
 import { trpc } from "./trpc.js";
 import { useToaster } from "./Toaster.js";
 
 export function AccountPage(): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const navigate = useNavigate();
   const { connectedJudges, credentialStatus, refresh } = useConnectedJudges();
   const toaster = useToaster();
@@ -26,8 +29,8 @@ export function AccountPage(): React.JSX.Element {
       await refresh();
     } catch (error) {
       toaster.error({
-        title: `Could not clear ${judgeLabel(judge)}`,
-        description: error instanceof Error ? error.message : String(error)
+        title: t("clearError", { judge: judgeLabel(judge) }),
+        description: localizedErrorMessage(error)
       });
     } finally {
       setClearing(null);
@@ -41,8 +44,8 @@ export function AccountPage(): React.JSX.Element {
       await refresh();
     } catch (error) {
       toaster.error({
-        title: "Could not clear connected judges",
-        description: error instanceof Error ? error.message : String(error)
+        title: t("clearAllError"),
+        description: localizedErrorMessage(error)
       });
     } finally {
       setClearing(null);
@@ -53,8 +56,8 @@ export function AccountPage(): React.JSX.Element {
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <section className="mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Judges</h1>
-          <p className="mt-1 text-sm text-zinc-500">Connect or clear judge accounts</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{t("subtitle")}</p>
         </div>
         <Button
           type="button"
@@ -64,21 +67,21 @@ export function AccountPage(): React.JSX.Element {
           onClick={() => void clearAllJudges()}
         >
           {clearing === "all" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <X className="size-4" aria-hidden="true" />}
-          Clear all connected judges
+          {t("clearAll")}
         </Button>
       </section>
 
       <section className="space-y-8">
         <div className="py-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-sm font-semibold text-zinc-100">Connected Judges</h2>
+            <h2 className="text-sm font-semibold text-zinc-100">{t("connectedJudges")}</h2>
             {missingJudges.length > 0 ? (
               <Button type="button" onClick={() => void navigate({ to: "/connect-judges" })}>
                 <Plus className="size-4" aria-hidden="true" />
-                Connect judge
+                {t("connectJudge")}
               </Button>
             ) : (
-              <p className="text-sm text-zinc-500">All connected</p>
+              <p className="text-sm text-zinc-500">{t("allConnected")}</p>
             )}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -90,7 +93,7 @@ export function AccountPage(): React.JSX.Element {
                     <div className="flex min-w-0 items-center gap-2">
                       <JudgeDisplay judge={judge.id} />
                       <Badge className={judgeStatus.saved ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-zinc-700 bg-zinc-900 text-zinc-400"}>
-                        {judgeStatus.saved ? "Connected" : "Missing"}
+                        {judgeStatus.saved ? t("connected") : t("missing")}
                       </Badge>
                     </div>
                     {judgeStatus.saved ? (
@@ -102,7 +105,7 @@ export function AccountPage(): React.JSX.Element {
                         onClick={() => void clearJudge(judge.id)}
                       >
                         {clearing === judge.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <X className="size-3.5" aria-hidden="true" />}
-                        Clear
+                        {t("clear")}
                       </Button>
                     ) : null}
                   </div>

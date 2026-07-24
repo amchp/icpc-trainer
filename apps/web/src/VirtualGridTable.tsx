@@ -1,5 +1,6 @@
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "./lib.js";
 
@@ -27,6 +28,7 @@ export function VirtualGridTable<TRow>({
   readonly renderCells: (row: TRow, index: number) => readonly ReactNode[];
   readonly showRowNumbers?: boolean;
 }): React.JSX.Element {
+  const { t } = useTranslation("common");
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollMargin = tableContainerRef.current?.offsetTop ?? 0;
   const rowVirtualizer = useWindowVirtualizer({
@@ -65,7 +67,7 @@ export function VirtualGridTable<TRow>({
               {showRowNumbers ? (
                 <div
                   role="columnheader"
-                  aria-label="Table position"
+                  aria-label={t("table.position")}
                   className="px-3 py-3 text-left align-middle text-xs font-medium text-zinc-500"
                 >
                   #
@@ -114,7 +116,7 @@ export function VirtualGridTable<TRow>({
                 {showRowNumbers ? (
                   <div
                     role="cell"
-                    aria-label={`Table position ${virtualRow.index + 1}`}
+                    aria-label={t("table.positionNumber", { number: virtualRow.index + 1 })}
                     className="px-3 py-3 align-middle font-mono text-xs tabular-nums text-zinc-500"
                   >
                     {virtualRow.index + 1}

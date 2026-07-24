@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Card, FieldLabel, Input, Label, Separator, Textarea } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
@@ -50,6 +51,7 @@ export function QojConnectJudgeForm({
   onChangeProvider,
   tutorialUrl
 }: ProviderConnectJudgeFormProps): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const navigate = useNavigate();
   const { setCredentialStatus } = useConnectedJudges();
   const toaster = useToaster();
@@ -72,7 +74,7 @@ export function QojConnectJudgeForm({
         void navigate({ to: "/judges" });
       } catch (error) {
         toaster.error({
-          title: "Could not connect QOJ",
+          title: t("connectError", { judge: "QOJ" }),
           description: formatConnectJudgeError(error)
         });
       }
@@ -104,7 +106,7 @@ export function QojConnectJudgeForm({
           <form.Field name="handle">
             {(field) => (
               <Label>
-                <FieldLabel>Handle</FieldLabel>
+                <FieldLabel>{t("handle")}</FieldLabel>
                 <Input
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -145,7 +147,7 @@ export function QojConnectJudgeForm({
             {(isSubmitting) => (
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                Enter
+                {t("enter")}
               </Button>
             )}
           </form.Subscribe>

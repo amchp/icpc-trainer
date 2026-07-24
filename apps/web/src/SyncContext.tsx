@@ -11,14 +11,22 @@ import {
   RUN_STATUSES as SyncRunStatus,
   SYNC_ERROR_PHASES,
   SYNC_STEP_STATUSES as SyncStepStatus,
+  LOCALIZED_MESSAGE_CODES,
+  type AppLocale,
+  type LocalizedMessageReference,
   type RunStatus
 } from "@icpc-trainer/shared";
+import type { TFunction } from "i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
+import { formatNumber } from "./i18n/format.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
+import { localizedMessageText } from "./i18n/localizedMessage.js";
+import { judgeLabel, syncObservableProviders } from "./judgeConfig.js";
 import { useProviderStateSubscriptions } from "./providerRunObserver.js";
 import { invalidateAfterJudgeSync } from "./queryKeys.js";
-import { judgeLabel, syncObservableProviders } from "./judgeConfig.js";
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
@@ -93,17 +101,33 @@ const addSummary = (left: JudgeSyncSummary, right: JudgeSyncSummary): JudgeSyncS
   errors: left.errors + right.errors
 });
 
-const countLabel = (count: number, singular: string, plural = `${singular}s`): string =>
-  `${count} ${count === 1 ? singular : plural}`;
-
-const completionSummaryDescription = (summary: JudgeSyncSummary): string => {
+export const completionSummaryDescription = (
+  summary: JudgeSyncSummary,
+  t: TFunction<"shell">,
+  locale: AppLocale
+): string => {
   const changedContests = summary.contestsSynced + summary.regularContestsImported;
+  const contests = t("syncProgress.completion.contests", {
+    value: t("syncProgress.completion.contest", { count: changedContests, value: formatNumber(changedContests, locale) })
+  });
+  const problems = t("syncProgress.completion.problems", {
+    value: t("syncProgress.completion.problem", {
+      count: summary.regularProblemsImported,
+      value: formatNumber(summary.regularProblemsImported, locale)
+    })
+  });
+  const submissions = t("syncProgress.completion.submissions", {
+    inserted: t("syncProgress.completion.inserted", {
+      count: summary.submissionsInserted,
+      value: formatNumber(summary.submissionsInserted, locale)
+    }),
+    updated: t("syncProgress.completion.updated", {
+      count: summary.submissionsUpdated,
+      value: formatNumber(summary.submissionsUpdated, locale)
+    })
+  });
 
-  return [
-    `Contests: ${countLabel(changedContests, "new/updated contest", "new/updated contests")}`,
-    `Problems: ${countLabel(summary.regularProblemsImported, "imported problem", "imported problems")}`,
-    `Submissions: ${countLabel(summary.submissionsInserted, "new submission", "new submissions")}, ${countLabel(summary.submissionsUpdated, "updated submission", "updated submissions")}`
-  ].join(". ");
+  return t("syncProgress.completion.description", { contests, problems, submissions });
 };
 
 const completionKey = (
@@ -205,7 +229,7 @@ const optimisticProviderState = (provider: JudgeSyncInput["provider"]): JudgeSyn
 
 const errorProviderState = (
   provider: JudgeSyncInput["provider"],
-  message: string
+  message: LocalizedMessageReference
 ): JudgeSyncProviderState => {
   const latestEvent: JudgeSyncEvent = {
     type: JudgeSyncEventType.Error,
@@ -228,6 +252,8 @@ const errorProviderState = (
 };
 
 export function SyncProvider({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const { t } = useTranslation("shell");
+  const { locale } = useLocale();
   const toaster = useToaster();
   const queryClient = useQueryClient();
   const [providerStates, setProviderStates] = useState<ReadonlyMap<JudgeSyncInput["provider"], JudgeSyncProviderState>>(
@@ -254,12 +280,12 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     }
 
     if (state.latestEvent?.type === JudgeSyncEventType.Error) {
-      const key = `${state.provider}:${state.latestEvent.message}`;
+      const key = `${state.provider}:${JSON.stringify(state.latestEvent.message)}`;
       if (!shownErrorsRef.current.has(key)) {
         shownErrorsRef.current.add(key);
         toaster.error({
-          title: `Could not sync ${state.provider}`,
-          description: state.latestEvent.message
+          title: t("syncProgress.error", { judge: state.provider }),
+          description: localizedMessageText(state.latestEvent.message)
         });
       }
     }
@@ -271,8 +297,8 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
         invalidateAfterJudgeSync(queryClient);
         if (state.latestEvent.summary.errors === 0 && runningProvidersRef.current.has(state.provider)) {
           toaster.success({
-            title: `${judgeLabel(state.provider)} sync complete`,
-            description: completionSummaryDescription(state.latestEvent.summary)
+            title: t("syncProgress.complete", { judge: judgeLabel(state.provider) }),
+            description: completionSummaryDescription(state.latestEvent.summary, t, locale)
           });
         }
       }
@@ -281,7 +307,7 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     if (state.status === SyncRunStatus.Completed || state.status === SyncRunStatus.Error) {
       runningProvidersRef.current.delete(state.provider);
     }
-  }, [queryClient, toaster]);
+  }, [locale, queryClient, t, toaster]);
 
   const subscribeToSyncState = useCallback((
     provider: JudgeSyncInput["provider"],
@@ -298,7 +324,9 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
     provider: JudgeSyncInput["provider"],
     error: Error
   ) => {
-    setProviderState(errorProviderState(provider, error.message));
+    setProviderState(errorProviderState(provider, {
+      code: LOCALIZED_MESSAGE_CODES.Unavailable
+    }));
   }, [setProviderState]);
 
   useProviderStateSubscriptions({
@@ -331,8 +359,10 @@ export function SyncProvider({ children }: { readonly children: ReactNode }): Re
 
     for (const provider of uniqueProviders) {
       void trpc.judges.startSync.mutate({ provider }).catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        setProviderState(errorProviderState(provider, message));
+        setProviderState(errorProviderState(provider, {
+          code: LOCALIZED_MESSAGE_CODES.GenericError,
+          technicalDetail: error instanceof Error ? error.message : String(error)
+        }));
       });
     }
   }, [providerStates, setProviderState]);

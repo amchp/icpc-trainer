@@ -1,4 +1,4 @@
-import { JUDGES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import { APP_LOCALE_VALUES, JUDGES, LEARNING_PROGRESS_STATUSES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
@@ -21,6 +21,7 @@ export const appUsers = sqliteTable("app_users", {
   primaryEmail: text("primary_email"),
   displayName: text("display_name"),
   imageUrl: text("image_url"),
+  preferredLocale: text("preferred_locale", { enum: [...APP_LOCALE_VALUES] }),
   ...timestamps
 }, (table) => [
   uniqueIndex("app_users_clerk_user_id_unique").on(table.clerkUserId)
@@ -45,6 +46,18 @@ export const appUserJudgeUsers = sqliteTable("app_user_judge_users", {
   primaryKey({ columns: [table.appUserId, table.userId] }),
   index("app_user_judge_users_app_role_idx").on(table.appUserId, table.role),
   index("app_user_judge_users_user_idx").on(table.userId)
+]);
+
+export const learningProgress = sqliteTable("learning_progress", {
+  appUserId: integer("app_user_id").references(() => appUsers.id).notNull(),
+  guideId: text("guide_id").notNull(),
+  status: text("status", { enum: enumValues(LEARNING_PROGRESS_STATUSES) }).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull()
+}, (table) => [
+  primaryKey({ columns: [table.appUserId, table.guideId] }),
+  index("learning_progress_app_status_idx").on(table.appUserId, table.status)
 ]);
 
 export const contests = sqliteTable("contests", {
@@ -144,6 +157,7 @@ export const schema = {
   appUsers,
   users,
   appUserJudgeUsers,
+  learningProgress,
   contests,
   problems,
   problemTags,

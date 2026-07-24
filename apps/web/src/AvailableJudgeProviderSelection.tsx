@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "./components/ui.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
@@ -6,13 +7,14 @@ import { connectJudgeProviders } from "./connectJudgeProviders.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
 
 export function AvailableJudgeProviderSelection(): React.JSX.Element {
+  const { t } = useTranslation("judges");
   const navigate = useNavigate();
   const { connectedJudges } = useConnectedJudges();
   const connectedJudgeIds = new Set(connectedJudges.map((judge) => judge.id));
   const availableProviders = connectJudgeProviders.filter((provider) => !connectedJudgeIds.has(provider.id));
 
   if (availableProviders.length === 0) {
-    return <p className="text-sm text-zinc-500">All connected</p>;
+    return <p className="text-sm text-zinc-500">{t("allConnected")}</p>;
   }
 
   return (

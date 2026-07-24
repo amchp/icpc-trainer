@@ -1,9 +1,13 @@
 import type { UpsolvingProblemRow, UpsolvingProblemStatus } from "@icpc-trainer/api";
+import type { AppLocale } from "@icpc-trainer/shared";
 import { type ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { JudgeDisplay, judgeSearchText } from "./JudgeDisplay.js";
+import { formatNumber, formatPercent } from "./i18n/format.js";
 import { cn } from "./lib.js";
+import { i18n } from "./i18n/i18n.js";
 
 export type UpsolvingStatusFilter = "all" | Exclude<UpsolvingProblemStatus, "new">;
 
@@ -15,13 +19,6 @@ export type SearchableUpsolvingProblemRow = UpsolvingProblemRow & {
 export const tableGridTemplateColumns =
   "3.25rem minmax(16rem, 44%) minmax(6rem, 10%) minmax(6rem, 11%) minmax(5rem, 9%) minmax(5rem, 9%) minmax(6rem, 10%)";
 
-export const statusLabels: Record<UpsolvingProblemStatus, string> = {
-  new: "New",
-  upsolved: "New",
-  attempted: "Attempted",
-  solved: "Solved"
-};
-
 const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
   new: "text-blue-300",
   upsolved: "text-violet-300",
@@ -30,8 +27,6 @@ const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
 };
 
 const problemLetterPattern = /^[A-Z][0-9]?\.\s+/;
-
-const formatPercentage = (value: number): string => `${value}%`;
 
 const problemLetterFromJudgeId = (row: UpsolvingProblemRow): string | null => {
   const match = row.problemJudgeId.match(/([A-Z][0-9]?)$/);
@@ -82,10 +77,13 @@ export const statusCountsFor = (
   return counts;
 };
 
-export const createUpsolvingProblemColumns = (): Array<ColumnDef<SearchableUpsolvingProblemRow>> => [
+export const createUpsolvingProblemColumns = (
+  t: TFunction<"upsolving">,
+  locale: AppLocale
+): Array<ColumnDef<SearchableUpsolvingProblemRow>> => [
   {
     accessorKey: "displayProblemName",
-    header: "Problem",
+    header: t("columns.problem"),
     cell: ({ row }) => (
       <div className="min-w-0 whitespace-normal">
         <a
@@ -104,17 +102,17 @@ export const createUpsolvingProblemColumns = (): Array<ColumnDef<SearchableUpsol
   },
   {
     accessorKey: "judge",
-    header: "Judge",
+    header: t("columns.judge"),
     cell: ({ row }) => (
       <JudgeDisplay judge={row.original.judge} />
     )
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: t("columns.status"),
     cell: ({ row }) => (
       <span className={cn("text-xs font-medium", statusTextClassNames[row.original.status])}>
-        {statusLabels[row.original.status]}
+        {row.original.status === "attempted" ? t("status.attempted") : row.original.status === "solved" ? t("status.solved") : t("status.new")}
       </span>
     )
   },
@@ -122,37 +120,37 @@ export const createUpsolvingProblemColumns = (): Array<ColumnDef<SearchableUpsol
     accessorKey: "rating",
     header: ({ column }) => (
       <SortableHeader
-        label="Rating"
+        label={t("columns.rating")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       />
     ),
-    cell: ({ row }) => <span className="tabular-nums">{row.original.rating}</span>
+    cell: ({ row }) => <span className="tabular-nums">{formatNumber(row.original.rating, locale)}</span>
   },
   {
     accessorKey: "solvePercentage",
     header: ({ column }) => (
       <SortableHeader
-        label="Solve %"
+        label={t("columns.solve")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
       />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{formatPercentage(row.original.solvePercentage)}</span>
+      <span className="tabular-nums">{formatPercent(row.original.solvePercentage, locale)}</span>
     )
   },
   {
     accessorKey: "friendSolvedCount",
     header: ({ column }) => (
       <SortableHeader
-        label="Friends"
+        label={t("columns.friends")}
         direction={column.getIsSorted()}
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
       />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.friendSolvedCount}</span>
+      <span className="tabular-nums">{formatNumber(row.original.friendSolvedCount, locale)}</span>
     )
   }
 ];
@@ -168,7 +166,7 @@ function SortableHeader({
 }): React.JSX.Element {
   const Icon = direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ArrowUpDown;
   const directionLabel =
-    direction === "asc" ? "sorted ascending" : direction === "desc" ? "sorted descending" : "not sorted";
+    direction === "asc" ? i18n.t("table.ascending") : direction === "desc" ? i18n.t("table.descending") : i18n.t("table.unsorted");
 
   return (
     <button

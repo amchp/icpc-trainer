@@ -1,6 +1,7 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
 import { Search } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Card,
@@ -9,6 +10,9 @@ import {
   Skeleton,
   TableCount
 } from "./components/ui.js";
+import { localizedErrorMessage } from "./i18n/localizedMessage.js";
+import { formatNumber } from "./i18n/format.js";
+import { useLocale } from "./i18n/LocaleProvider.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
 import {
   emptyJudgeSourceCounts,
@@ -39,6 +43,8 @@ export function ContestFinderContestTab({
   readonly onSearchQueryChange: (value: string) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation(["contestFinder", "contests"]);
+  const { locale } = useLocale();
   const judgeSourceCounts = useMemo(
     () =>
       allContests.reduce<Record<JudgeSourceFilterId, number>>((counts, contest) => {
@@ -55,12 +61,12 @@ export function ContestFinderContestTab({
     <Card className="overflow-hidden">
       <div className="grid gap-3 border-b border-zinc-800 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <Label className="relative">
-          <span className="sr-only">Search contests</span>
+          <span className="sr-only">{t("contestFinder:searchLabel")}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" aria-hidden="true" />
           <Input
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder="Search contests or friends"
+            placeholder={t("contestFinder:searchPlaceholder")}
             className="pl-9"
           />
         </Label>
@@ -70,7 +76,7 @@ export function ContestFinderContestTab({
             counts={judgeSourceCounts}
             onChange={onJudgeSourceFiltersChange}
           />
-          <TableCount count={contests.length} itemName="contest" />
+          <TableCount count={contests.length} itemName={t("contests:contestCount", { count: 1 })} pluralItemName={t("contests:contestCount", { count: 2 })} />
         </div>
       </div>
 
@@ -79,10 +85,10 @@ export function ContestFinderContestTab({
           <Skeleton className="h-64" />
         </div>
       ) : error ? (
-        <div className="p-5 text-sm text-red-300">{error.message}</div>
+        <div className="p-5 text-sm text-red-300">{localizedErrorMessage(error)}</div>
       ) : contests.length === 0 ? (
         <div className="p-8 text-sm text-zinc-500">
-          No unsimulated contests match the current filters.
+          {t("contestFinder:empty")}
         </div>
       ) : (
         <VirtualGridTable
@@ -90,7 +96,7 @@ export function ContestFinderContestTab({
           estimateSize={78}
           getRowKey={(contest) => `${contest.judge}:${contest.judgeId}`}
           gridTemplateColumns={contestFinderGridTemplateColumns}
-          headerGroups={[["Contest", "Judge", "Friends"]]}
+          headerGroups={[[t("contestFinder:columns.contest"), t("contestFinder:columns.judge"), t("contestFinder:columns.friends")]]}
           minWidthClassName="min-w-[34rem]"
           showRowNumbers={false}
           renderCells={(contest) => [
@@ -105,7 +111,7 @@ export function ContestFinderContestTab({
               </a>
             </div>,
             <JudgeDisplay judge={contest.judge} />,
-            contest.friendCount
+            formatNumber(contest.friendCount, locale)
           ]}
         />
       )}

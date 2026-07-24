@@ -20,6 +20,10 @@ vi.mock("./trpc", () => ({
   setAuthToken: vi.fn()
 }));
 
+vi.mock("./i18n/LanguageButton.js", () => ({
+  LanguageButton: () => null
+}));
+
 describe("AuthGate first-user redirects", () => {
   beforeEach(() => {
     signInPropsMock.mockClear();

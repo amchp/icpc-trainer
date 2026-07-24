@@ -24,3 +24,43 @@ textarea,
 select {
   font: inherit;
 }
+
+.guide-copy code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.1em 0.4em;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(63, 63, 70, 0.6);
+  background: rgba(39, 39, 42, 0.55);
+  color: #e4e4e7;
+  white-space: nowrap;
+}
+
+.guide-rise {
+  animation: guide-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.guide-grow {
+  transform-origin: left;
+  animation: guide-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes guide-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes guide-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-rise,
+  .guide-grow {
+    animation: none;
+  }
+}

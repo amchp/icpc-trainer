@@ -14,3 +14,5 @@ htmls
 apps/web/playwright/.clerk
 *.tsbuildinfo
 .env.local
+.codex/workflows/
+.codex-workflows/
