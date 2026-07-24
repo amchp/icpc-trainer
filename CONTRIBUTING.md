@@ -40,3 +40,5 @@ Pull requests should include:
 - Notes for migrations, environment changes, deployment changes, or follow-up work.
 
 Keep unrelated refactors out of feature and bug-fix pull requests. If a cleanup is useful, make it a separate PR unless it is required for the current change.
+
+Pull requests to `main` must pass the `verify` status check and receive code-owner approval. Pushing new reviewable commits dismisses earlier approvals, so request review again after the final push. Maintainers merge accepted pull requests with squash merge.

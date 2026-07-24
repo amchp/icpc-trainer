@@ -2,6 +2,7 @@ import { SignIn, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 import { APP_NAME } from "@icpc-trainer/shared";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 
+import { getFirstUserRedirectUrl } from "./firstUserFlow.js";
 import { setAuthToken } from "./trpc.js";
 
 function AuthenticatedProviders({ children }: { readonly children: ReactNode }): React.JSX.Element {
@@ -56,6 +57,8 @@ function AuthenticatedProviders({ children }: { readonly children: ReactNode }):
 }
 
 export function AuthGate({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const firstUserRedirectUrl = getFirstUserRedirectUrl(window.location);
+
   return (
     <>
       <SignedOut>
@@ -65,7 +68,11 @@ export function AuthGate({ children }: { readonly children: ReactNode }): React.
               <img src="/icpc_trainer.png" alt="" className="size-9 object-contain" />
               <span className="text-sm font-semibold text-zinc-100">{APP_NAME}</span>
             </div>
-            <SignIn routing="hash" signUpForceRedirectUrl="/" fallbackRedirectUrl="/" />
+            <SignIn
+              routing="hash"
+              signUpForceRedirectUrl={firstUserRedirectUrl}
+              fallbackRedirectUrl={firstUserRedirectUrl}
+            />
           </section>
         </main>
       </SignedOut>

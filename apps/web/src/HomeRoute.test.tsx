@@ -25,6 +25,7 @@ import { ToasterProvider } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
 const navigateMock = vi.hoisted(() => vi.fn());
+const currentPathMock = vi.hoisted(() => ({ value: "/find-problems" }));
 const credentialStatusMock = vi.hoisted(() => vi.fn(async () => ({
   codeforces: {
     saved: true
@@ -229,7 +230,9 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
+  Navigate: ({ to }: { to: string }) => <div data-testid="route-redirect" data-to={to} />,
   Outlet: () => <div data-testid="route-outlet" />,
+  useLocation: () => ({ pathname: currentPathMock.value }),
   useNavigate: () => navigateMock
 }));
 
@@ -386,6 +389,7 @@ describe("app shell", () => {
     vi.clearAllMocks();
     syncObservers.clear();
     syncSnapshots.clear();
+    currentPathMock.value = "/find-problems";
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: true
@@ -409,6 +413,41 @@ describe("app shell", () => {
     expect(screen.queryByText("Judge sync")).not.toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
   });
+
+  it("sends first-time users on normal app paths to Connect Judges", async () => {
+    credentialStatusMock.mockResolvedValue({
+      codeforces: {
+        saved: false
+      },
+      qoj: {
+        saved: false
+      }
+    });
+
+    renderWithQuery(<ProtectedLayout />);
+
+    expect(await screen.findByTestId("route-redirect")).toHaveAttribute("data-to", "/connect-judges");
+  });
+
+  it.each(["/resources", "/resources/graphs/shortest-path"])(
+    "lets first-time users continue to %s without connecting a judge",
+    async (pathname) => {
+      currentPathMock.value = pathname;
+      credentialStatusMock.mockResolvedValue({
+        codeforces: {
+          saved: false
+        },
+        qoj: {
+          saved: false
+        }
+      });
+
+      renderWithQuery(<ProtectedLayout />);
+
+      expect(await screen.findByTestId("route-outlet")).toBeInTheDocument();
+      expect(screen.queryByTestId("route-redirect")).not.toBeInTheDocument();
+    }
+  );
 
   it("shows separate judge progress while a sync is running", async () => {
     syncSnapshots.set("codeforces", syncStateFromFixtureEvents("codeforces", syncEvents("codeforces").slice(0, 3)));

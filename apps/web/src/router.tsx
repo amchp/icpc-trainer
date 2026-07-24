@@ -93,6 +93,12 @@ const resourcesRoute = createRoute({
   component: ResourcesRoute
 });
 
+const resourcesSubpathRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: `${appPaths.resources}/$`,
+  component: ResourcesRoute
+});
+
 const teamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.team,
@@ -123,6 +129,7 @@ const routeTree = rootRoute.addChildren([
     findProblemsRoute,
     friendsRoute,
     resourcesRoute,
+    resourcesSubpathRoute,
     teamRoute,
     upsolvingRoute
   ]),
