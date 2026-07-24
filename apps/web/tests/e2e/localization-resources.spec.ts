@@ -10,22 +10,38 @@ test("persists language and Learning Progress across the Judge-independent Resou
 
   await expect(page).toHaveURL(/\/resources$/);
   await expect(page.getByRole("heading", { name: "Learn the foundations in order." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Programming Fundamentals" })).toBeVisible();
-  await expect(page.getByText("Coming soon")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Programming Fundamentals/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Programming Fundamentals/ })).toBeVisible();
 
   await page.getByRole("combobox", { name: "Choose language" }).selectOption("es");
   await expect(page.getByRole("heading", { name: "Aprende los fundamentos en orden." })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Aprende los fundamentos en orden." })).toBeVisible();
 
+  await page.getByRole("link", { name: /Fundamentos de programación/ }).click();
+  await expect(page).toHaveURL(/\/resources\/programming-fundamentals$/);
+  await expect(page.getByRole("heading", { name: "Aprende a pensar en bloques simples." })).toBeVisible();
+  await page.getByRole("button", { name: "Marcar como completada" }).click();
+  await expect(page.getByText("Guía completada")).toBeVisible();
+
+  await page.goto("/resources");
+  const fundamentalsCard = page.getByRole("link", { name: /Fundamentos de programación/ });
+  await expect(fundamentalsCard.getByText("Completada", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(fundamentalsCard.getByText("Completada", { exact: true })).toBeVisible();
+
   await page.setViewportSize({ width: 320, height: 700 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.goto("/resources/programming-fundamentals");
-  await expect(page).toHaveURL(/\/resources$/);
+
+  await page.getByRole("link", { name: /Fundamentos de programación/ }).click();
+  await page.getByRole("button", { name: "Volver a marcar en progreso" }).click();
+  await expect(page.getByText("Guía marcada en progreso")).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole("combobox", { name: "Elegir idioma" }).selectOption("en");
+  await expect(page.getByRole("heading", { name: "Learn to think in simple blocks." })).toBeVisible();
 });
 
-test.skip("keeps six localized code traces synchronized and responsive without persisting trace position", async ({ page }) => {
+test("keeps six localized code traces synchronized and responsive without persisting trace position", async ({ page }) => {
   const progressRequests: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("learningProgress")) progressRequests.push(request.postData() ?? "");

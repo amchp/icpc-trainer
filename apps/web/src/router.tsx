@@ -10,6 +10,7 @@ import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { IntroductionRoute } from "./IntroductionRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
+import { ProgrammingFundamentalsRoute } from "./ProgrammingFundamentalsRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { ResourcesRoute } from "./ResourcesRoute.js";
@@ -111,9 +112,7 @@ const resourcesRoute = createRoute({
 const programmingFundamentalsRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.programmingFundamentals,
-  beforeLoad: () => {
-    throw redirect({ to: appPaths.resources });
-  }
+  component: ProgrammingFundamentalsRoute
 });
 
 const introductionRoute = createRoute({

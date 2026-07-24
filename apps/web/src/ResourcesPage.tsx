@@ -1,6 +1,6 @@
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES, type LearningProgressStatus } from "@icpc-trainer/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowRight, Check, LockKeyhole } from "lucide-react";
+import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
@@ -13,7 +13,12 @@ export function ResourcesPage(): React.JSX.Element {
   const introduction = progressQuery.data?.find(
     (row) => row.guideId === LEARNING_GUIDE_IDS.Introduction
   );
-  const completedCount = introduction?.status === LEARNING_PROGRESS_STATUSES.Completed ? 1 : 0;
+  const fundamentals = progressQuery.data?.find(
+    (row) => row.guideId === LEARNING_GUIDE_IDS.ProgrammingFundamentals
+  );
+  const completedCount = [introduction, fundamentals].filter(
+    (guide) => guide?.status === LEARNING_PROGRESS_STATUSES.Completed
+  ).length;
 
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     status === LEARNING_PROGRESS_STATUSES.Completed
@@ -52,7 +57,7 @@ export function ResourcesPage(): React.JSX.Element {
 
         <div className="relative flex items-baseline justify-between gap-4 border-b border-zinc-800/80 pb-4">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{t("sequence")}</p>
-          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: 1 })}</p>
+          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: 2 })}</p>
         </div>
 
         <div className="relative mt-7 grid items-stretch gap-5 md:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)] md:gap-6">
@@ -92,23 +97,31 @@ export function ResourcesPage(): React.JSX.Element {
             </div>
           </div>
 
-          <article
-            className="mx-auto flex w-full max-w-sm flex-col rounded-lg border border-zinc-800 bg-zinc-900/60 px-5 py-5 text-zinc-500"
-            aria-labelledby="fundamentals-title"
+          <Link
+            to={appPaths.programmingFundamentals}
+            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-blue-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(96,165,250,0.07)] transition-all hover:bg-blue-400/[0.08] hover:shadow-[0_0_0_5px_rgba(96,165,250,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="font-mono text-[11px] text-zinc-600">02</span>
-              <LockKeyhole className="size-4 shrink-0 text-zinc-600" aria-hidden="true" />
+              <span className={cn("font-mono text-[11px]", fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-blue-300/80")}>02</span>
+              {fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
+                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
+              ) : (
+                <ArrowRight className="size-4 shrink-0 text-blue-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+              )}
             </div>
-            <h2 id="fundamentals-title" className="mt-3 text-lg font-semibold text-zinc-300">{t("fundamentals")}</h2>
+            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("fundamentals")}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               {t("fundamentalsDescription")}
             </p>
-            <p className="mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-              <LockKeyhole className="size-3" aria-hidden="true" />
-              {t("comingSoon")}
+            <p className={cn(
+              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
+              fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-blue-300"
+            )}>
+              <span aria-hidden="true" className={cn("size-1.5 rounded-full", fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-blue-400")} />
+              {progressQuery.isLoading ? t("status.loading") : statusLabel(fundamentals?.status)}
             </p>
-          </article>
+          </Link>
+
         </div>
       </section>
     </main>

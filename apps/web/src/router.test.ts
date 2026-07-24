@@ -26,8 +26,8 @@ describe("router", () => {
     expect(router.state.location.pathname).toBe("/resources/introduction");
   });
 
-  it("redirects the locked Programming Fundamentals guide", async () => {
+  it("recognizes the stable Programming Fundamentals guide URL", async () => {
     await router.navigate({ to: "/resources/programming-fundamentals" });
-    expect(router.state.location.pathname).toBe("/resources");
+    expect(router.state.location.pathname).toBe("/resources/programming-fundamentals");
   });
 });
