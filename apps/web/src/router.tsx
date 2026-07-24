@@ -122,6 +122,12 @@ const introductionRoute = createRoute({
   component: IntroductionRoute
 });
 
+const resourcesSubpathRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: `${appPaths.resources}/$`,
+  component: ResourcesRoute
+});
+
 const teamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.team,
@@ -154,7 +160,12 @@ const routeTree = rootRoute.addChildren([
     teamRoute,
     upsolvingRoute
   ]),
-  resourcesAppRoute.addChildren([resourcesRoute, introductionRoute, programmingFundamentalsRoute]),
+  resourcesAppRoute.addChildren([
+    resourcesRoute,
+    introductionRoute,
+    programmingFundamentalsRoute,
+    resourcesSubpathRoute
+  ]),
   standaloneRoute.addChildren([
     playgroundRoute,
     connectJudgesRoute,

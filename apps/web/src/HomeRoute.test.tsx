@@ -230,6 +230,7 @@ vi.mock("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
+  Navigate: ({ to }: { to: string }) => <div data-testid="route-redirect" data-to={to} />,
   Outlet: () => <div data-testid="route-outlet" />,
   useNavigate: () => navigateMock,
   useRouterState: ({ select }: { readonly select: (state: { readonly location: { readonly pathname: string } }) => unknown }) =>
@@ -411,6 +412,21 @@ describe("app shell", () => {
     expect(screen.getByRole("button", { name: /sync/i })).toBeInTheDocument();
     expect(screen.queryByText("Judge sync")).not.toBeInTheDocument();
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
+  });
+
+  it("sends first-time users on normal app paths to Connect Judges", async () => {
+    credentialStatusMock.mockResolvedValue({
+      codeforces: {
+        saved: false
+      },
+      qoj: {
+        saved: false
+      }
+    });
+
+    renderWithQuery(<ProtectedLayout />);
+
+    expect(await screen.findByTestId("route-redirect")).toHaveAttribute("data-to", "/connect-judges");
   });
 
   it("shows separate judge progress while a sync is running", async () => {

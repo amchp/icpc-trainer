@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { getFirstUserRedirectUrl } from "./firstUserFlow.js";
 import { AuthenticatedLocaleSync } from "./i18n/AuthenticatedLocaleSync.js";
 import { LanguageButton } from "./i18n/LanguageButton.js";
 import { clearAuthenticatedQueryCache } from "./queryKeys.js";
@@ -65,6 +66,8 @@ function AuthenticatedProviders({ children }: { readonly children: ReactNode }):
 }
 
 export function AuthGate({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const firstUserRedirectUrl = getFirstUserRedirectUrl(window.location);
+
   return (
     <>
       <SignedOut>
@@ -75,7 +78,11 @@ export function AuthGate({ children }: { readonly children: ReactNode }): React.
               <img src="/icpc_trainer.png" alt="" className="size-9 object-contain" />
               <span className="text-sm font-semibold text-zinc-100">{APP_NAME}</span>
             </div>
-            <SignIn routing="hash" signUpForceRedirectUrl="/" fallbackRedirectUrl="/" />
+            <SignIn
+              routing="hash"
+              signUpForceRedirectUrl={firstUserRedirectUrl}
+              fallbackRedirectUrl={firstUserRedirectUrl}
+            />
           </section>
         </main>
       </SignedOut>

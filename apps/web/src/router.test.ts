@@ -9,6 +9,18 @@ describe("router", () => {
     expect(router.state.location.pathname).toBe("/find-problems");
   });
 
+  it("routes resources subpaths to the resources area", async () => {
+    await router.navigate({
+      to: "/resources/$",
+      params: {
+        _splat: "graphs/shortest-path"
+      }
+    });
+
+    expect(router.state.location.pathname).toBe("/resources/graphs/shortest-path");
+    expect(router.state.matches.at(-1)?.routeId).toBe("/resources-app/resources/$");
+  });
+
   it("recognizes the stable Introduction guide URL", async () => {
     await router.navigate({ to: "/resources/introduction" });
     expect(router.state.location.pathname).toBe("/resources/introduction");
