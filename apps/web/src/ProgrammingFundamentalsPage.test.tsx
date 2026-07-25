@@ -155,6 +155,49 @@ describe("ProgrammingFundamentalsPage", () => {
     expect(comparison).toHaveTextContent("string result;");
   });
 
+  it("ends with text input and output, including a four-question practice set with code-block inputs", () => {
+    render(<ProgrammingFundamentalsPage />);
+
+    const guideSections = Array.from(document.querySelectorAll("main section[id]"));
+    expect(guideSections.at(-1)).toHaveAttribute("id", "entrada-salida");
+    expect(screen.getByRole("heading", { name: "Reading and outputting text" })).toBeInTheDocument();
+    expect(screen.getByText("Text input and output")).toBeInTheDocument();
+
+    const streams = screen.getByRole("region", { name: "C++ standard input and output streams" });
+    expect(streams).toHaveTextContent("cin >> value");
+    expect(streams).toHaveTextContent("cout << value");
+    expect(screen.getByRole("heading", { name: "Read one word" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Read a whole line" })).toBeInTheDocument();
+    expect(screen.getByText("getline(cin >> ws, line);")).toBeInTheDocument();
+    expect(document.getElementById("entrada-salida")).toHaveTextContent("getline(cin, name)");
+
+    const section = document.getElementById("entrada-salida");
+    expect(section).not.toBeNull();
+    const practice = within(section!).getByText("Question 1 of 4").closest<HTMLElement>("div.my-10");
+    expect(practice).not.toBeNull();
+    expect(within(practice!).getByLabelText("Question input")).toHaveTextContent("Ada Lovelace");
+
+    const nextQuestion = within(practice!).getByRole("button", { name: "Next question" });
+    fireEvent.click(nextQuestion);
+    expect(within(practice!).getByText("Question 2 of 4")).toBeInTheDocument();
+    expect(within(practice!).getByLabelText("Question input")).toHaveTextContent("Ada Lovelace");
+    expect(practice).toHaveTextContent("cin >> name");
+
+    fireEvent.click(nextQuestion);
+    expect(within(practice!).getByText("Question 3 of 4")).toBeInTheDocument();
+    const multilineInput = within(practice!).getByLabelText("Question input");
+    expect(
+      Array.from(multilineInput.querySelectorAll("[data-guide-line]"))
+        .map((line) => line.lastElementChild?.textContent)
+    ).toEqual(["3", "Binary Searchers"]);
+    expect(practice).toHaveTextContent("getline(cin >> ws, team)");
+
+    fireEvent.click(nextQuestion);
+    expect(within(practice!).getByText("Question 4 of 4")).toBeInTheDocument();
+    expect(within(practice!).getByLabelText("Question input")).toHaveTextContent("Ada Lovelace");
+    expect(practice).toHaveTextContent("cin >> first_name >> last_name");
+  });
+
   it("uses Spanish research destinations and labels when the lesson is in Spanish", async () => {
     await i18n.changeLanguage("es");
     render(<ProgrammingFundamentalsPage />);
@@ -172,5 +215,7 @@ describe("ProgrammingFundamentalsPage", () => {
     expect(screen.getByRole("heading", { name: "Operadores incorporados de C++" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "¿Qué ocurre cuando se encuentran tipos distintos?" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Controles interactivos" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leer y mostrar texto" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Flujos de entrada y salida estándar de C++" })).toBeInTheDocument();
   });
 });

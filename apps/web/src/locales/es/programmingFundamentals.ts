@@ -25,7 +25,7 @@ export const programmingFundamentals = {
     gap: "Ese «todavía no» es la razón de esta guía. Mientras no puedas combinar los fundamentos en programas pequeños como estos, todavía estás aprendiendo a usarlos; y eso es exactamente lo que sigue.",
     ready: "Si pudieras programar los tres, ya sabes usar los fundamentos. Esta guía hará que esos bloques sean más precisos y confiables."
   },
-  sections: { blocks: "Bloques", compilation: "Compilar y ejecutar", representation: "Representación", operators: "Operadores", conditionals: "Condicionales", iteration: "Iteración", functions: "Funciones", vectors: "Vectores", recursion: "Recursión" },
+  sections: { blocks: "Bloques", compilation: "Compilar y ejecutar", inputOutput: "Entrada y salida de texto", representation: "Representación", operators: "Operadores", conditionals: "Condicionales", iteration: "Iteración", functions: "Funciones", vectors: "Vectores", recursion: "Recursión" },
   blocks: {
     title: "Programar es una habilidad",
     p1: "Una habilidad compleja no aparece de golpe. Se forma al dominar acciones pequeñas y combinarlas. Leer una posición de ajedrez, seguir el ritmo de una canción o resolver un problema de programación funciona de la misma manera.",
@@ -55,6 +55,31 @@ export const programmingFundamentals = {
     question: "¿Qué crea este comando cuando la compilación tiene éxito?",
     sourceOption: "Un nuevo archivo fuente", compilerOption: "El compilador g++", executableOption: "Un ejecutable llamado programa",
     explanation: "-o programa nombra el ejecutable producido a partir de main.cpp. El archivo fuente y el compilador permanecen separados."
+  },
+  inputOutput: {
+    title: "Leer y mostrar texto",
+    openingQuestion: "¿Cómo recibe palabras un programa y muestra un resultado?",
+    p1: "Un programa se comunica mediante flujos. La entrada estándar proporciona datos mientras el programa se ejecuta y la salida estándar muestra su resultado. En C++, cin lee de la entrada estándar y cout escribe en la salida estándar.",
+    streamsLabel: "Flujos de entrada y salida estándar de C++",
+    inputLabel: "Leer de la entrada estándar",
+    inputDescription: "El operador >> toma de cin el siguiente valor separado por espacios y lo guarda en una variable.",
+    outputLabel: "Escribir en la salida estándar",
+    outputDescription: "El operador << envía texto y valores de variables a cout de izquierda a derecha. Usa '\\n' cuando la salida siguiente deba comenzar en una línea nueva.",
+    wordTitle: "Leer una palabra",
+    wordDescription: "Un string guarda texto. cin >> nombre omite los espacios iniciales y lee hasta el siguiente espacio, tabulación o salto de línea, así que es ideal para una palabra o token.",
+    lineTitle: "Leer una línea completa",
+    lineDescription: "Usa getline cuando los espacios formen parte de la entrada. Lee cada carácter hasta el salto de línea y guarda la línea completa en el string.",
+    whitespaceTitle: "Cuando >> aparece antes de getline",
+    whitespaceDescription: "El operador >> deja su salto de línea final en el flujo de entrada. Si getline viene después, consume primero los espacios con ws para que getline no lea inmediatamente una línea vacía.",
+    question: "¿Qué imprime este programa para la entrada mostrada?",
+    firstWordOption: "Hola, Ada",
+    fullLineOption: "Hola, Ada Lovelace",
+    lastWordOption: "Hola, Lovelace",
+    nothingOption: "Nada",
+    explanation: "getline conserva el espacio y lee la línea completa, así que nombre contiene Ada Lovelace.",
+    oneWordExplanation: "El operador >> se detiene en el primer espacio, así que nombre contiene solamente Ada.",
+    mixedLineExplanation: "La primera extracción lee 3. Después, ws consume los espacios pendientes para que getline pueda leer el nombre completo del equipo.",
+    reorderNamesExplanation: "Las dos operaciones >> leen Ada en nombre y Lovelace en apellido. Después cout escribe primero el apellido."
   },
   representation: {
     title: "Representación y tipos",
@@ -211,6 +236,6 @@ export const programmingFundamentals = {
     fibonacci: { label: "Traza de la recursión de Fibonacci", start: "main llama a fibonacci(4).", enter: "Entra a fibonacci({{n}}) y agrega su marco a la pila de llamadas.", check: "Comprueba si n = {{n}} es uno de los casos base, 0 o 1.", base: "n = {{n}} es un caso base, así que lo devuelve directamente sin crear más llamadas.", firstCall: "El valor no es un caso base. Evalúa primero la rama izquierda, fibonacci({{next}}).", secondCall: "La rama izquierda devolvió {{first}}. Ahora evalúa la rama derecha, fibonacci({{next}}).", combine: "Combina ambos valores devueltos: {{first}} + {{second}} = {{result}}.", finish: "fibonacci(4) devuelve {{result}}, así que cout lo imprime." }
   },
   sidebar: { label: "Secciones de la guía", title: "En esta guía", progress: "Sección {{current}} de {{total}}" },
-  practice: { label: "Comprueba tu comprensión", correct: "Correcto. ", retry: "Inténtalo de nuevo. ", questionCode: "Código de la pregunta", questionCount: "Pregunta {{current}} de {{total}}", previousQuestion: "Pregunta anterior", nextQuestion: "Pregunta siguiente", continueToNextQuestion: "Continuar a la siguiente pregunta" },
+  practice: { label: "Comprueba tu comprensión", correct: "Correcto. ", retry: "Inténtalo de nuevo. ", questionCode: "Código de la pregunta", questionInput: "Entrada de la pregunta", copyInput: "Copiar entrada de la pregunta", questionCount: "Pregunta {{current}} de {{total}}", previousQuestion: "Pregunta anterior", nextQuestion: "Pregunta siguiente", continueToNextQuestion: "Continuar a la siguiente pregunta" },
   code: { copyLabel: "Copiar código", copied: "Copiado", copy: "Copiar", announcement: "Código copiado" }
 } as const;

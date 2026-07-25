@@ -16,6 +16,24 @@ describe("programming fundamentals snippets", () => {
     expect(spanish.compilation.commands).toContain("./programa");
   });
 
+  it("provides localized examples for reading words and complete lines", () => {
+    const english = getProgrammingFundamentalsSnippets("en");
+    const spanish = getProgrammingFundamentalsSnippets("es");
+
+    expect(english.inputOutput.word).toContain("cin >> name");
+    expect(english.inputOutput.line).toContain("getline(cin, message)");
+    expect(english.inputOutput.questions.fullLine).toContain("getline(cin, name)");
+    expect(english.inputOutput.questions.oneWord).toContain("cin >> name");
+    expect(english.inputOutput.questions.mixedLine).toContain("getline(cin >> ws, team)");
+    expect(english.inputOutput.questions.reorderNames).toContain("cin >> first_name >> last_name");
+    expect(spanish.inputOutput.word).toContain("cin >> nombre");
+    expect(spanish.inputOutput.line).toContain("getline(cin, mensaje)");
+    expect(spanish.inputOutput.questions.fullLine).toContain("getline(cin, nombre)");
+    expect(spanish.inputOutput.questions.oneWord).toContain("cin >> nombre");
+    expect(spanish.inputOutput.questions.mixedLine).toContain("getline(cin >> ws, equipo)");
+    expect(spanish.inputOutput.questions.reorderNames).toContain("cin >> nombre >> apellido");
+  });
+
   it("covers varied loop updates, while loops, and empty for headers", () => {
     const snippets = getProgrammingFundamentalsSnippets("en");
 

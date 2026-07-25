@@ -4,6 +4,16 @@ export interface ProgrammingFundamentalsSnippets {
     readonly commands: string;
     readonly question: string;
   };
+  readonly inputOutput: {
+    readonly word: string;
+    readonly line: string;
+    readonly questions: {
+      readonly fullLine: string;
+      readonly oneWord: string;
+      readonly mixedLine: string;
+      readonly reorderNames: string;
+    };
+  };
   readonly conditionals: {
     readonly code: string;
     readonly acceptedVariable: string;

@@ -23,7 +23,8 @@ const accents = {
   representation: "text-cyan-300",
   conditionals: "text-amber-300",
   iteration: "text-violet-300",
-  functions: "text-emerald-300"
+  functions: "text-emerald-300",
+  inputOutput: "text-rose-300"
 } as const;
 type Accent = (typeof accents)[keyof typeof accents];
 type HookAnswer = "yes" | "notYet";
@@ -36,7 +37,8 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
   const sections = [
     ["bloques", t("sections.blocks")], ["representacion", t("sections.representation")], ["operadores", t("sections.operators")],
     ["condicionales", t("sections.conditionals")], ["iteracion", t("sections.iteration")], ["vectores", t("sections.vectors")],
-    ["funciones", t("sections.functions")], ["recursion", t("sections.recursion")], ["compilacion", t("sections.compilation")]
+    ["funciones", t("sections.functions")], ["recursion", t("sections.recursion")], ["compilacion", t("sections.compilation")],
+    ["entrada-salida", t("sections.inputOutput")]
   ] as const;
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -331,6 +333,57 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
           ]} />
         </GuideSection>
 
+        <GuideSection id="entrada-salida" accent={accents.inputOutput} title={t("inputOutput.title")}>
+          <OpeningQuestion>{t("inputOutput.openingQuestion")}</OpeningQuestion>
+          <p>{t("inputOutput.p1")}</p>
+          <InputOutputStreams />
+          <h3 className="!mt-12 text-2xl font-semibold tracking-tight text-zinc-100">{t("inputOutput.wordTitle")}</h3>
+          <p>{t("inputOutput.wordDescription")}</p>
+          <GuideCodeBlock code={snippets.inputOutput.word} />
+          <h3 className="!mt-12 text-2xl font-semibold tracking-tight text-zinc-100">{t("inputOutput.lineTitle")}</h3>
+          <p>{t("inputOutput.lineDescription")}</p>
+          <GuideCodeBlock code={snippets.inputOutput.line} />
+          <div className="my-8 border-l-2 border-rose-400 bg-rose-400/[0.045] px-5 py-4">
+            <h4 className="font-mono text-sm font-semibold text-rose-200">{t("inputOutput.whitespaceTitle")}</h4>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">{t("inputOutput.whitespaceDescription")}</p>
+            <code className="mt-3 block overflow-x-auto whitespace-nowrap text-sm text-zinc-300">getline(cin &gt;&gt; ws, line);</code>
+          </div>
+          <PracticeQuestionSet questions={[
+            {
+              question: t("inputOutput.question"),
+              code: snippets.inputOutput.questions.fullLine,
+              input: "Ada Lovelace",
+              options: [t("inputOutput.firstWordOption"), t("inputOutput.fullLineOption"), t("inputOutput.nothingOption")],
+              correctOption: 1,
+              explanation: t("inputOutput.explanation")
+            },
+            {
+              question: t("inputOutput.question"),
+              code: snippets.inputOutput.questions.oneWord,
+              input: "Ada Lovelace",
+              options: [t("inputOutput.firstWordOption"), t("inputOutput.fullLineOption"), t("inputOutput.lastWordOption")],
+              correctOption: 0,
+              explanation: t("inputOutput.oneWordExplanation")
+            },
+            {
+              question: t("inputOutput.question"),
+              code: snippets.inputOutput.questions.mixedLine,
+              input: "3\nBinary Searchers",
+              options: ["Binary Searchers: 3", "3: Binary Searchers", ": 3"],
+              correctOption: 0,
+              explanation: t("inputOutput.mixedLineExplanation")
+            },
+            {
+              question: t("inputOutput.question"),
+              code: snippets.inputOutput.questions.reorderNames,
+              input: "Ada Lovelace",
+              options: ["Ada Lovelace", "Lovelace, Ada", "Ada, Lovelace"],
+              correctOption: 1,
+              explanation: t("inputOutput.reorderNamesExplanation")
+            }
+          ]} />
+        </GuideSection>
+
         <section className="mt-20 border-t border-zinc-700 pt-10" aria-labelledby="guide-finish-title">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-blue-400">{t("finish.eyebrow")}</p>
           <h2 id="guide-finish-title" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">{t("finish.title")}</h2>
@@ -599,6 +652,26 @@ function CompilationPipeline(): React.JSX.Element {
           <code className={cn("text-sm font-semibold", color)}>{marker}</code>
           <strong className="mt-3 block text-sm text-zinc-100">{title}</strong>
           <p className="mt-1 text-xs leading-5 text-zinc-500">{description}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InputOutputStreams(): React.JSX.Element {
+  const { t } = useTranslation("programmingFundamentals");
+  const streams = [
+    ["cin >> value", t("inputOutput.inputLabel"), t("inputOutput.inputDescription"), "text-cyan-300", "border-cyan-400/50"],
+    ["cout << value", t("inputOutput.outputLabel"), t("inputOutput.outputDescription"), "text-rose-300", "border-rose-400/50"]
+  ] as const;
+
+  return (
+    <div role="region" aria-label={t("inputOutput.streamsLabel")} className="my-8 grid gap-6 border-y border-zinc-800 py-7 sm:grid-cols-2">
+      {streams.map(([code, title, description, textColor, borderColor]) => (
+        <div key={code} className={cn("border-l pl-4", borderColor)}>
+          <code className={cn("text-sm font-semibold", textColor)}>{code}</code>
+          <h3 className="mt-2 text-base font-semibold text-zinc-100">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p>
         </div>
       ))}
     </div>

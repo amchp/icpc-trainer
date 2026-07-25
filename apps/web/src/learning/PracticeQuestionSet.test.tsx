@@ -10,6 +10,7 @@ const questions = [
   {
     question: "First question?",
     code: "int value = 2;",
+    input: "Ada Lovelace",
     options: ["Alpha", "Beta", "Gamma"],
     correctOption: 1,
     explanation: "Beta is correct."
@@ -31,6 +32,8 @@ describe("PracticeQuestionSet", () => {
     expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
     expect(screen.getByText("First question?")).toBeInTheDocument();
     expect(screen.getByLabelText("Question code")).toBeInTheDocument();
+    expect(screen.getByLabelText("Question input")).toHaveTextContent("Ada Lovelace");
+    expect(screen.getByRole("button", { name: "Copy question input" })).toBeInTheDocument();
     expect(container.querySelector('[data-guide-line="1"]')).toHaveTextContent("int value = 2;");
     expect(screen.queryByText("Second question?")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Alpha" })).toHaveTextContent(/^Alpha$/);
@@ -86,6 +89,7 @@ describe("PracticeQuestionSet", () => {
     expect(screen.getByText("Second question?")).toBeInTheDocument();
     expect(screen.queryByText("First question?")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Question code")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Question input")).not.toBeInTheDocument();
     expect(previous).toBeEnabled();
     expect(next).toBeDisabled();
 

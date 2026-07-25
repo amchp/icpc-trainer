@@ -8,6 +8,7 @@ import { GuideCodeBlock } from "./GuideCodeBlock.js";
 export interface PracticeQuestion {
   readonly question: string;
   readonly code?: string;
+  readonly input?: string;
   readonly options: readonly string[];
   readonly correctOption: number;
   readonly explanation: string;
@@ -77,6 +78,16 @@ export function PracticeQuestionSet({
       {activeQuestion.code === undefined ? null : (
         <div aria-label={t("practice.questionCode")} className="[&>div]:my-4">
           <GuideCodeBlock code={activeQuestion.code} />
+        </div>
+      )}
+      {activeQuestion.input === undefined ? null : (
+        <div aria-label={t("practice.questionInput")} className="mt-4">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            {t("practice.questionInput")}
+          </p>
+          <div className="[&>div]:my-2">
+            <GuideCodeBlock code={activeQuestion.input} language="text" copyLabel={t("practice.copyInput")} />
+          </div>
         </div>
       )}
       <div className={cn("mt-4 grid gap-2", activeQuestion.options.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>

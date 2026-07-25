@@ -25,7 +25,7 @@ export const programmingFundamentals = {
     gap: "That “not yet” is the reason for this guide. Until you can combine the fundamentals into small programs like these, you are still learning how to use them—and that is exactly what comes next.",
     ready: "If you could program all three, you already know how to use the fundamentals. This guide will make those building blocks more precise and dependable."
   },
-  sections: { blocks: "Blocks", compilation: "Compile and run", representation: "Representation", operators: "Operators", conditionals: "Conditionals", iteration: "Iteration", functions: "Functions", vectors: "Vectors", recursion: "Recursion" },
+  sections: { blocks: "Blocks", compilation: "Compile and run", inputOutput: "Text input and output", representation: "Representation", operators: "Operators", conditionals: "Conditionals", iteration: "Iteration", functions: "Functions", vectors: "Vectors", recursion: "Recursion" },
   blocks: {
     title: "Programming is a skill",
     p1: "A complex skill does not appear all at once. It forms by mastering small actions and combining them. Reading a chess position, following a song's rhythm, or solving a programming problem works the same way.",
@@ -55,6 +55,31 @@ export const programmingFundamentals = {
     question: "What does this command create when compilation succeeds?",
     sourceOption: "A new source file", compilerOption: "The g++ compiler", executableOption: "An executable named program",
     explanation: "-o program names the executable produced from main.cpp. The source file and compiler remain separate."
+  },
+  inputOutput: {
+    title: "Reading and outputting text",
+    openingQuestion: "How does a program receive words and show a result?",
+    p1: "A program communicates through streams. Standard input supplies data while the program runs, and standard output displays the program's result. In C++, cin reads from standard input and cout writes to standard output.",
+    streamsLabel: "C++ standard input and output streams",
+    inputLabel: "Read from standard input",
+    inputDescription: "The >> operator takes the next whitespace-separated value from cin and stores it in a variable.",
+    outputLabel: "Write to standard output",
+    outputDescription: "The << operator sends text and variable values to cout from left to right. Use '\\n' when the next output should begin on a new line.",
+    wordTitle: "Read one word",
+    wordDescription: "A string stores text. cin >> name skips leading whitespace and reads until the next space, tab, or line break, so it is ideal for one word or token.",
+    lineTitle: "Read a whole line",
+    lineDescription: "Use getline when spaces are part of the input. It reads every character up to the line break and stores the complete line in the string.",
+    whitespaceTitle: "When >> comes before getline",
+    whitespaceDescription: "The >> operator leaves its trailing line break in the input stream. If getline comes next, consume leading whitespace with ws so that getline does not immediately read an empty line.",
+    question: "What does this program print for the input shown?",
+    firstWordOption: "Hello, Ada",
+    fullLineOption: "Hello, Ada Lovelace",
+    lastWordOption: "Hello, Lovelace",
+    nothingOption: "Nothing",
+    explanation: "getline keeps the space and reads the complete line, so name contains Ada Lovelace.",
+    oneWordExplanation: "The >> operator stops at the first space, so name contains only Ada.",
+    mixedLineExplanation: "The first extraction reads 3. Then ws consumes the pending whitespace so getline can read the complete team name.",
+    reorderNamesExplanation: "The two >> operations read Ada into first_name and Lovelace into last_name. cout then writes the last name first."
   },
   representation: {
     title: "Representation and types",
@@ -211,6 +236,6 @@ export const programmingFundamentals = {
     fibonacci: { label: "Fibonacci recursion trace", start: "main calls fibonacci(4).", enter: "Enter fibonacci({{n}}) and add its frame to the call stack.", check: "Check whether n = {{n}} is one of the base cases, 0 or 1.", base: "n = {{n}} is a base case, so return it directly without creating more calls.", firstCall: "The value is not a base case. Evaluate the left branch, fibonacci({{next}}), first.", secondCall: "The left branch returned {{first}}. Now evaluate the right branch, fibonacci({{next}}).", combine: "Combine both returned values: {{first}} + {{second}} = {{result}}.", finish: "fibonacci(4) returns {{result}}, so cout prints it." }
   },
   sidebar: { label: "Guide sections", title: "In this guide", progress: "Section {{current}} of {{total}}" },
-  practice: { label: "Check your understanding", correct: "Correct. ", retry: "Try again. ", questionCode: "Question code", questionCount: "Question {{current}} of {{total}}", previousQuestion: "Previous question", nextQuestion: "Next question", continueToNextQuestion: "Continue to next question" },
+  practice: { label: "Check your understanding", correct: "Correct. ", retry: "Try again. ", questionCode: "Question code", questionInput: "Question input", copyInput: "Copy question input", questionCount: "Question {{current}} of {{total}}", previousQuestion: "Previous question", nextQuestion: "Next question", continueToNextQuestion: "Continue to next question" },
   code: { copyLabel: "Copy code", copied: "Copied", copy: "Copy", announcement: "Code copied" }
 } as const;

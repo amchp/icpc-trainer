@@ -13,6 +13,33 @@ int main() {
 ./program`,
     question: `g++ main.cpp -o program`
   },
+  inputOutput: {
+    word: `string name;
+cin >> name;
+
+cout << "Hello, " << name << '\\n';`,
+    line: `string message;
+getline(cin, message);
+
+cout << "You wrote: " << message << '\\n';`,
+    questions: {
+      fullLine: `string name;
+getline(cin, name);
+cout << "Hello, " << name;`,
+      oneWord: `string name;
+cin >> name;
+cout << "Hello, " << name;`,
+      mixedLine: `int solved;
+string team;
+
+cin >> solved;
+getline(cin >> ws, team);
+cout << team << ": " << solved;`,
+      reorderNames: `string first_name, last_name;
+cin >> first_name >> last_name;
+cout << last_name << ", " << first_name;`
+    }
+  },
   conditionals: {
     code: `if (solution_accepted) {
   cout << "Next problem";
