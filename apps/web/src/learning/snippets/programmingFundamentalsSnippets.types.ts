@@ -51,7 +51,14 @@ export interface ProgrammingFundamentalsSnippets {
   readonly functionCall: {
     readonly code: string;
     readonly functionName: string;
+    readonly solvedVariable: string;
+    readonly penaltyVariable: string;
     readonly resultVariable: string;
+    readonly callerVariable: string;
+  };
+  readonly functionExamples: {
+    readonly earlyReturn: string;
+    readonly helperVariable: string;
   };
   readonly vectorTraversal: { readonly code: string };
   readonly recursion: { readonly code: string };

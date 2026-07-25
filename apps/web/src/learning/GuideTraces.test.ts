@@ -14,7 +14,10 @@ describe("programming fundamentals traces", () => {
     expect(traces.whileLoop.code.split("\n")[1]).toBe("while (remaining > 0) {");
     expect(traces.loopControl.code).toContain("if (i > 7) break");
     expect(traces.loopControl.code).toContain("continue");
-    expect(traces.functionCall.code.split("\n")[5]).toContain("int total = add(7, 3)");
+    expect(traces.functionCall.code).toContain("int calculate_score(int solved, int penalty)");
+    expect(traces.functionCall.code).toContain("score -= 50");
+    expect(traces.functionCall.code).toContain("int main()");
+    expect(traces.functionCall.code).toContain("int final_score = calculate_score(3, 75)");
     expect(traces.vectorTraversal.code.split("\n")[4]).toContain("cout << values[i]");
     expect(traces.recursion.code.split("\n")[1]).toContain("if (x == 1) return 1");
     expect(traces.countdown.code).toContain("countdown(n - 1)");
@@ -23,7 +26,9 @@ describe("programming fundamentals traces", () => {
     expect(spanishTraces.conditionals.code.split("\n")[0]).toContain("solucion_aceptada");
     expect(spanishTraces.whileLoop.code.split("\n")[1]).toBe("while (restantes > 0) {");
     expect(spanishTraces.loopControl.code).toContain("termina todo el ciclo");
-    expect(spanishTraces.functionCall.code.split("\n")[5]).toContain("int total = sumar(7, 3)");
+    expect(spanishTraces.functionCall.code).toContain("int calcular_puntaje(int resueltos, int penalizacion)");
+    expect(spanishTraces.functionCall.code).toContain("int main()");
+    expect(spanishTraces.functionCall.code).toContain("int puntaje_final = calcular_puntaje(3, 75)");
     expect(spanishTraces.countdown.code).toContain("cuenta_regresiva(n - 1)");
     const spanishCountdown = runGuideTrace(spanishTraces.countdown, {});
     expect(spanishCountdown.valid && spanishCountdown.frames[1]?.visuals?.[0]).toMatchObject({ frames: [{ label: "main" }, { label: "cuenta_regresiva(3)" }] });
@@ -101,11 +106,11 @@ describe("programming fundamentals traces", () => {
     expect(result.valid).toBe(true);
     if (!result.valid) return;
 
-    expect(result.frames.map((frame) => frame.line)).toEqual([6, 1, 2, 3, 6]);
-    expect(result.frames[1]).toMatchObject({ variables: [{ name: "x", value: 7 }, { name: "y", value: 3 }] });
+    expect(result.frames.map((frame) => frame.line)).toEqual([10, 1, 2, 3, 4, 6, 10]);
+    expect(result.frames[1]).toMatchObject({ variables: [{ name: "solved", value: 3 }, { name: "penalty", value: 75 }] });
     expect(result.frames.at(-1)).toMatchObject({
-      variables: [{ name: "total", value: 10 }],
-      visuals: [{ kind: "callStack", frames: [{ label: "main", detail: "total = 10" }], activeIndex: 0 }]
+      variables: [{ name: "final_score", value: 250 }],
+      visuals: [{ kind: "callStack", frames: [{ label: "main", detail: "final_score = 250" }], activeIndex: 0 }]
     });
   });
 });

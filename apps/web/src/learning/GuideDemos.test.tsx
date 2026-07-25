@@ -64,6 +64,10 @@ describe("guide demos", () => {
   it("shows when short-circuit evaluation skips B", () => {
     render(<LogicalOperatorGuide />);
 
+    const controls = screen.getByRole("group", { name: "Interactive controls" });
+    expect(within(controls).getAllByRole("switch")).toHaveLength(2);
+    expect(screen.getByText(/Click either switch to change an input/)).toBeInTheDocument();
+
     const andPath = screen.getByRole("group", { name: "AND evaluation path" });
     const orPath = screen.getByRole("group", { name: "OR evaluation path" });
     expect(within(andPath).getByText("Skip B")).toBeInTheDocument();

@@ -164,14 +164,42 @@ cout << fibonacci(5);`,
 cuenta_regresiva(3);`
   },
   functionCall: {
-    code: `int sumar(int x, int y) {
-  int resultado = x + y;
-  return resultado;
+    code: `int calcular_puntaje(int resueltos, int penalizacion) {
+  int puntaje = resueltos * 100;
+  if (penalizacion > 60) {
+    puntaje -= 50;
+  }
+  return puntaje;
 }
 
-int total = sumar(7, 3); // 10`,
-    functionName: "sumar",
-    resultVariable: "resultado"
+int main() {
+  int puntaje_final = calcular_puntaje(3, 75); // 250
+  cout << puntaje_final;
+  return 0;
+}`,
+    functionName: "calcular_puntaje",
+    solvedVariable: "resueltos",
+    penaltyVariable: "penalizacion",
+    resultVariable: "puntaje",
+    callerVariable: "puntaje_final"
+  },
+  functionExamples: {
+    earlyReturn: `string describir_puntaje(int puntaje) {
+  if (puntaje < 0) return "invalido";
+  if (puntaje >= 90) return "excelente";
+  return "sigue practicando";
+}`,
+    helperVariable: `string describir_puntaje(int puntaje) {
+  string resultado;
+  if (puntaje < 0) {
+    resultado = "invalido";
+  } else if (puntaje >= 90) {
+    resultado = "excelente";
+  } else {
+    resultado = "sigue practicando";
+  }
+  return resultado;
+}`
   },
   vectorTraversal: {
     code: `vector<int> valores = {1, 2, 3};

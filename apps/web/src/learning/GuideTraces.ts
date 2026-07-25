@@ -150,11 +150,18 @@ export function createProgrammingFundamentalsTraces(t: GuideT, language = "en") 
     label: t("trace.functionCall.label"),
     inputs: {},
     build: (_inputs, recorder) => {
-      recorder.frame({ line: 6, narration: t("trace.functionCall.call"), visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: `${snippets.functionCall.functionName}(7, 3)` }], activeIndex: 0 }] });
-      recorder.frame({ line: 1, narration: t("trace.functionCall.bind"), variables: [{ name: "x", typeLabel: "int", value: 7 }, { name: "y", typeLabel: "int", value: 3 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: "total = ?" }, { label: snippets.functionCall.functionName, detail: "x = 7, y = 3" }], activeIndex: 1 }] });
-      recorder.frame({ line: 2, narration: t("trace.functionCall.calculate"), variables: [{ name: "x", typeLabel: "int", value: 7 }, { name: "y", typeLabel: "int", value: 3 }, { name: snippets.functionCall.resultVariable, typeLabel: "int", value: 10 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: "total = ?" }, { label: snippets.functionCall.functionName, detail: `${snippets.functionCall.resultVariable} = 10` }], activeIndex: 1 }] });
-      recorder.frame({ line: 3, narration: t("trace.functionCall.return"), variables: [{ name: snippets.functionCall.resultVariable, typeLabel: "int", value: 10 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: "total = ?" }, { label: snippets.functionCall.functionName, detail: "return 10" }], activeIndex: 1 }] });
-      recorder.frame({ line: 6, narration: t("trace.functionCall.assign"), variables: [{ name: "total", typeLabel: "int", value: 10 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: "total = 10" }], activeIndex: 0 }] });
+      const parameters = [
+        { name: snippets.functionCall.solvedVariable, typeLabel: "int", value: 3 },
+        { name: snippets.functionCall.penaltyVariable, typeLabel: "int", value: 75 }
+      ] as const;
+      const mainPending = { label: "main", detail: `${snippets.functionCall.callerVariable} = ?` };
+      recorder.frame({ line: 10, narration: t("trace.functionCall.call"), visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: `${snippets.functionCall.functionName}(3, 75)` }], activeIndex: 0 }] });
+      recorder.frame({ line: 1, narration: t("trace.functionCall.bind"), variables: parameters, visuals: [{ kind: "callStack", label: callStackLabel, frames: [mainPending, { label: snippets.functionCall.functionName, detail: `${snippets.functionCall.solvedVariable} = 3, ${snippets.functionCall.penaltyVariable} = 75` }], activeIndex: 1 }] });
+      recorder.frame({ line: 2, narration: t("trace.functionCall.calculate"), variables: [...parameters, { name: snippets.functionCall.resultVariable, typeLabel: "int", value: 300 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [mainPending, { label: snippets.functionCall.functionName, detail: `${snippets.functionCall.resultVariable} = 300` }], activeIndex: 1 }] });
+      recorder.frame({ line: 3, narration: t("trace.functionCall.checkPenalty"), variables: [...parameters, { name: snippets.functionCall.resultVariable, typeLabel: "int", value: 300 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [mainPending, { label: snippets.functionCall.functionName, detail: `${snippets.functionCall.penaltyVariable} > 60` }], activeIndex: 1 }] });
+      recorder.frame({ line: 4, narration: t("trace.functionCall.applyPenalty"), variables: [...parameters, { name: snippets.functionCall.resultVariable, typeLabel: "int", value: 250 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [mainPending, { label: snippets.functionCall.functionName, detail: `${snippets.functionCall.resultVariable} = 250` }], activeIndex: 1 }] });
+      recorder.frame({ line: 6, narration: t("trace.functionCall.return"), variables: [{ name: snippets.functionCall.resultVariable, typeLabel: "int", value: 250 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [mainPending, { label: snippets.functionCall.functionName, detail: "return 250" }], activeIndex: 1 }] });
+      recorder.frame({ line: 10, narration: t("trace.functionCall.assign"), variables: [{ name: snippets.functionCall.callerVariable, typeLabel: "int", value: 250 }], visuals: [{ kind: "callStack", label: callStackLabel, frames: [{ label: "main", detail: `${snippets.functionCall.callerVariable} = 250` }], activeIndex: 0 }] });
     }
   });
 

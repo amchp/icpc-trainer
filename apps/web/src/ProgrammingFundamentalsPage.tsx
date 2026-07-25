@@ -1,7 +1,7 @@
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES } from "@icpc-trainer/shared";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronLeft, RotateCcw } from "lucide-react";
+import { Check, ChevronLeft, ExternalLink, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -26,6 +26,8 @@ const accents = {
   functions: "text-emerald-300"
 } as const;
 type Accent = (typeof accents)[keyof typeof accents];
+type HookAnswer = "yes" | "notYet";
+
 export function ProgrammingFundamentalsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation("programmingFundamentals");
   const traces = useProgrammingFundamentalsTraces();
@@ -103,6 +105,7 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
           <ConceptStripe color="bg-violet-400" label={t("concepts.iteration")} delay="180ms" />
           <ConceptStripe color="bg-emerald-400" label={t("concepts.functions")} delay="270ms" />
         </div>
+        <ProgrammingSelfCheck />
       </header>
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
@@ -139,6 +142,7 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
           </div>
           <p>{t("representation.p1")}</p>
           <TypeExplorer />
+          <RepresentationResearch />
           <GuideCodeBlock code={`bool listo = true;\nint problemas = 5;\ndouble promedio = 2.5;\nchar categoria = 'A';`} />
           <PracticeQuestionSet questions={[
             { question: t("representation.question"), options: ["bool", "int", "double", "char"], correctOption: 1, explanation: t("representation.explanation") },
@@ -150,17 +154,19 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
 
         <GuideSection id="operadores" accent={accents.representation} title={t("operators.title")}>
           <p>{t("operators.p1")}</p>
-          <GuideCodeBlock code={`int a = 5, b = 2;\nint suma = a + b;       // 7\nint cociente = a / b;   // 2\nint residuo = a % b;    // 1\ndouble exacto = double(a) / b; // 2.5`} />
+          <BasicOperatorGrid />
+          <GuideCodeBlock code={`int a = 5, b = 2;\nint suma = a + b;        // 7\nint resta = a - b;       // 3\nint producto = a * b;    // 10\nint cociente = a / b;    // 2\nint residuo = a % b;     // 1`} />
           <div className="!mt-14 border-t border-zinc-800 pt-8">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-400">{t("representation.conversionsEyebrow")}</p>
+            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-100">{t("representation.conversionsTitle")}</h3>
             <p>{t("representation.conversionsP1")}</p>
             <p>{t("representation.conversionsP2")}</p>
-            <div className="my-8 grid gap-x-8 gap-y-6 border-y border-zinc-800 py-7 sm:grid-cols-2">
-              <ConversionNote expression="int + double → double" title={t("representation.arithmeticInteractionTitle")} description={t("representation.arithmeticInteractionDescription")} />
-              <ConversionNote expression="char + int → int" title={t("representation.characterInteractionTitle")} description={t("representation.characterInteractionDescription")} />
-              <ConversionNote expression="result → variable type" title={t("representation.assignmentInteractionTitle")} description={t("representation.assignmentInteractionDescription")} />
-              <ConversionNote expression="comparison → bool" title={t("representation.comparisonInteractionTitle")} description={t("representation.comparisonInteractionDescription")} />
+            <div role="region" aria-label={t("representation.conversionExamplesLabel")} className="my-8 grid border-y border-zinc-800 sm:grid-cols-2">
+              <ConversionNote expression="int + double → double" title={t("representation.arithmeticInteractionTitle")} description={t("representation.arithmeticInteractionDescription")} code={t("representation.arithmeticInteractionCode")} />
+              <ConversionNote expression="char + int → int" title={t("representation.characterInteractionTitle")} description={t("representation.characterInteractionDescription")} code={t("representation.characterInteractionCode")} />
+              <ConversionNote expression="result → variable type" title={t("representation.assignmentInteractionTitle")} description={t("representation.assignmentInteractionDescription")} code={t("representation.assignmentInteractionCode")} />
+              <ConversionNote expression="comparison → bool" title={t("representation.comparisonInteractionTitle")} description={t("representation.comparisonInteractionDescription")} code={t("representation.comparisonInteractionCode")} />
             </div>
-            <GuideCodeBlock code={t("representation.interactionsCode")} />
             <p>{t("representation.conversionsWarning")}</p>
           </div>
           <PracticeQuestionSet questions={[
@@ -263,6 +269,10 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
           <p>{t("functions.p1")}</p>
           <FunctionAnatomyGuide />
           <GuideCodeBlock trace={traces.functionCall} />
+          <EarlyReturnComparison
+            earlyReturnCode={snippets.functionExamples.earlyReturn}
+            helperVariableCode={snippets.functionExamples.helperVariable}
+          />
         </GuideSection>
 
         <GuideSection id="recursion" accent={accents.functions} title={t("recursion.title")}>
@@ -339,6 +349,139 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
   );
 }
 
+function ProgrammingSelfCheck(): React.JSX.Element {
+  const { t } = useTranslation("programmingFundamentals");
+  const [answers, setAnswers] = useState<Partial<Record<number, HookAnswer>>>({});
+  const tasks = [
+    {
+      concept: t("hook.tasks.sudoku.concept"),
+      title: t("hook.tasks.sudoku.title"),
+      description: t("hook.tasks.sudoku.description"),
+      image: "/learning/fundamentals/sudoku-iteration.webp",
+      problem: t("hook.tasks.sudoku.problem"),
+      problemUrl: "https://leetcode.com/problems/valid-sudoku/"
+    },
+    {
+      concept: t("hook.tasks.password.concept"),
+      title: t("hook.tasks.password.title"),
+      description: t("hook.tasks.password.description"),
+      image: "/learning/fundamentals/password-conditionals.webp",
+      problem: t("hook.tasks.password.problem"),
+      problemUrl: "https://leetcode.com/problems/strong-password-checker-ii/"
+    },
+    {
+      concept: t("hook.tasks.folders.concept"),
+      title: t("hook.tasks.folders.title"),
+      description: t("hook.tasks.folders.description"),
+      image: "/learning/fundamentals/folders-recursion.webp",
+      problem: t("hook.tasks.folders.problem"),
+      problemUrl: "https://leetcode.com/problems/maximum-depth-of-n-ary-tree/"
+    }
+  ];
+  const answeredCount = Object.keys(answers).length;
+  const hasGap = Object.values(answers).includes("notYet");
+  const summary = hasGap
+    ? t("hook.gap")
+    : answeredCount === tasks.length
+      ? t("hook.ready")
+      : t("hook.prompt");
+
+  const answerTask = (index: number, answer: HookAnswer): void => {
+    setAnswers((current) => ({ ...current, [index]: answer }));
+  };
+
+  return (
+    <section
+      className="guide-rise mt-14 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/70 [animation-delay:320ms]"
+      aria-labelledby="programming-self-check-title"
+    >
+      <div className="px-5 py-6 sm:px-7 sm:py-7">
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">{t("hook.eyebrow")}</p>
+        <h2 id="programming-self-check-title" className="mt-3 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+          {t("hook.title")}
+        </h2>
+        <p className="mt-3 max-w-3xl leading-7 text-zinc-400">{t("hook.intro")}</p>
+      </div>
+
+      <div className="grid border-t border-zinc-800 md:grid-cols-3">
+        {tasks.map((task, index) => (
+          <fieldset
+            key={task.title}
+            className="min-w-0 border-zinc-800 p-5 max-md:border-t max-md:first:border-t-0 md:border-l md:first:border-l-0 sm:p-6"
+          >
+            <legend className="sr-only">{task.title}</legend>
+            <div className="-mx-5 -mt-5 mb-5 overflow-hidden border-b border-zinc-800 bg-black sm:-mx-6 sm:-mt-6">
+              <img
+                src={task.image}
+                alt=""
+                className="h-44 w-full object-cover"
+                width="900"
+                height="550"
+                loading="eager"
+              />
+            </div>
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{task.concept}</span>
+            <h3 className="mt-2 text-base font-semibold leading-6 text-zinc-100 md:min-h-12">{task.title}</h3>
+            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-400">{task.description}</p>
+            <a
+              href={task.problemUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-start gap-1.5 text-xs font-semibold text-blue-300 underline decoration-blue-500/50 underline-offset-4 transition-colors hover:text-blue-200 md:min-h-10"
+            >
+              {task.problem}
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+            </a>
+            <p className="mt-5 text-xs font-medium text-zinc-300">{t("hook.question")}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <SelfCheckButton
+                selected={answers[index] === "yes"}
+                onClick={() => answerTask(index, "yes")}
+              >
+                {t("hook.yes")}
+              </SelfCheckButton>
+              <SelfCheckButton
+                selected={answers[index] === "notYet"}
+                onClick={() => answerTask(index, "notYet")}
+              >
+                {t("hook.notYet")}
+              </SelfCheckButton>
+            </div>
+          </fieldset>
+        ))}
+      </div>
+
+      <p
+        className={cn(
+          "border-t px-5 py-5 text-sm leading-6 sm:px-7",
+          hasGap ? "border-amber-900/60 bg-amber-950/20 text-amber-200" : "border-zinc-800 bg-zinc-900/40 text-zinc-300"
+        )}
+        aria-live="polite"
+      >
+        {summary}
+      </p>
+    </section>
+  );
+}
+
+function SelfCheckButton({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "min-h-10 rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+        selected
+          ? "border-blue-400 bg-blue-400/15 text-blue-100"
+          : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-100"
+      )}
+      aria-pressed={selected}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 function GuideSection({ id, title, accent, children }: { id: string; title: string; accent: Accent; children: React.ReactNode }): React.JSX.Element {
   return (
     <section id={id} className="scroll-mt-20 border-t border-zinc-800 py-16 sm:py-20">
@@ -361,9 +504,85 @@ function ConceptStripe({ color, label, delay }: { color: string; label: string; 
 
 function Term({ color, children }: { color: string; children: React.ReactNode }): React.JSX.Element { return <strong className={cn("font-semibold", color)}>{children}</strong>; }
 function Block({ color, symbol, title }: { color: string; symbol: string; title: string }): React.JSX.Element { return <div className="bg-zinc-950 p-6 text-center"><span className={cn("mx-auto grid size-12 place-items-center rounded-sm font-mono font-bold text-zinc-950", color)}>{symbol}</span><strong className="mt-3 block text-sm text-zinc-200">{title}</strong></div>; }
-function ConversionNote({ expression, title, description }: { expression: string; title: string; description: string }): React.JSX.Element { return <div><code className="text-sm font-semibold text-cyan-300">{expression}</code><h4 className="mt-3 text-sm font-semibold text-zinc-100">{title}</h4><p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p></div>; }
+function ConversionNote({ expression, title, description, code }: { expression: string; title: string; description: string; code: string }): React.JSX.Element {
+  return (
+    <article className="flex min-w-0 flex-col border-b border-zinc-800 py-6 last:border-b-0 sm:px-6 sm:[&:nth-child(-n+2)]:border-b sm:[&:nth-last-child(-n+2)]:border-b-0 sm:odd:pl-0 sm:even:border-l sm:even:pr-0">
+      <code className="text-sm font-semibold text-cyan-300">{expression}</code>
+      <h4 className="mt-3 text-sm font-semibold text-zinc-100">{title}</h4>
+      <p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p>
+      <pre className="mt-4 overflow-hidden whitespace-pre-wrap break-words border-l-2 border-cyan-700 bg-zinc-950/50 px-3 py-2.5 text-xs leading-5 text-zinc-300"><code className="block !whitespace-pre-wrap [overflow-wrap:anywhere]">{code}</code></pre>
+    </article>
+  );
+}
 function ComparisonNote({ operators, title, description }: { operators: string; title: string; description: string }): React.JSX.Element { return <div><code className="whitespace-pre text-sm font-semibold text-amber-300">{operators}</code><h4 className="mt-3 text-sm font-semibold text-zinc-100">{title}</h4><p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p></div>; }
 function OpeningQuestion({ children }: { children: React.ReactNode }): React.JSX.Element { return <div className="my-10 border-y border-zinc-800 px-3 py-10 sm:my-14 sm:px-8 sm:py-14"><p className="mx-auto max-w-4xl text-center text-3xl font-semibold leading-tight tracking-[-0.035em] text-zinc-50 [text-wrap:balance] sm:text-5xl">{children}</p></div>; }
+
+function RepresentationResearch(): React.JSX.Element {
+  const { t, i18n } = useTranslation("programmingFundamentals");
+  const spanish = i18n.resolvedLanguage?.startsWith("es") ?? false;
+  const articles = [
+    [t("representation.research.boolean"), spanish ? "https://es.wikipedia.org/wiki/Tipo_de_dato_l%C3%B3gico" : "https://en.wikipedia.org/wiki/Boolean_data_type", "bool"],
+    [t("representation.research.integer"), spanish ? "https://es.wikipedia.org/wiki/Tipo_de_dato_entero" : "https://en.wikipedia.org/wiki/Integer_(computer_science)", "int"],
+    [t("representation.research.floatingPoint"), spanish ? "https://es.wikipedia.org/wiki/Coma_flotante" : "https://en.wikipedia.org/wiki/Floating-point_arithmetic", "double"],
+    [t("representation.research.character"), spanish ? "https://es.wikipedia.org/wiki/Car%C3%A1cter_(tipo_de_dato)" : "https://en.wikipedia.org/wiki/Character_encoding", "char"]
+  ] as const;
+
+  return (
+    <aside className="my-10 overflow-hidden rounded-lg border border-cyan-400/25 bg-cyan-400/[0.045]" aria-labelledby="why-bits-title">
+      <div className="border-b border-cyan-400/15 px-5 py-5 sm:px-6">
+        <h3 id="why-bits-title" className="text-lg font-semibold text-cyan-100">{t("representation.whyBitsTitle")}</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">{t("representation.whyBitsDescription")}</p>
+      </div>
+      <div className="px-5 py-5 sm:px-6">
+        <h4 className="text-sm font-semibold text-zinc-100">{t("representation.researchTitle")}</h4>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">{t("representation.researchDescription")}</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {articles.map(([label, href, type]) => (
+            <a
+              key={type}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${type}: ${label}`}
+              className="group flex min-h-11 items-center justify-between gap-3 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-cyan-400/60 hover:text-cyan-100"
+            >
+              <span><code className="mr-2 text-xs font-semibold text-cyan-300">{type}</code>{label}</span>
+              <ExternalLink className="size-3.5 shrink-0 text-zinc-500 transition-colors group-hover:text-cyan-300" aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function BasicOperatorGrid(): React.JSX.Element {
+  const { t } = useTranslation("programmingFundamentals");
+  const operations = [
+    ["+", t("operators.addition")],
+    ["-", t("operators.subtraction")],
+    ["*", t("operators.multiplication")],
+    ["/", t("operators.division")],
+    ["%", t("operators.remainder")]
+  ] as const;
+
+  return (
+    <div className="my-7">
+      <div role="list" aria-label={t("operators.referenceLabel")} className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-zinc-800 bg-zinc-800 sm:grid-cols-5">
+        {operations.map(([symbol, label], index) => (
+          <div role="listitem" key={symbol} className={cn("bg-zinc-950 px-3 py-4 text-center", index === operations.length - 1 && "col-span-2 sm:col-span-1")}>
+            <code className="text-xl font-semibold text-cyan-300">{symbol}</code>
+            <span className="mt-1 block text-xs text-zinc-400">{label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-start gap-3 border-l-2 border-cyan-500 pl-4">
+        <code className="shrink-0 font-semibold text-cyan-300">5 % 2 = 1</code>
+        <p className="text-sm leading-6 text-zinc-400">{t("operators.remainderDescription")}</p>
+      </div>
+    </div>
+  );
+}
 
 function CompilationPipeline(): React.JSX.Element {
   const { t } = useTranslation("programmingFundamentals");
@@ -470,7 +689,7 @@ function FunctionAnatomyGuide(): React.JSX.Element {
     <div className="my-8 border-y border-zinc-800 py-6">
       <h3 className="text-lg font-semibold text-zinc-100">{t("functions.anatomyTitle")}</h3>
       <code className="mt-5 block overflow-x-auto whitespace-nowrap font-mono text-base">
-        <span className="text-emerald-300">int</span> <span className="text-zinc-200">{t("functions.exampleName")}</span>(<span className="text-cyan-300">int x, int y</span>)
+        <span className="text-emerald-300">int</span> <span className="text-zinc-200">{t("functions.exampleName")}</span>(<span className="text-cyan-300">{t("functions.exampleParameters")}</span>)
       </code>
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div className="border-l border-emerald-400/50 pl-3">
@@ -483,6 +702,33 @@ function FunctionAnatomyGuide(): React.JSX.Element {
         </div>
       </div>
       <p className="mt-5 text-sm leading-6 text-zinc-500">{t("functions.voidDescription")}</p>
+    </div>
+  );
+}
+
+function EarlyReturnComparison({ earlyReturnCode, helperVariableCode }: { earlyReturnCode: string; helperVariableCode: string }): React.JSX.Element {
+  const { t } = useTranslation("programmingFundamentals");
+  const examples = [
+    [t("functions.earlyReturnDirectTitle"), t("functions.earlyReturnDirectDescription"), earlyReturnCode, "text-emerald-300"],
+    [t("functions.helperVariableTitle"), t("functions.helperVariableDescription"), helperVariableCode, "text-amber-300"]
+  ] as const;
+
+  return (
+    <div className="!mt-14 border-t border-zinc-800 pt-8">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">{t("functions.earlyReturnEyebrow")}</p>
+      <h3 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-100">{t("functions.earlyReturnTitle")}</h3>
+      <p className="mt-4">{t("functions.earlyReturnDescription")}</p>
+      <div role="region" aria-label={t("functions.earlyReturnComparisonLabel")} className="mt-7 grid border-y border-zinc-800 lg:grid-cols-2">
+        {examples.map(([title, description, code, color]) => (
+          <article key={title} className="min-w-0 py-6 first:border-b first:border-zinc-800 lg:first:border-b-0 lg:first:pr-6 lg:last:border-l lg:last:border-zinc-800 lg:last:pl-6">
+            <h4 className={cn("text-base font-semibold", color)}>{title}</h4>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
+            <div className="[&>div]:mb-0 [&>div]:mt-5">
+              <GuideCodeBlock code={code} />
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
@@ -518,12 +764,12 @@ function TruthTables({ andCaption, orCaption, notCaption, resultLabel }: { andCa
     <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <BinaryTruthTable operator="&&" caption={andCaption} operation={(a, b) => a && b} />
       <BinaryTruthTable operator="||" caption={orCaption} operation={(a, b) => a || b} />
-      <div className="overflow-hidden border-y border-zinc-800">
+      <div className="self-start overflow-hidden rounded-md border border-zinc-500">
         <table className="w-full border-collapse text-center font-mono text-xs">
           <caption className="sr-only">{notCaption}</caption>
-          <thead><tr><th className="px-3 py-3 font-medium text-amber-300">!A</th><TruthHeading value={false} /><TruthHeading value /></tr></thead>
+          <thead><tr><th className="border border-zinc-500 px-3 py-3 font-medium text-amber-300">!A</th><TruthHeading value={false} /><TruthHeading value /></tr></thead>
           <tbody className="bg-zinc-950">
-            <tr><th scope="row" className="border-t border-zinc-800 px-3 py-3 font-medium text-zinc-400">{resultLabel}</th><TruthCell value divider /><TruthCell value={false} divider /></tr>
+            <tr><th scope="row" className="border border-zinc-500 px-3 py-3 font-medium text-zinc-400">{resultLabel}</th><TruthCell value /><TruthCell value={false} /></tr>
           </tbody>
         </table>
       </div>
@@ -533,17 +779,17 @@ function TruthTables({ andCaption, orCaption, notCaption, resultLabel }: { andCa
 
 function BinaryTruthTable({ operator, caption, operation }: { operator: "&&" | "||"; caption: string; operation: (a: boolean, b: boolean) => boolean }): React.JSX.Element {
   return (
-    <div className="overflow-hidden border-y border-zinc-800">
+    <div className="overflow-hidden rounded-md border border-zinc-500">
       <table className="w-full border-collapse text-center font-mono text-xs">
         <caption className="sr-only">{caption}</caption>
-        <thead><tr><th className="px-3 py-3 font-medium text-amber-300"><span className="text-zinc-500">A↓ B→</span> {operator}</th><TruthHeading value={false} /><TruthHeading value /></tr></thead>
-        <tbody className="divide-y divide-zinc-800 bg-zinc-950">
-          {[false, true].map((a) => <tr key={String(a)}><TruthHeading value={a} scope="row" /><TruthCell value={operation(a, false)} divider /><TruthCell value={operation(a, true)} divider /></tr>)}
+        <thead><tr><th className="border border-zinc-500 px-3 py-3 font-medium text-amber-300"><span className="text-zinc-400">A↓ B→</span> {operator}</th><TruthHeading value={false} /><TruthHeading value /></tr></thead>
+        <tbody className="bg-zinc-950">
+          {[false, true].map((a) => <tr key={String(a)}><TruthHeading value={a} scope="row" /><TruthCell value={operation(a, false)} /><TruthCell value={operation(a, true)} /></tr>)}
         </tbody>
       </table>
     </div>
   );
 }
 
-function TruthHeading({ value, scope = "col" }: { value: boolean; scope?: "col" | "row" }): React.JSX.Element { return <th scope={scope} className={cn("px-3 py-3 font-medium", scope === "row" ? "text-zinc-400" : "border-l border-zinc-800 text-zinc-400")}>{String(value)}</th>; }
-function TruthCell({ value, divider = false }: { value: boolean; divider?: boolean }): React.JSX.Element { return <td className={cn("px-3 py-3", divider && "border-l border-zinc-800", value ? "text-emerald-300" : "text-zinc-500")}>{String(value)}</td>; }
+function TruthHeading({ value, scope = "col" }: { value: boolean; scope?: "col" | "row" }): React.JSX.Element { return <th scope={scope} className="border border-zinc-500 px-3 py-3 font-medium text-zinc-400">{String(value)}</th>; }
+function TruthCell({ value }: { value: boolean }): React.JSX.Element { return <td className={cn("border border-zinc-500 px-3 py-3", value ? "text-emerald-300" : "text-zinc-400")}>{String(value)}</td>; }

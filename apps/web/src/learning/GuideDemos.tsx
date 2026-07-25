@@ -242,12 +242,16 @@ export function LogicalOperatorGuide(): React.JSX.Element {
 
   return (
     <div className="my-8 border-y border-zinc-800 py-6" aria-label={t("conditionals.evaluationGuideTitle")}>
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <h4 className="font-mono text-sm font-semibold text-amber-300">{t("conditionals.evaluationGuideTitle")}</h4>
-          <p className="mt-1 text-sm leading-6 text-zinc-400">{t("conditionals.evaluationGuideDescription")}</p>
+      <div>
+        <h4 className="font-mono text-sm font-semibold text-amber-300">{t("conditionals.evaluationGuideTitle")}</h4>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">{t("conditionals.evaluationGuideDescription")}</p>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] p-4">
+        <div className="max-w-xl">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300">{t("conditionals.interactiveLabel")}</span>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">{t("conditionals.interactiveHint")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="group" aria-label={t("conditionals.interactiveLabel")}>
           <LogicToggle label="A" value={a} accessibleLabel={t("conditionals.toggleA")} onChange={setA} />
           <LogicToggle label="B" value={b} accessibleLabel={t("conditionals.toggleB")} onChange={setB} />
         </div>
@@ -289,7 +293,7 @@ function LogicToggle({ label, value, accessibleLabel, onChange }: {
       role="switch"
       aria-label={accessibleLabel}
       aria-checked={value}
-      className="flex h-10 min-w-24 items-center justify-between gap-3 rounded-md border border-zinc-700 bg-zinc-950 px-3 font-mono text-sm text-zinc-300 transition-colors hover:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+      className="flex h-11 min-w-28 cursor-pointer items-center justify-between gap-3 rounded-md border border-amber-400/40 bg-zinc-950 px-3 font-mono text-sm font-semibold text-zinc-200 shadow-[0_0_0_3px_rgba(251,191,36,0.04)] transition-colors hover:border-amber-300 hover:bg-amber-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
       onClick={() => onChange(!value)}
     >
       {label}

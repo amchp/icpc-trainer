@@ -45,4 +45,15 @@ describe("programming fundamentals snippets", () => {
     expect(spanish.recursionExamples.countdown).toContain("cuenta_regresiva(n - 1)");
     expect(spanish.recursionExamples.fibonacci).toContain("fibonacci(n - 1) + fibonacci(n - 2)");
   });
+
+  it("contrasts an early return with equivalent helper-variable control flow", () => {
+    const english = getProgrammingFundamentalsSnippets("en");
+    const spanish = getProgrammingFundamentalsSnippets("es");
+
+    expect(english.functionExamples.earlyReturn).toContain('if (score < 0) return "invalid";');
+    expect(english.functionExamples.helperVariable).toContain("string result;");
+    expect(english.functionExamples.helperVariable).toContain("return result;");
+    expect(spanish.functionExamples.earlyReturn).toContain('return "invalido";');
+    expect(spanish.functionExamples.helperVariable).toContain("string resultado;");
+  });
 });

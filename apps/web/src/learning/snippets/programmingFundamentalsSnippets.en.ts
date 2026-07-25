@@ -164,14 +164,42 @@ cout << fibonacci(5);`,
 countdown(3);`
   },
   functionCall: {
-    code: `int add(int x, int y) {
-  int result = x + y;
-  return result;
+    code: `int calculate_score(int solved, int penalty) {
+  int score = solved * 100;
+  if (penalty > 60) {
+    score -= 50;
+  }
+  return score;
 }
 
-int total = add(7, 3); // 10`,
-    functionName: "add",
-    resultVariable: "result"
+int main() {
+  int final_score = calculate_score(3, 75); // 250
+  cout << final_score;
+  return 0;
+}`,
+    functionName: "calculate_score",
+    solvedVariable: "solved",
+    penaltyVariable: "penalty",
+    resultVariable: "score",
+    callerVariable: "final_score"
+  },
+  functionExamples: {
+    earlyReturn: `string describe_score(int score) {
+  if (score < 0) return "invalid";
+  if (score >= 90) return "excellent";
+  return "keep practicing";
+}`,
+    helperVariable: `string describe_score(int score) {
+  string result;
+  if (score < 0) {
+    result = "invalid";
+  } else if (score >= 90) {
+    result = "excellent";
+  } else {
+    result = "keep practicing";
+  }
+  return result;
+}`
   },
   vectorTraversal: {
     code: `vector<int> values = {1, 2, 3};
