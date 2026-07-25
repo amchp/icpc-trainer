@@ -34,18 +34,14 @@ describe("ResourcesPage", () => {
     progressState.refetch.mockReset();
   });
 
-  it("renders Introduction as a link and Fundamentals as locked", () => {
+  it("renders both available guides as links", () => {
     render(<ResourcesPage />);
     expect(screen.getByRole("link", { name: /Introduction/ })).toHaveAttribute("href", "/resources/introduction");
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Programming Fundamentals" })).toBeInTheDocument();
-    expect(screen.getByText("Coming soon")).toBeInTheDocument();
-    expect(screen.getByText("0 / 1 completed")).toBeInTheDocument();
-  });
-
-  it("does not expose a Fundamentals destination", () => {
-    render(<ResourcesPage />);
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toHaveAttribute(
+      "href",
+      "/resources/programming-fundamentals"
+    );
+    expect(screen.getByText("0 / 2 completed")).toBeInTheDocument();
   });
 
   it("shows saved completion state", () => {
@@ -57,8 +53,8 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }));
     render(<ResourcesPage />);
-    expect(screen.getAllByText("Completed")).toHaveLength(1);
-    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed")).toHaveLength(2);
+    expect(screen.getByText("2 / 2 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -70,7 +66,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 1 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 2 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -78,6 +74,6 @@ describe("ResourcesPage", () => {
     render(<ResourcesPage />);
     expect(screen.getByText(/Progress could not be loaded/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Introduction/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Programming Fundamentals/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toBeInTheDocument();
   });
 });
