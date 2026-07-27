@@ -9,5 +9,9 @@ export const formatPercent = (value: number, locale: AppLocale): string =>
 export const formatDate = (value: Date | string, locale: AppLocale): string =>
   new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(typeof value === "string" ? new Date(value) : value);
 
+export const formatDateTime = (value: Date | string, locale: AppLocale): string =>
+  new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" })
+    .format(typeof value === "string" ? new Date(value) : value);
+
 export const compareText = (left: string, right: string, locale: AppLocale): number =>
   new Intl.Collator(locale, { sensitivity: "base", numeric: true }).compare(left, right);

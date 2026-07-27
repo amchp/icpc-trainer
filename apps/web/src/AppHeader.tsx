@@ -52,7 +52,7 @@ export function AppHeader(): React.JSX.Element {
           <span className="truncate text-sm font-semibold">{APP_NAME}</span>
         </Link>
 
-        <nav className="hidden items-center gap-1 sm:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -91,16 +91,16 @@ export function AppHeader(): React.JSX.Element {
 
           <Link
             to={appPaths.judges}
-            className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 sm:inline-flex"
+            className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100 lg:inline-flex"
           >
             {t("nav.judges")}
           </Link>
-          <LanguageButton className="relative hidden sm:inline-flex" />
+          <LanguageButton className="relative hidden lg:inline-flex" />
           <UserButton />
           <Button
             type="button"
             variant="ghost"
-            className="size-9 p-0 sm:hidden"
+            className="size-9 p-0 lg:hidden"
             aria-label={mobileNavOpen ? t("closeNavigation") : t("openNavigation")}
             aria-expanded={mobileNavOpen}
             onClick={() => setMobileNavOpen((open) => !open)}
@@ -114,7 +114,7 @@ export function AppHeader(): React.JSX.Element {
         </div>
       </div>
       {mobileNavOpen ? (
-        <nav className="mx-auto grid w-full max-w-6xl gap-1 border-t border-zinc-800 py-2 sm:hidden">
+        <nav className="mx-auto grid w-full max-w-6xl gap-1 border-t border-zinc-800 py-2 lg:hidden">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -134,7 +134,7 @@ export function AppHeader(): React.JSX.Element {
           >
             {t("nav.judges")}
           </Link>
-          <div className="mt-1 border-t border-zinc-800 pt-2 sm:hidden">
+          <div className="mt-1 border-t border-zinc-800 pt-2 lg:hidden">
             <LanguageButton className="relative" fullWidth />
           </div>
         </nav>

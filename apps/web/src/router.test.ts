@@ -30,4 +30,9 @@ describe("router", () => {
     await router.navigate({ to: "/resources/programming-fundamentals" });
     expect(router.state.location.pathname).toBe("/resources/programming-fundamentals");
   });
+
+  it("recognizes the protected Leaderboard URL", async () => {
+    await router.navigate({ to: "/leaderboard" });
+    expect(router.state.location.pathname).toBe("/leaderboard");
+  });
 });

@@ -30,6 +30,17 @@ const DEFAULT_LOCAL_HOST = "127.0.0.1";
 const DEFAULT_LOCAL_PORT = 3773;
 const RAILWAY_HOST = "0.0.0.0";
 
+export const CLASS_ADMIN_CLERK_USER_IDS: ReadonlySet<string> = new Set([
+  "user_3FeCXgqSNXwtQhPwKdjZ9lroO5e",
+  "user_3Fgxgc5a3vsVlbmU083gyXm0Gld"
+]);
+
+const commaSeparatedValues = (value: string | undefined): string[] =>
+  value
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "") ?? [];
+
 const validateCredentialKey = (credentialKey?: string): void => {
   if (credentialKey === undefined) {
     throw new Error(
@@ -63,10 +74,7 @@ export const loadServerConfig = (rawEnv: NodeJS.ProcessEnv = process.env): Serve
       secretKey: env.CLERK_SECRET_KEY,
       publishableKey: env.CLERK_PUBLISHABLE_KEY ?? env.VITE_CLERK_PUBLISHABLE_KEY,
       jwtKey: env.CLERK_JWT_KEY,
-      authorizedParties: env.CLERK_ALLOWED_ORIGINS
-        ?.split(",")
-        .map((origin) => origin.trim())
-        .filter((origin) => origin !== "") ?? []
+      authorizedParties: commaSeparatedValues(env.CLERK_ALLOWED_ORIGINS)
     },
     taskToken: env.TASK_TOKEN
   };

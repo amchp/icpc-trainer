@@ -5,12 +5,13 @@ import { i18n } from "./i18n/i18n.js";
 import { appPaths, protectedNavItems } from "./appNavigation.js";
 
 describe("protected navigation", () => {
-  it("keeps the five primary destinations as separate links in their shell order", () => {
+  it("keeps the primary destinations as separate links in their shell order", () => {
     const t = i18n.getFixedT(APP_LOCALES.English, "shell");
     const items = protectedNavItems(t);
 
     expect(items.map(({ to }) => to)).toEqual([
       appPaths.findProblems,
+      appPaths.leaderboard,
       appPaths.upsolving,
       appPaths.contestFinder,
       appPaths.resources,
@@ -18,6 +19,7 @@ describe("protected navigation", () => {
     ]);
     expect(items.map(({ label }) => label)).toEqual([
       "Find Problems",
+      "Leaderboard",
       "Upsolving",
       "Contest Finder",
       "Resources",

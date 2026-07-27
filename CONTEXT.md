@@ -48,6 +48,14 @@ _Avoid_: Primary user, account user, teammate
 A **Judge User** attached to a specific **App User** whose **Contest Participation** ranks **Contest Finder** results. Friends do not affect **Upsolving** status.
 _Avoid_: Contact, peer
 
+**Class**:
+The one global, admin-curated set of up to 100 existing **Judge Users** with synchronized accepted **Submissions**. Class membership can overlap an **App User**'s Team Users or Friends.
+_Avoid_: App User class, personal class, roster role
+
+**Leaderboard**:
+The protected ranking of canonical **Judge Users** by distinct **Problems** first solved through stored accepted **Submissions**, optionally narrowed by viewer-local dates, Judge, Team Users, Friends, or Class.
+_Avoid_: App User ranking, live Judge ranking
+
 **Judge Credential**:
 Saved authentication material owned by exactly one **App User** that lets ICPC Trainer access a **Judge**. Different **App Users** may save the same judge credential material, and credentials are stored separately from **Team Users**.
 _Avoid_: Login Identity, primary user

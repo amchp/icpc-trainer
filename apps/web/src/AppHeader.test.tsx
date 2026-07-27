@@ -54,27 +54,36 @@ describe("AppHeader", () => {
     render(<AppHeader />);
 
     const primaryNavigation = screen.getByRole("navigation");
-    expect(primaryNavigation).toHaveClass("hidden", "sm:flex");
-    expect(within(primaryNavigation).getAllByRole("link").map((link) => link.textContent)).toEqual(primaryLabels);
+    expect(primaryNavigation).toHaveClass("hidden", "lg:flex");
+    expect(within(primaryNavigation).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Find Problems",
+      "Leaderboard",
+      ...primaryLabels.slice(1)
+    ]);
     expect(primaryNavigation.parentElement).toHaveClass("h-14", "items-center");
 
     expect(screen.getByRole("button", { name: "Sync" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Choose language" })).toHaveClass("hidden", "sm:inline-flex");
+    expect(screen.getByRole("combobox", { name: "Choose language" })).toHaveClass("hidden", "lg:inline-flex");
   });
 
   it("moves primary navigation, Judges, and the small-screen language row into the compact menu", () => {
     render(<AppHeader />);
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
 
-    const compactNavigation = screen.getAllByRole("navigation").find((element) => element.classList.contains("sm:hidden"));
+    const compactNavigation = screen.getAllByRole("navigation").find((element) => element.classList.contains("lg:hidden"));
     expect(compactNavigation).toBeDefined();
     const compactLinks = within(compactNavigation!).getAllByRole("link");
-    expect(compactLinks.map((link) => link.textContent)).toEqual([...primaryLabels, "Judges"]);
+    expect(compactLinks.map((link) => link.textContent)).toEqual([
+      "Find Problems",
+      "Leaderboard",
+      ...primaryLabels.slice(1),
+      "Judges"
+    ]);
 
     const languageSelects = screen.getAllByRole("combobox", { name: "Choose language" });
     expect(languageSelects).toHaveLength(2);
     expect(languageSelects[0]).toHaveDisplayValue("🇺🇸");
     expect(languageSelects[1]).toHaveAttribute("data-full-width", "true");
-    expect(languageSelects[1]?.parentElement).toHaveClass("sm:hidden");
+    expect(languageSelects[1]?.parentElement).toHaveClass("lg:hidden");
   });
 });

@@ -9,6 +9,7 @@ export const appPaths = {
   findProblems: "/find-problems",
   friends: "/friends",
   judges: "/judges",
+  leaderboard: "/leaderboard",
   playground: "/playground",
   resources: "/resources",
   introduction: "/resources/introduction",
@@ -22,6 +23,7 @@ import type { TFunction } from "i18next";
 
 export const protectedNavItems = (t: TFunction<"shell">) => [
   { to: appPaths.findProblems, label: t("nav.findProblems"), activePaths: [appPaths.findProblems] },
+  { to: appPaths.leaderboard, label: t("nav.leaderboard"), activePaths: [appPaths.leaderboard] },
   { to: appPaths.upsolving, label: t("nav.upsolving"), activePaths: [appPaths.upsolving] },
   { to: appPaths.contestFinder, label: t("nav.contestFinder"), activePaths: [appPaths.contestFinder] },
   { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals] },

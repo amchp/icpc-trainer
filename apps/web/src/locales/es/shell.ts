@@ -7,7 +7,8 @@ export const shell = {
     resources: "Recursos",
     team: "Equipo",
     friends: "Amigos",
-    judges: "Jueces"
+    judges: "Jueces",
+    leaderboard: "Clasificación"
   },
   sections: {
     contestsLabel: "Herramientas de concursos",

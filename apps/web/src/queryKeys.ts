@@ -10,6 +10,16 @@ export const queryKeys = {
   learningProgress: (userId: string | null | undefined) => ["learningProgress", userId ?? "anonymous", "list"] as const,
   learningProgressStart: (userId: string | null | undefined) => ["learningProgress", userId ?? "anonymous", "start"] as const,
   learningProgressSetStatus: (userId: string | null | undefined) => ["learningProgress", userId ?? "anonymous", "setStatus"] as const,
+  leaderboardRoot: ["leaderboard"] as const,
+  leaderboardList: (input: {
+    readonly scope: string;
+    readonly judge?: string;
+    readonly startAt?: string;
+    readonly endAtExclusive?: string;
+  }) => ["leaderboard", "list", input] as const,
+  leaderboardClassMembers: ["leaderboard", "classMembers"] as const,
+  leaderboardClassCandidates: (query: string, judge?: string) =>
+    ["leaderboard", "classCandidates", query, judge ?? "all"] as const,
   teamRoster: ["team", "roster"] as const,
   upsolvingOverview: ["upsolving", "overview"] as const
 };
@@ -20,6 +30,7 @@ const authenticatedQueryRoots = new Set([
   "findProblems",
   "friends",
   "learningProgress",
+  "leaderboard",
   "team",
   "upsolving"
 ]);
@@ -41,6 +52,7 @@ export const invalidateAfterJudgeSync = (queryClient: QueryClient): void => {
     queryKeys.accountDataStatus,
     queryKeys.contestFinderOverview,
     queryKeys.findProblemsOverview,
+    queryKeys.leaderboardRoot,
     queryKeys.teamRoster,
     queryKeys.upsolvingOverview
   ]);
@@ -50,6 +62,7 @@ export const invalidateAfterFriendSubmissionSync = (queryClient: QueryClient): v
   invalidate(queryClient, [
     queryKeys.contestFinderOverview,
     queryKeys.findProblemsOverview,
+    queryKeys.leaderboardRoot,
     queryKeys.upsolvingOverview
   ]);
 };
@@ -58,6 +71,7 @@ export const invalidateAfterTeamRosterChange = (queryClient: QueryClient): void 
   invalidate(queryClient, [
     queryKeys.contestFinderOverview,
     queryKeys.findProblemsOverview,
+    queryKeys.leaderboardRoot,
     queryKeys.upsolvingOverview
   ]);
 };
@@ -65,6 +79,7 @@ export const invalidateAfterTeamRosterChange = (queryClient: QueryClient): void 
 export const invalidateAfterFriendRosterChange = (queryClient: QueryClient): void => {
   invalidate(queryClient, [
     queryKeys.contestFinderOverview,
-    queryKeys.findProblemsOverview
+    queryKeys.findProblemsOverview,
+    queryKeys.leaderboardRoot
   ]);
 };

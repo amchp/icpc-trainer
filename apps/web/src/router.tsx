@@ -9,6 +9,7 @@ import { ContestsRoute } from "./ContestsRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { IntroductionRoute } from "./IntroductionRoute.js";
+import { LeaderboardRoute } from "./LeaderboardRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
 import { ProgrammingFundamentalsRoute } from "./ProgrammingFundamentalsRoute.js";
 import { ProtectedLayout } from "./ProtectedLayout.js";
@@ -103,6 +104,12 @@ const friendsRoute = createRoute({
   component: FriendsRoute
 });
 
+const leaderboardRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: appPaths.leaderboard,
+  component: LeaderboardRoute
+});
+
 const resourcesRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.resources,
@@ -156,6 +163,7 @@ const routeTree = rootRoute.addChildren([
     contestsRoute,
     findProblemsRoute,
     friendsRoute,
+    leaderboardRoute,
     teamRoute,
     upsolvingRoute
   ]),

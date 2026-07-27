@@ -13,6 +13,7 @@ describe("authenticated query cache lifecycle", () => {
     queryClient.setQueryData(queryKeys.contestFinderOverview, { contests: [{ id: 1 }] });
     queryClient.setQueryData(queryKeys.learningProgress("user-a"), [{ guideId: "programming-fundamentals" }]);
     queryClient.setQueryData(queryKeys.accountLocale("user-a"), { locale: "es" });
+    queryClient.setQueryData(queryKeys.leaderboardList({ scope: "all" }), { rows: [{ username: "private" }] });
     queryClient.setQueryData(queryKeys.healthPing, { ok: true });
 
     clearAuthenticatedQueryCache(queryClient);
@@ -24,6 +25,7 @@ describe("authenticated query cache lifecycle", () => {
     expect(queryClient.getQueryData(queryKeys.contestFinderOverview)).toBeUndefined();
     expect(queryClient.getQueryData(queryKeys.learningProgress("user-a"))).toBeUndefined();
     expect(queryClient.getQueryData(queryKeys.accountLocale("user-a"))).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.leaderboardList({ scope: "all" }))).toBeUndefined();
     expect(queryClient.getQueryData(queryKeys.healthPing)).toEqual({ ok: true });
   });
 });
