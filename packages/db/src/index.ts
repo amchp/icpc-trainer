@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   appUserJudgeUsers,
   appUsers,
+  classMembers,
   healthChecks,
   learningProgress,
   providerCredentials,
@@ -31,6 +32,7 @@ export {
   schema,
   appUserJudgeUsers,
   appUsers,
+  classMembers,
   healthChecks,
   learningProgress,
   providerCredentials,

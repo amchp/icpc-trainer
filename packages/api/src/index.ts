@@ -18,6 +18,7 @@ import { createFindProblemsRouter } from "./findProblems.js";
 import { createFriendsRouter } from "./friends.js";
 import { createJudgesRouter, type JudgeSyncService } from "./judges.js";
 import { createLearningProgressRouter } from "./learningProgress.js";
+import { createLeaderboardRouter } from "./leaderboard.js";
 import { createPlaygroundRouter, type JudgePlaygroundService } from "./playground.js";
 import {
   createUpsolvingRouter,
@@ -62,6 +63,7 @@ export interface ApiContext {
   readonly judges: JudgePlaygroundService & JudgeCredentialValidationService & Partial<JudgeSyncService> & Partial<FriendSubmissionSyncService>;
   readonly credentialEvents?: CredentialStatusEventService;
   readonly appUser?: AppUser;
+  readonly canManageClass?: boolean;
   readonly analytics?: Analytics;
 }
 
@@ -87,6 +89,7 @@ export const appRouter = t.router({
   friends: createFriendsRouter(t),
   judges: createJudgesRouter(t),
   learningProgress: createLearningProgressRouter(t),
+  leaderboard: createLeaderboardRouter(t),
   playground: createPlaygroundRouter(t),
   team: createTeamRouter(t),
   upsolving: createUpsolvingRouter(t)
@@ -143,6 +146,14 @@ export type {
 } from "./friends.js";
 
 export type { LearningProgressRow } from "./learningProgress.js";
+
+export type {
+  ClassCandidateRow,
+  ClassMemberRow,
+  LeaderboardListResult,
+  LeaderboardRow,
+  LeaderboardScope
+} from "./leaderboard.js";
 
 export type {
   StoredCodeforcesCredentials,

@@ -1,4 +1,4 @@
-import { appRouter, type CredentialStatusEvent } from "@icpc-trainer/api";
+import { appRouter, type AppUser, type CredentialStatusEvent } from "@icpc-trainer/api";
 import { DatabaseServiceTag } from "@icpc-trainer/db";
 import { createHTTPHandler } from "@trpc/server/adapters/standalone";
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
@@ -14,7 +14,7 @@ import { makeCodeforcesJudge } from "../judges/codeforces.js";
 import type { Judge } from "../judges/judges.js";
 import { makeQojJudge } from "../judges/qoj.js";
 import { createJudgeSyncService } from "../judges/sync/sync.js";
-import type { ServerConfig } from "./config.js";
+import { CLASS_ADMIN_CLERK_USER_IDS, type ServerConfig } from "./config.js";
 import { appUserFromConnectionParams, appUserFromHttpRequest } from "./auth.js";
 import { createFriendSubmissionSyncService } from "./friendSubmissionSync.js";
 import { runContestFinderCatalogSyncJob } from "./contestFinderCatalogSync.js";
@@ -110,16 +110,20 @@ export const startServer = (
       captureException: (error, distinctId) => ph.captureException(error, distinctId)
     } : undefined;
 
+    const apiContextForAppUser = (appUser: AppUser | undefined) => ({
+      database,
+      judges,
+      credentialEvents,
+      analytics,
+      appUser,
+      canManageClass: appUser !== undefined && CLASS_ADMIN_CLERK_USER_IDS.has(appUser.clerkUserId)
+    });
+
     const trpcHandler = createHTTPHandler({
       router: appRouter,
       basePath: "/trpc/",
-      createContext: async ({ req }) => ({
-        database,
-        judges,
-        credentialEvents,
-        analytics,
-        appUser: await appUserFromHttpRequest({ config: config.clerk, database }, req)
-      })
+      createContext: async ({ req }) =>
+        apiContextForAppUser(await appUserFromHttpRequest({ config: config.clerk, database }, req))
     });
 
     const server = createServer((request, response) => {
@@ -182,13 +186,20 @@ export const startServer = (
     const wsHandler = applyWSSHandler({
       wss,
       router: appRouter,
-      createContext: async ({ info }) => ({
-        database,
-        judges,
-        credentialEvents,
-        analytics,
-        appUser: await appUserFromConnectionParams({ config: config.clerk, database }, info.connectionParams)
-      })
+      createContext: async ({ info }) => {
+        const appUser = await appUserFromConnectionParams(
+          { config: config.clerk, database },
+          info.connectionParams
+        );
+        return {
+          database,
+          judges,
+          credentialEvents,
+          analytics,
+          appUser,
+          canManageClass: appUser !== undefined && CLASS_ADMIN_CLERK_USER_IDS.has(appUser.clerkUserId)
+        };
+      }
     });
 
     yield* Effect.async<void, Error>((resume) => {
