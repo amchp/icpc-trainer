@@ -16,6 +16,7 @@ export const appPaths = {
   introduction: "/resources/introduction",
   programmingFundamentals: "/resources/programming-fundamentals",
   timeComplexity: "/resources/time-complexity",
+  dataStructures: "/resources/data-structures",
   root: "/",
   team: "/team",
   upsolving: "/upsolving"
@@ -28,6 +29,6 @@ export const protectedNavItems = (t: TFunction<"shell">) => [
   { to: appPaths.leaderboard, label: t("nav.leaderboard"), activePaths: [appPaths.leaderboard] },
   { to: appPaths.upsolving, label: t("nav.upsolving"), activePaths: [appPaths.upsolving] },
   { to: appPaths.contestFinder, label: t("nav.contestFinder"), activePaths: [appPaths.contestFinder] },
-  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals, appPaths.timeComplexity] },
+  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals, appPaths.timeComplexity, appPaths.dataStructures] },
   { to: appPaths.team, label: t("nav.team"), activePaths: [appPaths.team] }
 ] as const;

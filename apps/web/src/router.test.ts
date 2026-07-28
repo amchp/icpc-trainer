@@ -40,4 +40,9 @@ describe("router", () => {
     await router.navigate({ to: "/resources/time-complexity" });
     expect(router.state.location.pathname).toBe("/resources/time-complexity");
   });
+
+  it("recognizes the stable Data Structures guide URL", async () => {
+    await router.navigate({ to: "/resources/data-structures" });
+    expect(router.state.location.pathname).toBe("/resources/data-structures");
+  });
 });

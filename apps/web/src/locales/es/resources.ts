@@ -14,5 +14,7 @@ export const resources = {
   fundamentalsDescription: "Aprende variables, decisiones, ciclos y funciones con ejemplos interactivos.",
   timeComplexity: "Complejidad temporal y espacial",
   timeComplexityDescription: "Estima el tiempo y la memoria antes de elegir un algoritmo.",
+  dataStructures: "Estructuras de datos",
+  dataStructuresDescription: "Elige el contenedor de C++ adecuado siguiendo las operaciones que exige cada problema.",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
 } as const;

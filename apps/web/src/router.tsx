@@ -7,6 +7,7 @@ import { ConnectJudgeProviderRoute } from "./ConnectJudgeProviderRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
 import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
+import { DataStructuresRoute } from "./DataStructuresRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { IntroductionRoute } from "./IntroductionRoute.js";
@@ -136,6 +137,12 @@ const introductionRoute = createRoute({
   component: IntroductionRoute
 });
 
+const dataStructuresRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.dataStructures,
+  component: DataStructuresRoute
+});
+
 const resourcesSubpathRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: `${appPaths.resources}/$`,
@@ -187,6 +194,7 @@ const routeTree = rootRoute.addChildren([
     introductionRoute,
     programmingFundamentalsRoute,
     timeComplexityRoute,
+    dataStructuresRoute,
     resourcesSubpathRoute
   ]),
   standaloneRoute.addChildren([

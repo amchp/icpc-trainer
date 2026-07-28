@@ -20,7 +20,9 @@ const trace = defineGuideTrace({
         { kind: "output", label: "Output", lines: ["42"] },
         { kind: "branch", label: "Branch", condition: "flag", outcome: "true" },
         { kind: "vector", label: "Vector", values: [10, 20], activeIndex: 1 },
-        { kind: "callStack", label: "Stack", frames: [{ label: "main" }, { label: "print", detail: "42" }], activeIndex: 1 }
+        { kind: "callStack", label: "Stack", frames: [{ label: "main" }, { label: "print", detail: "42" }], activeIndex: 1 },
+        { kind: "collection", label: "Queue", layout: "queue", values: ["A", "B"], activeIndex: 0, markers: [{ index: 0, label: "front" }, { index: 1, label: "back" }] },
+        { kind: "entries", label: "Entries", entries: [{ key: "name", value: 2 }], activeIndex: 0 }
       ]
     } : { line: 3, narration: "Skip the body." });
   }
@@ -92,6 +94,10 @@ describe("GuideCodeBlock", () => {
     expect(screen.getByText("42", { selector: "output" })).toBeInTheDocument();
     expect(screen.getByText("true")).toBeInTheDocument();
     expect(screen.getByText("Vector")).toBeInTheDocument();
+    expect(screen.getByText("Queue")).toBeInTheDocument();
+    expect(screen.getByText("front")).toBeInTheDocument();
+    expect(screen.getByText("Entries")).toBeInTheDocument();
+    expect(screen.getByText("name")).toBeInTheDocument();
     expect(screen.getAllByText("print")).toHaveLength(2);
     expect(next).toBeDisabled();
 

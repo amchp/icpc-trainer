@@ -14,5 +14,7 @@ export const resources = {
   fundamentalsDescription: "Learn variables, decisions, loops, and functions through interactive examples.",
   timeComplexity: "Time & Space Complexity",
   timeComplexityDescription: "Estimate runtime and memory before choosing an algorithm.",
+  dataStructures: "Data Structures",
+  dataStructuresDescription: "Choose the right C++ container by tracing the operations each problem demands.",
   status: { completed: "Completed", inProgress: "In progress", available: "Available", loading: "Loading" }
 } as const;
