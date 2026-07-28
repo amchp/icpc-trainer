@@ -45,7 +45,7 @@ export const BIG_O_LABELS: Readonly<Record<ComplexityFamily, string>> = {
 
 export const OPERATION_METER_CAP = 1e18;
 export const OPERATION_METER_LOG_CAP = 18;
-export const DEFAULT_OPERATIONS_PER_SECOND = 1e8;
+export const DEFAULT_OPERATIONS_PER_SECOND = 5e8;
 export const CURRENT_UNIVERSE_AGE_SECONDS = 4.35e17;
 export const MAX_INPUT_SIZE = 1e9;
 
@@ -166,7 +166,7 @@ export const memoryModelEstimate = (
   if (strategy !== "pair" && (!Number.isFinite(bytesPerStoredItem) || bytesPerStoredItem <= 0 || bytesPerStoredItem > 1e9)) return null;
 
   const inputBytes = items * 8;
-  const auxiliaryBytes = strategy === "pair" ? 8 : items * bytesPerStoredItem;
+  const auxiliaryBytes = strategy === "pair" ? 12 : items * bytesPerStoredItem;
   const totalBytes = inputBytes + auxiliaryBytes;
   const limitBytes = limitMiB * 1024 * 1024;
   if (![inputBytes, auxiliaryBytes, totalBytes, limitBytes].every(Number.isFinite)) return null;

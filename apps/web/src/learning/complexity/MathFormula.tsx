@@ -13,27 +13,23 @@ function FormulaFrame({ label, latex, children }: { readonly label: string; read
   );
 }
 
-export function PairCountFormula({ label }: { readonly label: string }): React.JSX.Element {
-  const latex = String.raw`\sum_{i=0}^{n-2}(n-i-1)=\frac{n(n-1)}{2}=\frac{1}{2}n^2-\frac{1}{2}n`;
+export function BatchSearchWorkFormula({ label }: { readonly label: string }): React.JSX.Element {
+  const latex = String.raw`T_{\max}(n,q)=q\cdot n,\qquad q=n\Rightarrow T_{\max}(n,n)=n^2`;
   return (
     <FormulaFrame label={label} latex={latex}>
-      <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>n</mi><mo>−</mo><mn>2</mn></mrow></munderover>
-      <mrow><mo>(</mo><mi>n</mi><mo>−</mo><mi>i</mi><mo>−</mo><mn>1</mn><mo>)</mo></mrow>
-      <mo>=</mo>
-      <mfrac><mrow><mi>n</mi><mo>(</mo><mi>n</mi><mo>−</mo><mn>1</mn><mo>)</mo></mrow><mn>2</mn></mfrac>
-      <mo>=</mo>
-      <mfrac><mn>1</mn><mn>2</mn></mfrac><msup><mi>n</mi><mn>2</mn></msup>
-      <mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>n</mi>
+      <msub><mi>T</mi><mi>max</mi></msub><mo>(</mo><mi>n</mi><mo>,</mo><mi>q</mi><mo>)</mo><mo>=</mo><mi>q</mi><mo>·</mo><mi>n</mi>
+      <mo>,</mo><mspace width="1em" />
+      <mi>q</mi><mo>=</mo><mi>n</mi><mo>⇒</mo><msub><mi>T</mi><mi>max</mi></msub><mo>(</mo><mi>n</mi><mo>,</mo><mi>n</mi><mo>)</mo>
+      <mo>=</mo><msup><mi>n</mi><mn>2</mn></msup>
     </FormulaFrame>
   );
 }
 
 export function QuadraticBigOFormula({ label }: { readonly label: string }): React.JSX.Element {
-  const latex = String.raw`\frac{1}{2}n^2-\frac{1}{2}n\in O(n^2)`;
+  const latex = String.raw`n\cdot n=n^2\in O(n^2)`;
   return (
     <FormulaFrame label={label} latex={latex}>
-      <mfrac><mn>1</mn><mn>2</mn></mfrac><msup><mi>n</mi><mn>2</mn></msup>
-      <mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mi>n</mi>
+      <mi>n</mi><mo>·</mo><mi>n</mi><mo>=</mo><msup><mi>n</mi><mn>2</mn></msup>
       <mo>∈</mo><mi>O</mi><mo>(</mo><msup><mi>n</mi><mn>2</mn></msup><mo>)</mo>
     </FormulaFrame>
   );

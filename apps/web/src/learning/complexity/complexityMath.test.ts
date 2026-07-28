@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BIG_O_LABELS,
   CURRENT_UNIVERSE_AGE_SECONDS,
+  DEFAULT_OPERATIONS_PER_SECOND,
   formatBytes,
   formatDuration,
   log10OperationCount,
@@ -15,12 +16,13 @@ import {
 
 describe("complexity math", () => {
   it("matches exact and reference one-second thresholds", () => {
-    expect(10 ** log10OperationCount("quadratic", 10_000)).toBeCloseTo(1e8);
-    expect(10 ** log10OperationCount("cubic", 500)).toBeCloseTo(125_000_000);
-    expect(2 ** 26).toBeLessThan(1e8);
-    expect(2 ** 27).toBeGreaterThan(1e8);
-    expect(11 * 10 * 9 * 8 * 7 * 6 * 5 * 4 * 3 * 2).toBeLessThan(1e8);
-    expect(12 * 11 * 10 * 9 * 8 * 7 * 6 * 5 * 4 * 3 * 2).toBeGreaterThan(1e8);
+    expect(DEFAULT_OPERATIONS_PER_SECOND).toBe(5e8);
+    expect(10 ** log10OperationCount("quadratic", 22_360)).toBeLessThan(5e8);
+    expect(10 ** log10OperationCount("quadratic", 22_361)).toBeGreaterThan(5e8);
+    expect(2 ** 28).toBeLessThan(5e8);
+    expect(2 ** 29).toBeGreaterThan(5e8);
+    expect(12 * 11 * 10 * 9 * 8 * 7 * 6 * 5 * 4 * 3 * 2).toBeLessThan(5e8);
+    expect(13 * 12 * 11 * 10 * 9 * 8 * 7 * 6 * 5 * 4 * 3 * 2).toBeGreaterThan(5e8);
   });
 
   it("keeps huge families finite in logarithmic space and caps only the visual value", () => {
@@ -31,11 +33,11 @@ describe("complexity math", () => {
     expect(meterWidthPercent(estimate.log10)).toBe(100);
   });
 
-  it("estimates one second for n squared at n 10,000 and scales with c", () => {
-    const base = runtimeLog10Seconds("quadratic", 10_000, 1, 1e8);
-    const largerConstant = runtimeLog10Seconds("quadratic", 10_000, 8, 1e8);
-    expect(10 ** base).toBeCloseTo(1);
-    expect(10 ** largerConstant).toBeCloseTo(8);
+  it("uses the fixed reference rate and scales with c", () => {
+    const base = runtimeLog10Seconds("quadratic", 10_000, 1, DEFAULT_OPERATIONS_PER_SECOND);
+    const largerConstant = runtimeLog10Seconds("quadratic", 10_000, 8, DEFAULT_OPERATIONS_PER_SECOND);
+    expect(10 ** base).toBeCloseTo(0.2);
+    expect(10 ** largerConstant).toBeCloseTo(1.6);
     expect(BIG_O_LABELS.quadratic).toBe("O(n²)");
   });
 
@@ -52,7 +54,7 @@ describe("complexity math", () => {
     const sort = memoryModelEstimate("sort", 1_000_000, 8, 256);
     const hash = memoryModelEstimate("hash", 1_000_000, 32, 256);
 
-    expect(pair).toMatchObject({ inputBytes: 8_000_000, auxiliaryBytes: 8, totalBytes: 8_000_008, fits: true });
+    expect(pair).toMatchObject({ inputBytes: 8_000_000, auxiliaryBytes: 12, totalBytes: 8_000_012, fits: true });
     expect(sort).toMatchObject({ inputBytes: 8_000_000, auxiliaryBytes: 8_000_000, totalBytes: 16_000_000, fits: true });
     expect(hash).toMatchObject({ inputBytes: 8_000_000, auxiliaryBytes: 32_000_000, totalBytes: 40_000_000, fits: true });
     expect(memoryModelEstimate("sort", 100_000_000, 8, 256)?.fits).toBe(false);
