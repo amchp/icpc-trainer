@@ -41,6 +41,23 @@ export type GuideTraceVisual =
       readonly label: string;
       readonly frames: readonly { readonly label: string; readonly detail?: string }[];
       readonly activeIndex?: number;
+    }
+  | {
+      readonly kind: "collection";
+      readonly label: string;
+      readonly layout: "row" | "stack" | "queue" | "intervals";
+      readonly values: readonly GuideTracePrimitive[];
+      readonly activeIndex?: number;
+      readonly markers?: readonly { readonly index: number; readonly label: string }[];
+    }
+  | {
+      readonly kind: "entries";
+      readonly label: string;
+      readonly entries: readonly {
+        readonly key: GuideTracePrimitive;
+        readonly value: GuideTracePrimitive;
+      }[];
+      readonly activeIndex?: number;
     };
 
 export type GuideTraceFrame = {
@@ -109,14 +126,30 @@ export function runGuideTrace<S extends GuideTraceInputSchema>(
       return { valid: false, reason: `${prefix} has blank narration.` };
     }
     for (const visual of frame.visuals ?? []) {
-      if (visual.kind !== "vector" && visual.kind !== "callStack") continue;
-      if (visual.activeIndex === undefined) continue;
-      const length = visual.kind === "vector" ? visual.values.length : visual.frames.length;
-      if (!Number.isInteger(visual.activeIndex) || visual.activeIndex < 0 || visual.activeIndex >= length) {
+      if (visual.kind !== "vector" && visual.kind !== "callStack" && visual.kind !== "collection" && visual.kind !== "entries") continue;
+      const length = visual.kind === "vector" || visual.kind === "collection"
+        ? visual.values.length
+        : visual.kind === "entries"
+          ? visual.entries.length
+          : visual.frames.length;
+      if (visual.activeIndex !== undefined && (!Number.isInteger(visual.activeIndex) || visual.activeIndex < 0 || visual.activeIndex >= length)) {
         return {
           valid: false,
           reason: `${prefix} has an out-of-range ${visual.kind} active index ${visual.activeIndex}.`
         };
+      }
+      if (visual.kind === "collection") {
+        for (const marker of visual.markers ?? []) {
+          if (!Number.isInteger(marker.index) || marker.index < 0 || marker.index >= length) {
+            return {
+              valid: false,
+              reason: `${prefix} has an out-of-range collection marker index ${marker.index}.`
+            };
+          }
+          if (marker.label.trim() === "") {
+            return { valid: false, reason: `${prefix} has a collection marker with a blank label.` };
+          }
+        }
       }
     }
   }
@@ -167,6 +200,17 @@ function cloneFrame(frame: GuideTraceFrame): GuideTraceFrame {
               case "callStack": return {
                 ...visual,
                 frames: visual.frames.map((callFrame) => ({ ...callFrame }))
+              };
+              case "collection": return {
+                ...visual,
+                values: [...visual.values],
+                ...(visual.markers === undefined
+                  ? {}
+                  : { markers: visual.markers.map((marker) => ({ ...marker })) })
+              };
+              case "entries": return {
+                ...visual,
+                entries: visual.entries.map((entry) => ({ ...entry }))
               };
             }
           })

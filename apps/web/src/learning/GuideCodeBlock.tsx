@@ -344,6 +344,64 @@ function TraceVisual({ visual }: { readonly visual: GuideTraceVisual }): React.J
           </ol>
         </VisualPanel>
       );
+    case "collection": {
+      const values = visual.layout === "stack" ? [...visual.values].reverse() : visual.values;
+      return (
+        <VisualPanel label={visual.label}>
+          <ol className={cn(
+            "max-w-full gap-1.5",
+            visual.layout === "stack" ? "flex w-fit min-w-28 flex-col" : "flex overflow-x-auto pb-1"
+          )}>
+            {values.map((value, renderedIndex) => {
+              const originalIndex = visual.layout === "stack"
+                ? visual.values.length - renderedIndex - 1
+                : renderedIndex;
+              const markers = visual.markers?.filter((marker) => marker.index === originalIndex) ?? [];
+              return (
+                <li
+                  key={originalIndex}
+                  className={cn(
+                    "min-w-12 border bg-zinc-900/70 px-2 py-2 text-center font-mono text-xs",
+                    visual.layout === "intervals" && "min-w-max",
+                    visual.activeIndex === originalIndex
+                      ? "border-cyan-300 text-cyan-100"
+                      : "border-zinc-700 text-zinc-300"
+                  )}
+                >
+                  <span>{formatPrimitive(value)}</span>
+                  {markers.map((marker) => (
+                    <span key={marker.label} className="mt-1 block text-[9px] uppercase tracking-wide text-amber-300">
+                      {marker.label}
+                    </span>
+                  ))}
+                </li>
+              );
+            })}
+          </ol>
+        </VisualPanel>
+      );
+    }
+    case "entries":
+      return (
+        <VisualPanel label={visual.label}>
+          <dl className="grid gap-1.5">
+            {visual.entries.map((entry, index) => (
+              <div
+                key={`${formatPrimitive(entry.key)}-${index}`}
+                className={cn(
+                  "grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-l-2 bg-zinc-900/70 px-3 py-2 font-mono text-xs",
+                  visual.activeIndex === index
+                    ? "border-rose-300 text-rose-100"
+                    : "border-zinc-700 text-zinc-400"
+                )}
+              >
+                <dt className="min-w-0 break-words">{formatPrimitive(entry.key)}</dt>
+                <dd className="text-zinc-200">{formatPrimitive(entry.value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </VisualPanel>
+      );
   }
 }
 

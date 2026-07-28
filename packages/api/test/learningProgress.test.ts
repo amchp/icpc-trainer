@@ -34,11 +34,15 @@ describe("learningProgress router", () => {
         const timeComplexity = await firstCaller.learningProgress.start({
           guideId: LEARNING_GUIDE_IDS.TimeComplexity
         });
+        const dataStructures = await firstCaller.learningProgress.start({
+          guideId: LEARNING_GUIDE_IDS.DataStructures
+        });
         return {
           started,
           startedAgain,
           introduction,
           timeComplexity,
+          dataStructures,
           first: await firstCaller.learningProgress.list(),
           second: await secondCaller.learningProgress.list()
         };
@@ -52,8 +56,10 @@ describe("learningProgress router", () => {
     expect(result.startedAgain.startedAt).toBe(result.started.startedAt);
     expect(result.introduction.guideId).toBe(LEARNING_GUIDE_IDS.Introduction);
     expect(result.timeComplexity.guideId).toBe(LEARNING_GUIDE_IDS.TimeComplexity);
-    expect(result.first).toHaveLength(3);
+    expect(result.dataStructures.guideId).toBe(LEARNING_GUIDE_IDS.DataStructures);
+    expect(result.first).toHaveLength(4);
     expect(result.first.map(({ guideId }) => guideId).sort()).toEqual([
+      LEARNING_GUIDE_IDS.DataStructures,
       LEARNING_GUIDE_IDS.Introduction,
       LEARNING_GUIDE_IDS.ProgrammingFundamentals,
       LEARNING_GUIDE_IDS.TimeComplexity
@@ -69,16 +75,16 @@ describe("learningProgress router", () => {
       const caller = appRouter.createCaller({ database, judges, appUser });
 
       return yield* Effect.promise(async () => {
-        await caller.learningProgress.start({ guideId: LEARNING_GUIDE_IDS.ProgrammingFundamentals });
+        await caller.learningProgress.start({ guideId: LEARNING_GUIDE_IDS.DataStructures });
         const completed = await caller.learningProgress.setStatus({
-          guideId: LEARNING_GUIDE_IDS.ProgrammingFundamentals,
+          guideId: LEARNING_GUIDE_IDS.DataStructures,
           status: LEARNING_PROGRESS_STATUSES.Completed
         });
         const reopened = await caller.learningProgress.start({
-          guideId: LEARNING_GUIDE_IDS.ProgrammingFundamentals
+          guideId: LEARNING_GUIDE_IDS.DataStructures
         });
         const reset = await caller.learningProgress.setStatus({
-          guideId: LEARNING_GUIDE_IDS.ProgrammingFundamentals,
+          guideId: LEARNING_GUIDE_IDS.DataStructures,
           status: LEARNING_PROGRESS_STATUSES.InProgress
         });
         return { completed, reopened, reset };

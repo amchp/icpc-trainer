@@ -42,12 +42,21 @@ describe("ResourcesPage", () => {
       "/resources/programming-fundamentals"
     );
     expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toHaveAttribute("href", "/resources/time-complexity");
+    expect(screen.getByRole("link", { name: /Data Structures/ })).toHaveAttribute(
+      "href",
+      "/resources/data-structures"
+    );
     expect(screen.getByRole("link", { name: /Brute Force/ })).toHaveAttribute("href", "/resources/brute-force");
-    expect(screen.getByText("0 / 3 completed")).toBeInTheDocument();
+    expect(screen.getByText("0 / 4 completed")).toBeInTheDocument();
   });
 
   it("shows saved completion state", () => {
-    progressState.data = [LEARNING_GUIDE_IDS.Introduction, LEARNING_GUIDE_IDS.ProgrammingFundamentals, LEARNING_GUIDE_IDS.TimeComplexity].map((guideId) => ({
+    progressState.data = [
+      LEARNING_GUIDE_IDS.Introduction,
+      LEARNING_GUIDE_IDS.ProgrammingFundamentals,
+      LEARNING_GUIDE_IDS.TimeComplexity,
+      LEARNING_GUIDE_IDS.DataStructures
+    ].map((guideId) => ({
       guideId,
       status: LEARNING_PROGRESS_STATUSES.Completed,
       startedAt: "2026-07-16T00:00:00.000Z",
@@ -55,8 +64,8 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }));
     render(<ResourcesPage />);
-    expect(screen.getAllByText("Completed")).toHaveLength(3);
-    expect(screen.getByText("3 / 3 completed")).toBeInTheDocument();
+    expect(screen.getAllByText("Completed")).toHaveLength(4);
+    expect(screen.getByText("4 / 4 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -68,7 +77,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 3 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 4 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -78,6 +87,7 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Introduction/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Data Structures/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Brute Force/ })).toBeInTheDocument();
   });
 });

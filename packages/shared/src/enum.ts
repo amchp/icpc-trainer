@@ -175,6 +175,7 @@ export enum LEARNING_GUIDE_IDS {
   Introduction = "introduction",
   ProgrammingFundamentals = "programming-fundamentals",
   TimeComplexity = "time-complexity",
+  DataStructures = "data-structures",
 }
 
 export type LearningGuideId = `${LEARNING_GUIDE_IDS}`;
