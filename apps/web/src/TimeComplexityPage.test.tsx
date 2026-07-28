@@ -3,11 +3,13 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TimeComplexityPage } from "./TimeComplexityPage.js";
+import { problemFirstComplexityCode, TimeComplexityPage } from "./TimeComplexityPage.js";
 
 const state = vi.hoisted(() => ({ start: vi.fn(), setStatus: vi.fn(), success: vi.fn(), error: vi.fn() }));
 vi.mock("@clerk/clerk-react", () => ({ useAuth: () => ({ userId: "complexity-learner" }) }));
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a> }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a>
+}));
 vi.mock("./useLearningProgress.js", () => ({
   useLearningProgress: () => ({ data: [] }),
   useStartLearningGuide: () => ({ mutate: state.start }),
@@ -15,106 +17,155 @@ vi.mock("./useLearningProgress.js", () => ({
 }));
 vi.mock("./Toaster.js", () => ({ useToaster: () => ({ success: state.success, error: state.error }) }));
 
-class ObserverStub { observe(): void {} disconnect(): void {} }
+class ObserverStub {
+  observe(): void {}
+  disconnect(): void {}
+}
 
 describe("TimeComplexityPage", () => {
-  beforeEach(() => { vi.stubGlobal("IntersectionObserver", ObserverStub); state.start.mockReset(); state.setStatus.mockReset(); });
-  afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", ObserverStub);
+    state.start.mockReset();
+    state.setStatus.mockReset();
+  });
 
-  it("renders the complete user-search scaling lesson and all nine one-second thresholds", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("presents six challenges before their tools and preserves real problem sources", () => {
     render(<TimeComplexityPage />);
+
     expect(screen.getByRole("heading", { name: "Time & Space Complexity" })).toBeInTheDocument();
-    expect(screen.getByText("Will user search stay fast as the site grows?")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Start with the product, then count the work." })).toBeInTheDocument();
-    expect(screen.getByText(/A clear baseline, not the final architecture/)).toBeInTheDocument();
-    expect(screen.getByText("Your engineering lead asks for a resource estimate before this ships.")).toBeInTheDocument();
-    expect(screen.getByText("How many ID comparisons will the searches require?")).toBeInTheDocument();
-    expect(screen.getByText("How many bytes will the user list and search index occupy?")).toBeInTheDocument();
-    expect(screen.getByText(/people-search request has returned five user IDs/)).toBeInTheDocument();
-    expect(screen.getByText(/count this comparison/)).toBeInTheDocument();
-    const countSection = document.querySelector("#count");
-    expect(countSection).not.toBeNull();
-    expect(countSection?.textContent).not.toContain("O(");
-    const notationHeading = screen.getByRole("heading", { name: "From a count to a growth label" });
-    const compareHeading = screen.getByRole("heading", { name: "When does the simple search stop being enough?" });
-    expect(notationHeading.compareDocumentPosition(compareHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Big O is the notation for that upper growth pattern/)).toBeInTheDocument();
-    const memoryHeading = screen.getByRole("heading", { name: "Calculate how the extra memory grows" });
-    expect(notationHeading.compareDocumentPosition(memoryHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(memoryHeading.compareDocumentPosition(compareHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/A 64-bit user ID occupies 8 bytes/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Build the memory model" })).toBeInTheDocument();
-    expect(screen.getByLabelText("User array with 5 items at 8 bytes each")).toBeInTheDocument();
-    expect(screen.getByText(/The linear scan keeps the supplied vector and adds only fixed loop state/)).toBeInTheDocument();
-    const totalMemoryHeading = screen.getByRole("heading", { name: "Calculate your program's total memory" });
-    const memoryQuestionsHeading = screen.getByRole("heading", { name: "Test your memory model" });
-    expect(totalMemoryHeading.compareDocumentPosition(memoryQuestionsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(document.querySelector("#memory details")).toBeNull();
-    expect(screen.getByText("100,000,000 ÷ 500,000,000 = 0.2 s")).toBeInTheDocument();
-    expect(screen.getByText("Fixed reference rate")).toBeInTheDocument();
-    expect(screen.getByLabelText("Quadratic simplification").getAttribute("data-latex")).toContain("O(n^2)");
-    expect(screen.getByText(/The chart answers a visual question/)).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Growth curves from n equals 10 through one million/ })).toHaveAttribute("data-n-max", "1000000");
-    const table = screen.getByRole("table", { name: "Largest approximate input within the one-second model" });
-    expect(within(table).getAllByRole("row")).toHaveLength(10);
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(2);
-    expect(within(table).queryByRole("columnheader", { name: "What this means" })).not.toBeInTheDocument();
-    expect(within(table).getByLabelText("2 to the power of 10 to the power of 5")).toBeInTheDocument();
-    expect(screen.queryByText(/Each ID is 64 bits, which is 8 bytes/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/source_users\(n\)/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "8n bytes" }));
-    expect(screen.getByText(/Each ID is 64 bits, which is 8 bytes/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Answer code")).toHaveTextContent("vector<long long> source_users(n);");
-    expect(screen.getByRole("heading", { name: "Choose as the site scales" })).toBeInTheDocument();
-    const compareSection = document.querySelector("#compare");
-    expect(compareSection).not.toBeNull();
-    const compareQuestions = within(compareSection as HTMLElement);
-    expect(compareQuestions.getByText(/5 users · 2 searches/)).toBeInTheDocument();
-    expect(compareQuestions.queryByText(/10,000 users · 100 searches/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/The repeated scan is O\(qn\)/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "O(qn)" }));
-    expect(screen.getByText(/The repeated scan is O\(qn\)/)).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Answer code").at(-1)!).toHaveTextContent("user_exists_linear");
-    fireEvent.click(compareQuestions.getByRole("button", { name: "Next question" }));
-    expect(compareQuestions.getByText(/10,000 users · 100 searches/)).toBeInTheDocument();
-    fireEvent.click(compareQuestions.getByRole("button", { name: "1,000,000" }));
-    expect(screen.getAllByLabelText("Answer code").at(-1)!).toHaveTextContent("build_sorted_user_index");
-    expect(document.querySelector("#compare details")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Practical loop-counting tricks" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Count passes" }).closest("article")).toHaveTextContent("checksum += i");
-    expect(screen.getByRole("heading", { name: "Multiply nesting" }).closest("article")).toHaveTextContent("inspect(i, j)");
-    expect(screen.getByRole("heading", { name: "Add sequences" }).closest("article")).toHaveTextContent("validate_user(j)");
-    expect(screen.getByText("What is the time complexity of this single loop?")).toBeInTheDocument();
-    const loopPractice = screen.getByRole("region", { name: "Try the loop shortcut" });
-    expect(within(loopPractice).queryByText(/body runs n times/)).not.toBeInTheDocument();
-    fireEvent.click(within(loopPractice).getByRole("button", { name: "O(n)" }));
-    expect(within(loopPractice).getByRole("status")).toHaveTextContent("body runs n times");
-    const counterPractice = screen.getByRole("region", { name: "Challenge the shortcut" });
-    fireEvent.click(within(counterPractice).getByRole("button", { name: "Next question" }));
-    expect(within(counterPractice).getByText(/Why is its time complexity not O\(n\)/)).toBeInTheDocument();
-    fireEvent.click(within(counterPractice).getByRole("button", { name: "O(log n)" }));
-    expect(within(counterPractice).getByRole("status")).toHaveTextContent("i doubles on every pass");
-    expect(screen.getByRole("heading", { name: "Count how long recursion takes" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "One recursive call" }).closest("article")).toHaveTextContent("countdown(n - 1)");
-    expect(screen.getByRole("heading", { name: "Shrink the input" }).closest("article")).toHaveTextContent("halve(n / 2)");
-    expect(screen.getByRole("heading", { name: "Branch into two calls" }).closest("article")).toHaveTextContent("fibonacci(n - 2)");
-    expect(screen.getByText("How long does this countdown recursion take?")).toBeInTheDocument();
-    const recursionPractice = screen.getByRole("region", { name: "Trace the recursive calls" });
-    fireEvent.click(within(recursionPractice).getByRole("button", { name: "O(n)" }));
-    expect(within(recursionPractice).getByRole("status")).toHaveTextContent("maximum stack depth is also O(n)");
-    fireEvent.click(within(recursionPractice).getByRole("button", { name: "Next question" }));
-    fireEvent.click(within(recursionPractice).getByRole("button", { name: "Next question" }));
-    expect(within(recursionPractice).getByText("Question 3 of 3")).toBeInTheDocument();
-    expect(within(recursionPractice).getByRole("button", { name: "Next question" })).toBeDisabled();
-    expect(document.querySelector("#recursion")?.textContent).not.toMatch(/memoiz/i);
-    expect(screen.getByText(/No advanced recurrence theorem is needed/)).toBeInTheDocument();
+    for (const title of [
+      "How long will this search run, and how much memory will it use?",
+      "Contains Duplicate",
+      "Best Time to Buy and Sell Stock",
+      "Duplicate Zeros",
+      "Fibonacci Number",
+      "Two Sum"
+    ]) {
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    }
+    expect(screen.getAllByText(/Learning challenge/)).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: "Reveal the analysis tool" })).toHaveLength(6);
+    expect(screen.queryByRole("heading", { name: "Count operations and bytes until a formula appears" })).not.toBeInTheDocument();
+
+    const sourceLinks = screen.getAllByRole("link", { name: "Open the original problem" });
+    expect(sourceLinks).toHaveLength(5);
+    expect(sourceLinks[0]).toHaveAttribute("href", "https://leetcode.com/problems/contains-duplicate/");
+    expect(sourceLinks[3]).toHaveAttribute("href", "https://leetcode.com/problems/fibonacci-number/");
+    expect(sourceLinks.at(-1)).toHaveAttribute("href", "https://leetcode.com/problems/two-sum/");
+    expect(screen.queryByText("Continue the toolkit")).not.toBeInTheDocument();
+    const stockHeading = screen.getByRole("heading", { name: "Best Time to Buy and Sell Stock" });
+    const zerosHeading = screen.getByRole("heading", { name: "Duplicate Zeros" });
+    const powerHeading = screen.getByRole("heading", { name: "Fibonacci Number" });
+    expect(stockHeading.compareDocumentPosition(zerosHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(zerosHeading.compareDocumentPosition(powerHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(state.start).toHaveBeenCalledWith(LEARNING_GUIDE_IDS.TimeComplexity, expect.any(Object));
   });
 
-  it("uses manual Learning Progress completion without gating lesson controls", () => {
+  it("reveals the analysis and comparison as separate learner-controlled stages with two questions", () => {
+    render(<TimeComplexityPage />);
+    const searchSection = document.querySelector("#search");
+    expect(searchSection).not.toBeNull();
+    const search = within(searchSection as HTMLElement);
+
+    fireEvent.click(search.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(search.getByRole("heading", { name: "Count operations and bytes until a formula appears" })).toBeInTheDocument();
+    expect(search.getByRole("heading", { name: "Change the input; watch the counts become formulas" })).toBeInTheDocument();
+    expect(search.getByText("T(n, q) = qn")).toBeInTheDocument();
+    expect(search.getByText("M(n, q) = 8n + 8q + c_fixed")).toBeInTheDocument();
+    expect(search.queryByText("Repeat a direct scan")).not.toBeInTheDocument();
+
+    fireEvent.click(search.getByRole("button", { name: "Compare solution approaches" }));
+    expect(search.getByText("Repeat a direct scan")).toBeInTheDocument();
+    expect(search.getByText("Build a sorted copy")).toBeInTheDocument();
+    expect(search.getByText("Build a hash index")).toBeInTheDocument();
+    const comparison = search.getByRole("region", { name: "Solution approach comparison" });
+    expect(comparison.firstElementChild).toHaveClass("grid", "gap-4");
+    expect(comparison.firstElementChild).not.toHaveClass("xl:grid-cols-3");
+    expect(search.getByText("Question 1 of 2")).toBeInTheDocument();
+    fireEvent.click(search.getByRole("button", { name: "Evaluating id == query" }));
+    expect(search.getByRole("status")).toHaveTextContent("equality check is the repeated work");
+    fireEvent.click(search.getByRole("button", { name: "Next question" }));
+    expect(search.getByText("Question 2 of 2")).toBeInTheDocument();
+  });
+
+  it("exposes Big O, estimation, control-flow, recursion, and capstone tools in the requested order", () => {
+    render(<TimeComplexityPage />);
+    const duplicatesSection = document.querySelector("#duplicates");
+    const stockSection = document.querySelector("#stock");
+    const powerSection = document.querySelector("#power");
+    const zerosSection = document.querySelector("#zeros");
+    const capstoneSection = document.querySelector("#capstone");
+    expect(duplicatesSection).not.toBeNull();
+    expect(stockSection).not.toBeNull();
+    expect(powerSection).not.toBeNull();
+    expect(zerosSection).not.toBeNull();
+    expect(capstoneSection).not.toBeNull();
+    const duplicates = within(duplicatesSection as HTMLElement);
+    const stock = within(stockSection as HTMLElement);
+    const power = within(powerSection as HTMLElement);
+    const zeros = within(zerosSection as HTMLElement);
+    const capstone = within(capstoneSection as HTMLElement);
+
+    fireEvent.click(duplicates.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(duplicates.getByRole("heading", { name: "Keep the dominant growth; drop constants" })).toBeInTheDocument();
+    expect(duplicates.getAllByText("3n² + 4n + 20")).toHaveLength(2);
+
+    fireEvent.click(stock.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(stock.getByRole("heading", { name: "Runtime estimator" })).toBeInTheDocument();
+    expect(stock.getByRole("heading", { name: "Estimate memory for the same three candidates" })).toBeInTheDocument();
+    expect(stock.getByText("Input memory").parentElement).toHaveTextContent("4,000 B");
+    expect(stock.getByText("Auxiliary memory").parentElement).toHaveTextContent("4,004 B");
+    expect(stock.getByText("Total modeled memory").parentElement).toHaveTextContent("8,004 B");
+
+    fireEvent.click(zeros.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(zeros.getByRole("heading", { name: "One if can trigger much more than one operation" })).toBeInTheDocument();
+    expect(zeros.getByText(/T\(n, z\) ≤ n \+ zn/)).toBeInTheDocument();
+
+    fireEvent.click(power.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(power.getByRole("heading", { name: "Expand F(6) one layer at a time" })).toBeInTheDocument();
+    expect(power.getByText(/O\(2ⁿ\) is a simple upper bound/)).toBeInTheDocument();
+    expect(power.getByTestId("fibonacci-naive-animation")).toBeInTheDocument();
+    fireEvent.click(power.getByRole("button", { name: "Reveal next layer" }));
+    expect(power.getByText("Calls revealed").parentElement).toHaveTextContent("3");
+    expect(power.queryByRole("button", { name: /memoized/i })).not.toBeInTheDocument();
+
+    fireEvent.click(capstone.getByRole("button", { name: "Reveal the analysis tool" }));
+    expect(capstone.getByRole("heading", { name: "Classify before comparing" })).toBeInTheDocument();
+    expect(capstone.getByRole("button", { name: "Reveal the reference model" })).toBeEnabled();
+  });
+
+  it("uses manual Learning Progress completion without gating practice", () => {
     render(<TimeComplexityPage />);
     fireEvent.click(screen.getByRole("button", { name: "Mark guide complete" }));
-    expect(state.setStatus).toHaveBeenCalledWith({ guideId: LEARNING_GUIDE_IDS.TimeComplexity, status: LEARNING_PROGRESS_STATUSES.Completed }, expect.any(Object));
-    expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
+
+    expect(state.setStatus).toHaveBeenCalledWith(
+      { guideId: LEARNING_GUIDE_IDS.TimeComplexity, status: LEARNING_PROGRESS_STATUSES.Completed },
+      expect.any(Object)
+    );
+    expect(screen.getAllByRole("button", { name: "Reveal the analysis tool" })[0]).toBeEnabled();
+  });
+
+  it("keeps displayed fragments valid for the course's C++17 model and Duplicate Zeros sample", () => {
+    expect(problemFirstComplexityCode.searchHash).toContain("find(query) != index.end()");
+    expect(problemFirstComplexityCode.twoSumHash).toContain("match != seen.end()");
+    expect(problemFirstComplexityCode.searchHash).not.toContain(".contains(");
+    expect(problemFirstComplexityCode.twoSumHash).not.toContain(".contains(");
+    expect(problemFirstComplexityCode.zerosShift).toContain("++i; // skip the zero just inserted");
+    expect(problemFirstComplexityCode.fibonacciNaive).toContain("fibonacci(n - 1) + fibonacci(n - 2)");
+    expect(problemFirstComplexityCode.fibonacciTable).toContain("values[index] = values[index - 1] + values[index - 2]");
+    expect(problemFirstComplexityCode.fibonacciIterative).toContain("previous = current");
+
+    const values = [1, 0, 2, 3, 0, 4, 5, 0];
+    for (let i = 0; i < values.length; i += 1) {
+      if (values[i] !== 0) continue;
+      for (let j = values.length - 1; j > i; j -= 1) values[j] = values[j - 1] ?? 0;
+      i += 1;
+    }
+    expect(values).toEqual([1, 0, 0, 2, 3, 0, 0, 4]);
   });
 });

@@ -44,7 +44,8 @@ const primaryLabels = [
   "Upsolving",
   "Contest Finder",
   "Resources",
-  "Team"
+  "Team",
+  "Leaderboard"
 ];
 
 afterEach(cleanup);
@@ -55,11 +56,7 @@ describe("AppHeader", () => {
 
     const primaryNavigation = screen.getByRole("navigation");
     expect(primaryNavigation).toHaveClass("hidden", "lg:flex");
-    expect(within(primaryNavigation).getAllByRole("link").map((link) => link.textContent)).toEqual([
-      "Find Problems",
-      "Leaderboard",
-      ...primaryLabels.slice(1)
-    ]);
+    expect(within(primaryNavigation).getAllByRole("link").map((link) => link.textContent)).toEqual(primaryLabels);
     expect(primaryNavigation.parentElement).toHaveClass("h-14", "items-center");
 
     expect(screen.getByRole("button", { name: "Sync" })).toBeInTheDocument();
@@ -74,9 +71,7 @@ describe("AppHeader", () => {
     expect(compactNavigation).toBeDefined();
     const compactLinks = within(compactNavigation!).getAllByRole("link");
     expect(compactLinks.map((link) => link.textContent)).toEqual([
-      "Find Problems",
-      "Leaderboard",
-      ...primaryLabels.slice(1),
+      ...primaryLabels,
       "Judges"
     ]);
 

@@ -18,7 +18,7 @@ _Avoid_: Raw score, solved count
 
 **Problem**:
 A single task from a **Contest**. Each **Problem** belongs to exactly one **Contest** in the app.
-_Avoid_: Task
+_Avoid_: Task, lesson exercise, learning challenge
 
 **Submission**:
 A **Judge User**'s attempt at a **Problem** on a **Judge**. A **Judge User** may have many **Submissions** for the same **Problem**.
@@ -110,7 +110,15 @@ _Avoid_: Resource link, lesson
 
 **Learning Guide**:
 An in-app lesson for an available **Learning Topic**.
-_Avoid_: External resource, article link
+_Avoid_: External resource, article link, class
+
+**Learning Challenge**:
+A teaching scenario inside a **Learning Guide** that asks the learner to reason before its analysis or tools are revealed. A Learning Challenge is not a judge **Problem**.
+_Avoid_: Problem, task
+
+**Problem-First Lesson**:
+A **Learning Guide** lesson flow that presents a **Learning Challenge**, pauses for the learner's attempt, reveals an analysis tool, and then compares or applies solution approaches.
+_Avoid_: Class, problem
 
 **Learning Progress**:
 An **App User**'s saved status for a **Learning Guide**.

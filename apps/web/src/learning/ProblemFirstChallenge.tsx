@@ -13,8 +13,8 @@ export interface ProblemFirstChallengeProps {
   readonly constraints: string;
   readonly sampleLabel: string;
   readonly sample: string;
-  readonly sourceUrl: string;
-  readonly sourceLabel: string;
+  readonly sourceUrl?: string;
+  readonly sourceLabel?: string;
   readonly attemptPrompt: string;
   readonly attemptStageLabel: string;
   readonly revealLabel: string;
@@ -128,14 +128,16 @@ export function ProblemFirstChallenge({
             <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-6 text-zinc-300">{sample}</pre>
           </div>
         </div>
-        <a
-          href={sourceUrl}
-          target="_blank"
-          rel="noreferrer"
-          className={cn("mt-5 inline-flex items-center gap-2 text-sm font-semibold underline decoration-zinc-700 underline-offset-4", styles.text)}
-        >
-          {sourceLabel}<ExternalLink className="size-4" aria-hidden="true" />
-        </a>
+        {sourceUrl !== undefined && sourceLabel !== undefined ? (
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn("mt-5 inline-flex items-center gap-2 text-sm font-semibold underline decoration-zinc-700 underline-offset-4", styles.text)}
+          >
+            {sourceLabel}<ExternalLink className="size-4" aria-hidden="true" />
+          </a>
+        ) : null}
         </div>
       </div>
 

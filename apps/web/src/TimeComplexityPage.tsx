@@ -7,42 +7,127 @@ import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
 import { Button } from "./components/ui.js";
-import { cn } from "./lib.js";
-import { GuideCodeBlock } from "./learning/GuideCodeBlock.js";
 import {
   ComplexityCurveChart,
-  ComplexityGrowthMeters,
-  ExactCountWorksheet,
   LocalLinearBenchmark,
-  MemoryAllocationLab,
-  MemoryModelExplorer,
   RuntimeEstimator
 } from "./learning/complexity/ComplexityInteractions.js";
-import { LinearithmicBigOFormula, QuadraticBigOFormula } from "./learning/complexity/MathFormula.js";
+import {
+  BigOSimplifierLab,
+  ComplexityApproachComparison,
+  ControlFlowCounterLab,
+  FibonacciRecursionLab,
+  OperationMemoryFormulaLab,
+  StockMemoryEstimatorLab,
+  TwoSumCapstoneLab,
+  type ComplexityApproach
+} from "./learning/complexity/ProblemFirstComplexityLabs.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
-import { PracticeQuestionSet } from "./learning/PracticeQuestionSet.js";
-import { getTimeComplexitySnippets } from "./learning/snippets/timeComplexitySnippets.js";
-import type { TimeComplexitySnippets } from "./learning/snippets/timeComplexitySnippets.types.js";
+import { PracticeQuestionSet, type PracticeQuestion } from "./learning/PracticeQuestionSet.js";
+import { ProblemFirstChallenge, type ProblemFirstChallengeProps } from "./learning/ProblemFirstChallenge.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
 import { useToaster } from "./Toaster.js";
 
 const GUIDE_ID = LEARNING_GUIDE_IDS.TimeComplexity;
 
+export const problemFirstComplexityCode = {
+  searchScan: `for (long long query : queries) {
+  bool found = false;
+  for (long long id : users) {
+    if (id == query) { found = true; break; }
+  }
+}`,
+  searchSorted: `vector<long long> index = users;
+sort(index.begin(), index.end());
+for (long long query : queries)
+  bool found = binary_search(index.begin(), index.end(), query);`,
+  searchHash: `unordered_set<long long> index(users.begin(), users.end());
+for (long long query : queries)
+  bool found = index.find(query) != index.end();`,
+  duplicatePairs: `for (int i = 0; i < n; ++i)
+  for (int j = i + 1; j < n; ++j)
+    if (nums[i] == nums[j]) return true;`,
+  duplicateSort: `vector<int> copy = nums;
+sort(copy.begin(), copy.end());
+for (int i = 1; i < n; ++i)
+  if (copy[i] == copy[i - 1]) return true;`,
+  duplicateHash: `unordered_set<int> seen;
+for (int value : nums)
+  if (!seen.insert(value).second) return true;`,
+  stockPairs: `for (int buy = 0; buy < n; ++buy)
+  for (int sell = buy + 1; sell < n; ++sell)
+    best = max(best, price[sell] - price[buy]);`,
+  stockSuffix: `vector<int> suffixMax(n);
+for (int i = n - 1; i >= 0; --i)
+  suffixMax[i] = max(price[i], i + 1 < n ? suffixMax[i + 1] : price[i]);`,
+  stockMin: `int minimum = price[0];
+for (int value : price) {
+  best = max(best, value - minimum);
+  minimum = min(minimum, value);
+}`,
+  fibonacciNaive: `long long fibonacci(int n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}`,
+  fibonacciTable: `long long fibonacci(int n) {
+  vector<long long> values(n + 1);
+  if (n >= 1) values[1] = 1;
+  for (int index = 2; index <= n; ++index)
+    values[index] = values[index - 1] + values[index - 2];
+  return values[n];
+}`,
+  fibonacciIterative: `long long fibonacci(int n) {
+  if (n <= 1) return n;
+  long long previous = 0, current = 1;
+  for (int index = 2; index <= n; ++index) {
+    long long next = previous + current;
+    previous = current;
+    current = next;
+  }
+  return current;
+}`,
+  zerosShift: `for (int i = 0; i < n; ++i) {
+  if (arr[i] == 0) {
+    for (int j = n - 1; j > i; --j)
+      arr[j] = arr[j - 1];
+    ++i; // skip the zero just inserted
+  }
+}`,
+  zerosBuffer: `vector<int> output;
+for (int value : arr) {
+  output.push_back(value);
+  if (value == 0) output.push_back(0);
+  if (output.size() >= arr.size()) break;
+}
+arr = output;
+arr.resize(n);`,
+  zerosBackward: `int write = n + zeroCount - 1;
+for (int read = n - 1; read >= 0; --read) {
+  if (write < n) arr[write] = arr[read];
+  if (arr[read] == 0 && --write < n) arr[write] = 0;
+  --write;
+}`,
+  twoSumPairs: `for (int i = 0; i < n; ++i)
+  for (int j = i + 1; j < n; ++j)
+    if (nums[i] + nums[j] == target) return {i, j};`,
+  twoSumSort: `vector<pair<int, int>> values;
+for (int i = 0; i < n; ++i) values.push_back({nums[i], i});
+sort(values.begin(), values.end());
+for (int left = 0, right = n - 1; left < right; )
+  if (values[left].first + values[right].first < target) ++left;
+  else if (values[left].first + values[right].first > target) --right;
+  else return {values[left].second, values[right].second};`,
+  twoSumHash: `unordered_map<int, int> seen;
+for (int i = 0; i < n; ++i) {
+  auto match = seen.find(target - nums[i]);
+  if (match != seen.end()) return {match->second, i};
+  seen[nums[i]] = i;
+}`
+} as const;
+
 export function TimeComplexityPage(): React.JSX.Element {
-  const { t, i18n } = useTranslation("timeComplexity");
+  const { t } = useTranslation("timeComplexity");
   const { userId } = useAuth();
-  const snippets = getTimeComplexitySnippets(i18n.resolvedLanguage ?? i18n.language);
-  const sections = [
-    ["count", t("sections.count")],
-    ["notation", t("sections.notation")],
-    ["memory", t("sections.memory")],
-    ["compare", t("sections.compare")],
-    ["tricks", t("sections.tricks")],
-    ["recursion", t("sections.recursion")],
-    ["growth", t("sections.growth")],
-    ["budget", t("sections.budget")],
-    ["benchmark", t("sections.benchmark")]
-  ] as const;
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
   const setStatus = useSetLearningProgressStatus();
@@ -50,8 +135,12 @@ export function TimeComplexityPage(): React.JSX.Element {
   const startedForUser = useRef<string | null>(null);
   const progress = progressQuery.data?.find((row) => row.guideId === GUIDE_ID);
   const completed = progress?.status === LEARNING_PROGRESS_STATUSES.Completed;
-  const [activeSection, setActiveSection] = useState<string>(sections[0][0]);
-  const [inputSize, setInputSize] = useState(5);
+  const sections = (["search", "duplicates", "stock", "zeros", "power", "capstone"] as const).map((id) => ({
+    id,
+    label: t(`problemFirst.sections.${id}`)
+  }));
+  const [activeSection, setActiveSection] = useState<string>(sections[0]?.id ?? "search");
+  const [inputSize, setInputSize] = useState(1000);
 
   useEffect(() => {
     if (userId === null || userId === undefined || startedForUser.current === userId) return;
@@ -66,8 +155,8 @@ export function TimeComplexityPage(): React.JSX.Element {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (visible?.target.id) setActiveSection(visible.target.id);
     }, { rootMargin: "-20% 0px -65%", threshold: [0, 0.25, 0.6] });
-    for (const [id] of sections) {
-      const element = document.getElementById(id);
+    for (const section of sections) {
+      const element = document.getElementById(section.id);
       if (element) observer.observe(element);
     }
     return () => observer.disconnect();
@@ -84,6 +173,8 @@ export function TimeComplexityPage(): React.JSX.Element {
     });
   };
 
+  const common = commonChallengeProps(t);
+
   return (
     <main className="pb-24 text-zinc-200">
       <header className="relative overflow-hidden border-b border-zinc-800">
@@ -94,77 +185,186 @@ export function TimeComplexityPage(): React.JSX.Element {
           </Link>
           <p className="guide-rise mt-14 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-violet-400">{t("eyebrow")}</p>
           <h1 className="guide-rise mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.045em] text-zinc-50 [animation-delay:80ms] sm:text-6xl">{t("title")}</h1>
-          <p className="guide-rise mt-6 max-w-3xl text-lg leading-8 text-zinc-400 [animation-delay:160ms]">{t("subtitle")}</p>
-          <p className="guide-rise mt-12 border-l-2 border-violet-400 pl-5 text-2xl font-semibold tracking-tight text-violet-100 [animation-delay:240ms] sm:text-3xl">{t("heroQuestion")}</p>
+          <p className="guide-rise mt-6 max-w-3xl text-lg leading-8 text-zinc-400 [animation-delay:160ms]">{t("problemFirst.subtitle")}</p>
+          <p className="guide-rise mt-12 border-l-2 border-violet-400 pl-5 text-2xl font-semibold tracking-tight text-violet-100 [animation-delay:240ms] sm:text-3xl">{t("problemFirst.heroQuestion")}</p>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
-        <GuideSidebar sections={sections.map(([id, label]) => ({ id, label }))} activeSection={activeSection} label={t("sidebar.label")} progressLabel={(current, total) => t("sidebar.progress", { current, total })} />
-        <div className="min-w-0">
-          <GuideSection id="count" accent="text-cyan-300" title={t("count.title")}>
-            <SearchScalingBrief />
-            <p>{t("count.p1")}</p>
-            <p>{t("count.p2")}</p>
-            <ExactCountWorksheet />
-          </GuideSection>
+        <GuideSidebar sections={sections} activeSection={activeSection} label={t("sidebar.label")} progressLabel={(current, total) => t("sidebar.progress", { current, total })} />
+        <div className="min-w-0 max-w-5xl">
+          <LessonSection id="search">
+            <ProblemFirstChallenge
+              {...common}
+              accent="cyan"
+              eyebrow={t("problemFirst.search.eyebrow")}
+              title={t("problemFirst.search.title")}
+              description={t("problemFirst.search.description")}
+              constraints={t("problemFirst.search.constraints")}
+              sample={t("problemFirst.search.sample")}
+              toolTitle={t("problemFirst.search.toolTitle")}
+              applicationTitle={t("problemFirst.search.applicationTitle")}
+              applicationPrompt={t("problemFirst.search.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={searchApproaches(t)}
+                  caveat={t("problemFirst.common.hashCaveat")}
+                  questions={questions(t, "search")}
+                  label={t("problemFirst.search.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.search.analysis")}</p>
+              <OperationMemoryFormulaLab />
+            </ProblemFirstChallenge>
+          </LessonSection>
 
-          <GuideSection id="notation" accent="text-violet-300" title={t("notation.title")}>
-            <p>{t("notation.p1")}</p>
-            <BigOIntroduction />
-            <p>{t("notation.p2")}</p>
-            <p>{t("notation.p3")}</p>
-            <div className="my-8 grid gap-3 sm:grid-cols-2">
-              <QuadraticBigOFormula label={t("notation.quadraticFormulaLabel")} />
-              <LinearithmicBigOFormula label={t("notation.linearithmicFormulaLabel")} />
-            </div>
-            <ComplexityCurveChart />
-            <OneSecondTable />
-          </GuideSection>
+          <LessonSection id="duplicates">
+            <ProblemFirstChallenge
+              {...common}
+              accent="violet"
+              eyebrow={t("problemFirst.duplicates.eyebrow")}
+              title={t("problemFirst.duplicates.title")}
+              description={t("problemFirst.duplicates.description")}
+              constraints={t("problemFirst.duplicates.constraints")}
+              sample={t("problemFirst.duplicates.sample")}
+              sourceUrl="https://leetcode.com/problems/contains-duplicate/"
+              sourceLabel={t("problemFirst.common.openSource")}
+              toolTitle={t("problemFirst.duplicates.toolTitle")}
+              applicationTitle={t("problemFirst.duplicates.applicationTitle")}
+              applicationPrompt={t("problemFirst.duplicates.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={duplicateApproaches(t)}
+                  caveat={t("problemFirst.common.hashCaveat")}
+                  questions={questions(t, "duplicates")}
+                  label={t("problemFirst.duplicates.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.duplicates.analysis")}</p>
+              <BigOSimplifierLab />
+              <ComplexityCurveChart />
+            </ProblemFirstChallenge>
+          </LessonSection>
 
-          <GuideSection id="memory" accent="text-amber-300" title={t("memory.title")}>
-            <p>{t("memory.p1")}</p>
-            <p>{t("memory.p2")}</p>
-            <MemoryAllocationLab n={inputSize} onNChange={setInputSize} />
-            <MemoryModelExplorer n={inputSize} onNChange={setInputSize} />
-            <MemoryQuestions snippets={snippets} />
-          </GuideSection>
+          <LessonSection id="stock">
+            <ProblemFirstChallenge
+              {...common}
+              accent="emerald"
+              eyebrow={t("problemFirst.stock.eyebrow")}
+              title={t("problemFirst.stock.title")}
+              description={t("problemFirst.stock.description")}
+              constraints={t("problemFirst.stock.constraints")}
+              sample={t("problemFirst.stock.sample")}
+              sourceUrl="https://leetcode.com/problems/best-time-to-buy-and-sell-stock/"
+              sourceLabel={t("problemFirst.common.openSource")}
+              toolTitle={t("problemFirst.stock.toolTitle")}
+              applicationTitle={t("problemFirst.stock.applicationTitle")}
+              applicationPrompt={t("problemFirst.stock.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={stockApproaches(t)}
+                  questions={questions(t, "stock")}
+                  label={t("problemFirst.stock.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.stock.analysis")}</p>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 sm:p-6">
+                <RuntimeEstimator n={inputSize} onNChange={setInputSize} />
+                <StockMemoryEstimatorLab n={inputSize} onNChange={setInputSize} />
+                <LocalLinearBenchmark />
+              </div>
+            </ProblemFirstChallenge>
+          </LessonSection>
 
-          <GuideSection id="compare" accent="text-blue-300" title={t("compare.title")}>
-            <p>{t("compare.p1")}</p>
-            <ConstraintInvestigation snippets={snippets} />
-          </GuideSection>
+          <LessonSection id="zeros">
+            <ProblemFirstChallenge
+              {...common}
+              accent="cyan"
+              eyebrow={t("problemFirst.zeros.eyebrow")}
+              title={t("problemFirst.zeros.title")}
+              description={t("problemFirst.zeros.description")}
+              constraints={t("problemFirst.zeros.constraints")}
+              sample={t("problemFirst.zeros.sample")}
+              sourceUrl="https://leetcode.com/problems/duplicate-zeros/"
+              sourceLabel={t("problemFirst.common.openSource")}
+              toolTitle={t("problemFirst.zeros.toolTitle")}
+              applicationTitle={t("problemFirst.zeros.applicationTitle")}
+              applicationPrompt={t("problemFirst.zeros.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={zeroApproaches(t)}
+                  questions={questions(t, "zeros")}
+                  label={t("problemFirst.zeros.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.zeros.analysis")}</p>
+              <ControlFlowCounterLab />
+            </ProblemFirstChallenge>
+          </LessonSection>
 
-          <GuideSection id="tricks" accent="text-cyan-300" title={t("tricks.title")}>
-            <p>{t("tricks.p1")}</p>
-            <LoopCountingTricks snippets={snippets} />
-          </GuideSection>
+          <LessonSection id="power">
+            <ProblemFirstChallenge
+              {...common}
+              accent="orange"
+              eyebrow={t("problemFirst.power.eyebrow")}
+              title={t("problemFirst.power.title")}
+              description={t("problemFirst.power.description")}
+              constraints={t("problemFirst.power.constraints")}
+              sample={t("problemFirst.power.sample")}
+              sourceUrl="https://leetcode.com/problems/fibonacci-number/"
+              sourceLabel={t("problemFirst.common.openSource")}
+              toolTitle={t("problemFirst.power.toolTitle")}
+              applicationTitle={t("problemFirst.power.applicationTitle")}
+              applicationPrompt={t("problemFirst.power.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={fibonacciApproaches(t)}
+                  questions={questions(t, "power")}
+                  label={t("problemFirst.power.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.power.analysis")}</p>
+              <FibonacciRecursionLab />
+            </ProblemFirstChallenge>
+          </LessonSection>
 
-          <GuideSection id="recursion" accent="text-rose-300" title={t("recursion.title")}>
-            <p>{t("recursion.p1")}</p>
-            <RecursionCountingGuide snippets={snippets} />
-          </GuideSection>
-
-          <GuideSection id="growth" accent="text-fuchsia-300" title={t("growth.title")}>
-            <p>{t("growth.p1")}</p>
-            <ComplexityGrowthMeters n={inputSize} onNChange={setInputSize} />
-          </GuideSection>
-
-          <GuideSection id="budget" accent="text-amber-300" title={t("budget.title")}>
-            <p>{t("budget.p1")}</p>
-            <RuntimeCalculationWalkthrough />
-            <RuntimeEstimator n={inputSize} onNChange={setInputSize} />
-          </GuideSection>
-
-          <GuideSection id="benchmark" accent="text-emerald-300" title={t("benchmark.title")}>
-            <p>{t("benchmark.p1")}</p>
-            <LocalLinearBenchmark />
-          </GuideSection>
+          <LessonSection id="capstone">
+            <ProblemFirstChallenge
+              {...common}
+              accent="emerald"
+              eyebrow={t("problemFirst.capstone.eyebrow")}
+              title={t("problemFirst.capstone.title")}
+              description={t("problemFirst.capstone.description")}
+              constraints={t("problemFirst.capstone.constraints")}
+              sample={t("problemFirst.capstone.sample")}
+              sourceUrl="https://leetcode.com/problems/two-sum/"
+              sourceLabel={t("problemFirst.common.openSource")}
+              toolTitle={t("problemFirst.capstone.toolTitle")}
+              applicationTitle={t("problemFirst.capstone.applicationTitle")}
+              applicationPrompt={t("problemFirst.capstone.applicationPrompt")}
+              application={(
+                <Application
+                  approaches={twoSumApproaches(t)}
+                  caveat={t("problemFirst.common.hashCaveat")}
+                  questions={questions(t, "capstone")}
+                  label={t("problemFirst.capstone.practiceLabel")}
+                />
+              )}
+            >
+              <p>{t("problemFirst.capstone.analysis")}</p>
+              <TwoSumCapstoneLab />
+            </ProblemFirstChallenge>
+          </LessonSection>
 
           <section className="mt-20 border-t border-zinc-700 pt-10" aria-labelledby="complexity-finish-title">
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-violet-400">{t("finish.eyebrow")}</p>
             <h2 id="complexity-finish-title" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">{t("finish.title")}</h2>
-            <p className="mt-4 max-w-2xl leading-7 text-zinc-400">{t("finish.description")}</p>
+            <p className="mt-4 max-w-2xl leading-7 text-zinc-400">{t("problemFirst.finishDescription")}</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button type="button" disabled={setStatus.isPending} onClick={changeStatus}>
                 {completed ? <RotateCcw className="size-4" aria-hidden="true" /> : <Check className="size-4" aria-hidden="true" />}
@@ -179,281 +379,110 @@ export function TimeComplexityPage(): React.JSX.Element {
   );
 }
 
-function GuideSection({ id, title, accent, children }: { readonly id: string; readonly title: string; readonly accent: string; readonly children: ReactNode }): React.JSX.Element {
-  return <section id={id} className="scroll-mt-20 border-t border-zinc-800 py-16 sm:py-20"><div className="min-w-0 max-w-4xl"><h2 className={cn("mb-8 text-3xl font-semibold tracking-tight sm:text-4xl", accent)}>{title}</h2><div className="guide-copy space-y-5 text-base leading-8 text-zinc-300">{children}</div></div></section>;
+type Translate = ReturnType<typeof useTranslation<"timeComplexity">>["t"];
+type LessonKey = "search" | "duplicates" | "stock" | "power" | "zeros" | "capstone";
+
+function LessonSection({ id, children }: { readonly id: string; readonly children: ReactNode }): React.JSX.Element {
+  return <section id={id} className="scroll-mt-20 border-t border-zinc-800 py-8 sm:py-12">{children}</section>;
 }
 
-function SearchScalingBrief(): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const stages = [
-    [t("count.scenarioTodayLabel"), t("count.scenarioToday")],
-    [t("count.scenarioGrowthLabel"), t("count.scenarioGrowth")],
-    [t("count.scenarioGoalLabel"), t("count.scenarioGoal")]
-  ] as const;
-
-  return (
-    <section className="my-10 overflow-hidden rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-400/[0.08] via-zinc-950/80 to-violet-400/[0.06]" aria-labelledby="search-scaling-brief-title">
-      <div className="border-b border-cyan-400/15 px-5 py-5 sm:px-7">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">{t("count.scenarioEyebrow")}</p>
-        <h3 id="search-scaling-brief-title" className="mt-2 text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">{t("count.scenarioTitle")}</h3>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">{t("count.scenarioDescription")}</p>
-        <div className="mt-5 rounded-lg border border-cyan-400/20 bg-zinc-950/60 p-4">
-          <p className="text-sm font-medium text-cyan-100">{t("count.resourcePrompt")}</p>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="border-l-2 border-violet-400 pl-3"><dt className="font-mono text-[10px] uppercase tracking-wide text-violet-300">{t("count.timeResourceLabel")}</dt><dd className="mt-1 text-sm leading-6 text-zinc-400">{t("count.timeResourceQuestion")}</dd></div>
-            <div className="border-l-2 border-amber-400 pl-3"><dt className="font-mono text-[10px] uppercase tracking-wide text-amber-300">{t("count.memoryResourceLabel")}</dt><dd className="mt-1 text-sm leading-6 text-zinc-400">{t("count.memoryResourceQuestion")}</dd></div>
-          </dl>
-        </div>
-      </div>
-      <dl className="grid gap-px bg-zinc-800/80 sm:grid-cols-3">
-        {stages.map(([label, description]) => (
-          <div key={label} className="bg-zinc-950/90 px-5 py-5 sm:px-6">
-            <dt className="font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-500">{label}</dt>
-            <dd className="mt-2 text-sm leading-6 text-zinc-300">{description}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="border-t border-cyan-400/15 px-5 py-4 text-sm leading-6 text-cyan-100/80 sm:px-7">
-        <strong className="font-semibold text-cyan-200">{t("count.scenarioNoteTitle")}</strong>{" "}
-        {t("count.scenarioNote")}
-      </p>
-    </section>
-  );
-}
-
-function BigOIntroduction(): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const steps = [
-    [t("notation.countLabel"), t("notation.countValue")],
-    [t("notation.patternLabel"), t("notation.patternValue")],
-    [t("notation.labelLabel"), t("notation.labelValue")]
-  ] as const;
-
-  return (
-    <section className="my-8 overflow-hidden rounded-lg border border-violet-400/25 bg-violet-400/[0.04]" aria-labelledby="big-o-introduction-title">
-      <div className="border-b border-violet-400/15 px-5 py-5 sm:px-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300">{t("notation.eyebrow")}</p>
-        <h3 id="big-o-introduction-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("notation.introTitle")}</h3>
-      </div>
-      <ol className="grid gap-px bg-zinc-800/80 sm:grid-cols-3">
-        {steps.map(([label, value], index) => (
-          <li key={label} className="bg-zinc-950/90 px-5 py-5 sm:px-6">
-            <span className="font-mono text-[10px] text-violet-300">0{index + 1}</span>
-            <span className="mt-2 block text-xs uppercase tracking-wide text-zinc-500">{label}</span>
-            <strong className="mt-2 block font-mono text-lg text-zinc-100">{value}</strong>
-          </li>
-        ))}
-      </ol>
-      <p className="border-t border-violet-400/15 px-5 py-4 text-sm leading-6 text-violet-100/80 sm:px-6">{t("notation.bridgeNote")}</p>
-    </section>
-  );
-}
-
-function RuntimeCalculationWalkthrough(): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const steps = [
-    [t("budget.workStepLabel"), t("budget.workStepValue")],
-    [t("budget.constantStepLabel"), t("budget.constantStepValue")],
-    [t("budget.divideStepLabel"), t("budget.divideStepValue")]
-  ] as const;
-
-  return (
-    <section className="my-10 overflow-hidden rounded-xl border border-violet-400/25 bg-violet-400/[0.04]" aria-labelledby="runtime-calculation-title">
-      <div className="border-b border-violet-400/15 px-5 py-5 sm:px-7">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300">{t("budget.walkthroughEyebrow")}</p>
-        <h3 id="runtime-calculation-title" className="mt-2 text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">{t("budget.walkthroughTitle")}</h3>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">{t("budget.walkthroughDescription")}</p>
-      </div>
-      <ol className="grid gap-px bg-zinc-800/80 sm:grid-cols-3">
-        {steps.map(([label, value], index) => (
-          <li key={label} className="bg-zinc-950/90 px-5 py-5 sm:px-6">
-            <span className="font-mono text-[10px] text-violet-300">0{index + 1}</span>
-            <span className="mt-2 block text-xs uppercase tracking-wide text-zinc-500">{label}</span>
-            <strong className="mt-2 block font-mono text-base text-zinc-100">{value}</strong>
-          </li>
-        ))}
-      </ol>
-      <p className="border-t border-violet-400/15 px-5 py-4 text-sm leading-6 text-violet-100/80 sm:px-7">{t("budget.walkthroughNote")}</p>
-    </section>
-  );
-}
-
-function ConstraintInvestigation({ snippets }: { readonly snippets: TimeComplexitySnippets }): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const questions = [
-    {
-      question: `${t("compare.caseSmallTitle")} — ${t("compare.caseSmallQuestion")}`,
-      answerCode: snippets.pairScan,
-      options: [t("compare.caseSmallChoiceA"), t("compare.caseSmallChoiceB"), t("compare.caseSmallChoiceC")],
-      correctOption: 1,
-      explanation: t("compare.caseSmallAnswer")
-    },
-    {
-      question: `${t("compare.caseMillionTitle")} — ${t("compare.caseMillionQuestion")}`,
-      answerCode: snippets.sortCopy,
-      options: [t("compare.caseMillionChoiceA"), t("compare.caseMillionChoiceB"), t("compare.caseMillionChoiceC")],
-      correctOption: 1,
-      explanation: t("compare.caseMillionAnswer")
-    },
-    {
-      question: `${t("compare.caseHugeTitle")} — ${t("compare.caseHugeQuestion")}`,
-      answerCode: snippets.hashSet,
-      options: [t("compare.caseHugeChoiceA"), t("compare.caseHugeChoiceB"), t("compare.caseHugeChoiceC")],
-      correctOption: 1,
-      explanation: t("compare.caseHugeAnswer")
-    }
-  ] as const;
-  return (
-    <section className="my-10" aria-labelledby="constraint-investigation-title">
-      <div className="border-l-2 border-blue-400 pl-4">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300">{t("compare.inquiryEyebrow")}</p>
-        <h3 id="constraint-investigation-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("compare.inquiryTitle")}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("compare.inquiryDescription")}</p>
-      </div>
-      <PracticeQuestionSet label={t("compare.practiceLabel")} questions={questions} />
-    </section>
-  );
-}
-
-function MemoryQuestions({ snippets }: { readonly snippets: TimeComplexitySnippets }): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const questions = [
-    {
-      question: t("memory.questionInput"),
-      answerCode: snippets.answerExamples.memoryInput,
-      options: [t("memory.questionInputChoiceA"), t("memory.questionInputChoiceB"), t("memory.questionInputChoiceC")],
-      correctOption: 0,
-      explanation: t("memory.questionInputAnswer")
-    },
-    {
-      question: t("memory.questionCopy"),
-      answerCode: snippets.answerExamples.memoryCopy,
-      options: [t("memory.questionCopyChoiceA"), t("memory.questionCopyChoiceB"), t("memory.questionCopyChoiceC")],
-      correctOption: 1,
-      explanation: t("memory.questionCopyAnswer")
-    },
-    {
-      question: t("memory.questionHash"),
-      answerCode: snippets.answerExamples.memoryHash,
-      options: [t("memory.questionHashChoiceA"), t("memory.questionHashChoiceB"), t("memory.questionHashChoiceC")],
-      correctOption: 1,
-      explanation: t("memory.questionHashAnswer")
-    }
-  ] as const;
-  return (
-    <section className="my-10" aria-labelledby="memory-questions-title">
-      <div className="border-l-2 border-amber-400 pl-4">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">{t("memory.questionsEyebrow")}</p>
-        <h3 id="memory-questions-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("memory.questionsTitle")}</h3>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{t("memory.questionsIntro")}</p>
-      </div>
-      <PracticeQuestionSet label={t("memory.practiceLabel")} questions={questions} />
-    </section>
-  );
-}
-
-function LoopCountingTricks({ snippets }: { readonly snippets: TimeComplexitySnippets }): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
+function Application({
+  approaches,
+  caveat,
+  questions: lessonQuestions,
+  label
+}: {
+  readonly approaches: readonly ComplexityApproach[];
+  readonly caveat?: string;
+  readonly questions: readonly [PracticeQuestion, PracticeQuestion];
+  readonly label: string;
+}): React.JSX.Element {
   return (
     <>
-      <div className="my-10 divide-y divide-zinc-800 border-y border-zinc-800">
-        {([
-          [t("tricks.rulePassesTitle"), t("tricks.rulePasses"), snippets.loopTricks.linear],
-          [t("tricks.ruleNestedTitle"), t("tricks.ruleNested"), snippets.loopTricks.independentNested],
-          [t("tricks.ruleSequenceTitle"), t("tricks.ruleSequence"), snippets.loopTricks.sequential]
-        ] as const).map(([title, description, code]) => (
-          <CodeTeachingExample key={title} title={title} description={description} code={code} accent="text-cyan-200" />
-        ))}
-      </div>
-      <PracticeQuestionSet label={t("tricks.shortcutLabel")} questions={[
-        { question: t("tricks.linearQuestion"), code: snippets.loopTricks.linear, options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correctOption: 2, explanation: t("tricks.linearAnswer") },
-        { question: t("tricks.nestedQuestion"), code: snippets.loopTricks.independentNested, options: ["O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"], correctOption: 2, explanation: t("tricks.nestedAnswer") },
-        { question: t("tricks.sequentialQuestion"), code: snippets.loopTricks.sequential, options: ["O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"], correctOption: 0, explanation: t("tricks.sequentialAnswer") }
-      ]} />
-      <div className="mt-12 border-l-2 border-rose-400 pl-4">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300">{t("tricks.counterEyebrow")}</p>
-        <h3 className="mt-2 text-xl font-semibold text-zinc-100">{t("tricks.counterTitle")}</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("tricks.counterIntro")}</p>
-      </div>
-      <PracticeQuestionSet label={t("tricks.counterLabel")} questions={[
-        { question: t("tricks.triangularQuestion"), code: snippets.loopTricks.triangular, options: ["O(n)", "O(n log n)", "O(n²)", "O(n³)"], correctOption: 2, explanation: t("tricks.triangularAnswer") },
-        { question: t("tricks.doublingQuestion"), code: snippets.loopTricks.doubling, options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correctOption: 1, explanation: t("tricks.doublingAnswer") },
-        { question: t("tricks.nLogQuestion"), code: snippets.loopTricks.linearLogarithmic, options: ["O(log n)", "O(n)", "O(n log n)", "O(n²)"], correctOption: 2, explanation: t("tricks.nLogAnswer") }
-      ]} />
+      <ComplexityApproachComparison approaches={approaches} caveat={caveat} />
+      <PracticeQuestionSet label={label} questions={lessonQuestions} />
     </>
   );
 }
 
-function RecursionCountingGuide({ snippets }: { readonly snippets: TimeComplexitySnippets }): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  return (
-    <>
-      <div className="my-10 divide-y divide-zinc-800 border-y border-zinc-800">
-        {([
-          [t("recursion.callsTitle"), t("recursion.calls"), snippets.recursionTricks.countdown],
-          [t("recursion.shrinkTitle"), t("recursion.shrink"), snippets.recursionTricks.halving],
-          [t("recursion.repeatTitle"), t("recursion.repeat"), snippets.recursionTricks.branching]
-        ] as const).map(([title, description, code]) => (
-          <CodeTeachingExample key={title} title={title} description={description} code={code} accent="text-rose-200" />
-        ))}
-      </div>
-      <PracticeQuestionSet label={t("recursion.practiceLabel")} questions={[
-        { question: t("recursion.countdownQuestion"), code: snippets.recursionTricks.countdown, options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correctOption: 2, explanation: t("recursion.countdownAnswer") },
-        { question: t("recursion.halvingQuestion"), code: snippets.recursionTricks.halving, options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correctOption: 1, explanation: t("recursion.halvingAnswer") },
-        { question: t("recursion.branchingQuestion"), code: snippets.recursionTricks.branching, options: ["O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"], correctOption: 3, explanation: t("recursion.branchingAnswer") }
-      ]} />
-      <p className="border-l-2 border-rose-400 pl-4 text-sm leading-6 text-rose-100/80">{t("recursion.noMasterTheorem")}</p>
-    </>
-  );
+function commonChallengeProps(t: Translate): Pick<
+  ProblemFirstChallengeProps,
+  "problemStageLabel" | "constraintsLabel" | "sampleLabel" | "attemptPrompt" | "attemptStageLabel" | "revealLabel" |
+  "hideLabel" | "applicationRevealLabel" | "applicationHideLabel" | "toolStageLabel" | "applicationStageLabel"
+> {
+  return {
+    problemStageLabel: t("problemFirst.common.challenge"),
+    constraintsLabel: t("problemFirst.common.constraints"),
+    sampleLabel: t("problemFirst.common.sample"),
+    attemptPrompt: t("problemFirst.common.attemptPrompt"),
+    attemptStageLabel: t("problemFirst.common.yourTurn"),
+    revealLabel: t("problemFirst.common.revealTool"),
+    hideLabel: t("problemFirst.common.hideTool"),
+    applicationRevealLabel: t("problemFirst.common.revealApplication"),
+    applicationHideLabel: t("problemFirst.common.hideApplication"),
+    toolStageLabel: t("problemFirst.common.analysisTool"),
+    applicationStageLabel: t("problemFirst.common.compare")
+  };
 }
 
-function CodeTeachingExample({ title, description, code, accent }: { readonly title: string; readonly description: string; readonly code: string; readonly accent: string }): React.JSX.Element {
-  return (
-    <article className="py-8">
-      <h3 className={cn("text-lg font-semibold", accent)}>{title}</h3>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{description}</p>
-      <div className="mt-5"><GuideCodeBlock code={code} /></div>
-    </article>
-  );
+function approach(t: Translate, lesson: LessonKey, key: "a" | "b" | "c", implementation: string): ComplexityApproach {
+  return {
+    title: t(`problemFirst.${lesson}.approaches.${key}.title`),
+    description: t(`problemFirst.${lesson}.approaches.${key}.description`),
+    time: t(`problemFirst.${lesson}.approaches.${key}.time`),
+    space: t(`problemFirst.${lesson}.approaches.${key}.space`),
+    qualifier: key === "c" && (lesson === "search" || lesson === "duplicates" || lesson === "capstone")
+      ? t("problemFirst.common.expectedQualifier")
+      : undefined,
+    code: implementation
+  };
 }
 
-function OneSecondTable(): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
-  const rows = [
-    ["O(1)", t("threshold.constantN")],
-    ["O(log₂ n)", <span key="log-bound" className="inline-flex items-start">≥&nbsp;<GroupedPower label={t("threshold.logPowerLabel")} /></span>],
-    ["O(√n)", "2.5 × 10¹⁷"],
-    ["O(n)", "500,000,000"],
-    ["O(n log₂ n)", "≈ 2 × 10⁷"],
-    ["O(n²)", "≈ 22,360"],
-    ["O(n³)", "≈ 793"],
-    ["O(2ⁿ)", "28"],
-    ["O(n!)", "12"]
-  ] as const;
-  return (
-    <section className="my-14" aria-labelledby="one-second-title">
-      <h3 id="one-second-title" className="text-2xl font-semibold text-zinc-100">{t("threshold.title")}</h3>
-      <p className="mt-3 text-sm leading-6 text-zinc-400">{t("threshold.intro")}</p>
-      <div className="mt-6 overflow-x-auto rounded-lg border border-zinc-800">
-        <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
-          <caption className="sr-only">{t("threshold.caption")}</caption>
-          <thead className="bg-zinc-900 text-xs uppercase tracking-wide text-zinc-500"><tr><th className="px-4 py-3">{t("threshold.complexity")}</th><th className="px-4 py-3">{t("threshold.largest")}</th></tr></thead>
-          <tbody className="divide-y divide-zinc-800 bg-zinc-950/50">{rows.map(([complexity, largest]) => <tr key={complexity}><th scope="row" className="whitespace-nowrap px-4 py-3 font-mono font-medium text-violet-200">{complexity}</th><td className="whitespace-nowrap px-4 py-3 font-mono text-zinc-200">{largest}</td></tr>)}</tbody>
-        </table>
-      </div>
-    </section>
-  );
+function searchApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "search", "a", problemFirstComplexityCode.searchScan), approach(t, "search", "b", problemFirstComplexityCode.searchSorted), approach(t, "search", "c", problemFirstComplexityCode.searchHash)];
 }
 
-function GroupedPower({ label }: { readonly label: string }): React.JSX.Element {
-  return (
-    <span aria-label={label} className="inline-flex items-start">
-      <span aria-hidden="true">
-        2
-        <sup className="ml-0.5 text-[0.72em] leading-none">
-          10<sup className="text-[0.68em]">5</sup>
-        </sup>
-      </span>
-    </span>
-  );
+function duplicateApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "duplicates", "a", problemFirstComplexityCode.duplicatePairs), approach(t, "duplicates", "b", problemFirstComplexityCode.duplicateSort), approach(t, "duplicates", "c", problemFirstComplexityCode.duplicateHash)];
+}
+
+function stockApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "stock", "a", problemFirstComplexityCode.stockPairs), approach(t, "stock", "b", problemFirstComplexityCode.stockSuffix), approach(t, "stock", "c", problemFirstComplexityCode.stockMin)];
+}
+
+function fibonacciApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "power", "a", problemFirstComplexityCode.fibonacciNaive), approach(t, "power", "b", problemFirstComplexityCode.fibonacciTable), approach(t, "power", "c", problemFirstComplexityCode.fibonacciIterative)];
+}
+
+function zeroApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "zeros", "a", problemFirstComplexityCode.zerosShift), approach(t, "zeros", "b", problemFirstComplexityCode.zerosBuffer), approach(t, "zeros", "c", problemFirstComplexityCode.zerosBackward)];
+}
+
+function twoSumApproaches(t: Translate): readonly ComplexityApproach[] {
+  return [approach(t, "capstone", "a", problemFirstComplexityCode.twoSumPairs), approach(t, "capstone", "b", problemFirstComplexityCode.twoSumSort), approach(t, "capstone", "c", problemFirstComplexityCode.twoSumHash)];
+}
+
+function questions(t: Translate, lesson: LessonKey): readonly [PracticeQuestion, PracticeQuestion] {
+  return [
+    {
+      question: t(`problemFirst.${lesson}.questions.first.question`),
+      options: [
+        t(`problemFirst.${lesson}.questions.first.a`),
+        t(`problemFirst.${lesson}.questions.first.b`),
+        t(`problemFirst.${lesson}.questions.first.c`)
+      ],
+      correctOption: 1,
+      explanation: t(`problemFirst.${lesson}.questions.first.explanation`)
+    },
+    {
+      question: t(`problemFirst.${lesson}.questions.second.question`),
+      options: [
+        t(`problemFirst.${lesson}.questions.second.a`),
+        t(`problemFirst.${lesson}.questions.second.b`),
+        t(`problemFirst.${lesson}.questions.second.c`)
+      ],
+      correctOption: 1,
+      explanation: t(`problemFirst.${lesson}.questions.second.explanation`)
+    }
+  ];
 }

@@ -1,38 +1,32 @@
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES, type LearningProgressStatus } from "@icpc-trainer/shared";
-import { Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
 import { BruteForceResourceCard } from "./BruteForceResourceCard.js";
-import { cn } from "./lib.js";
+import { RoadmapConnector, RoadmapFork, RoadmapNode } from "./ResourcesRoadmapNode.js";
 import { useLearningProgress } from "./useLearningProgress.js";
 
 export function ResourcesPage(): React.JSX.Element {
   const { t } = useTranslation("resources");
   const progressQuery = useLearningProgress();
-  const introduction = progressQuery.data?.find(
-    (row) => row.guideId === LEARNING_GUIDE_IDS.Introduction
-  );
-  const fundamentals = progressQuery.data?.find(
-    (row) => row.guideId === LEARNING_GUIDE_IDS.ProgrammingFundamentals
-  );
-  const timeComplexity = progressQuery.data?.find(
-    (row) => row.guideId === LEARNING_GUIDE_IDS.TimeComplexity
-  );
-  const dataStructures = progressQuery.data?.find(
-    (row) => row.guideId === LEARNING_GUIDE_IDS.DataStructures
-  );
-  const completedCount = [introduction, fundamentals, timeComplexity, dataStructures].filter(
-    (guide) => guide?.status === LEARNING_PROGRESS_STATUSES.Completed
-  ).length;
+  const guideStatus = (guideId: LEARNING_GUIDE_IDS): LearningProgressStatus | undefined =>
+    progressQuery.data?.find((row) => row.guideId === guideId)?.status;
+  const introduction = guideStatus(LEARNING_GUIDE_IDS.Introduction);
+  const fundamentals = guideStatus(LEARNING_GUIDE_IDS.ProgrammingFundamentals);
+  const timeComplexity = guideStatus(LEARNING_GUIDE_IDS.TimeComplexity);
+  const dataStructures = guideStatus(LEARNING_GUIDE_IDS.DataStructures);
+  const bruteForce = guideStatus(LEARNING_GUIDE_IDS.BruteForce);
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce];
+  const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
 
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
-    status === LEARNING_PROGRESS_STATUSES.Completed
-      ? t("status.completed")
-      : status === LEARNING_PROGRESS_STATUSES.InProgress
-        ? t("status.inProgress")
-        : t("status.available");
+    progressQuery.isLoading
+      ? t("status.loading")
+      : status === LEARNING_PROGRESS_STATUSES.Completed
+        ? t("status.completed")
+        : status === LEARNING_PROGRESS_STATUSES.InProgress
+          ? t("status.inProgress")
+          : t("status.available");
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
@@ -59,149 +53,65 @@ export function ResourcesPage(): React.JSX.Element {
         </div>
       ) : null}
 
-      <section className="relative mt-10 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-5 py-7 sm:px-8 sm:py-8" aria-label={t("sequenceLabel")}>
+      <section className="relative mt-10 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-5 py-6 sm:px-7 sm:py-7" aria-label={t("sequenceLabel")}>
         <div className="pointer-events-none absolute inset-0 opacity-[0.1] [background-image:linear-gradient(to_right,#71717a_1px,transparent_1px),linear-gradient(to_bottom,#71717a_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_70%_90%_at_50%_50%,black_30%,transparent_100%)]" />
 
-        <div className="relative flex items-baseline justify-between gap-4 border-b border-zinc-800/80 pb-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{t("sequence")}</p>
-          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: 4 })}</p>
+        <div className="relative flex items-baseline justify-end border-b border-zinc-800/80 pb-3">
+          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: guides.length })}</p>
         </div>
 
-        <div className="relative mt-7 grid items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)_3rem_minmax(0,1fr)_3rem_minmax(0,1fr)] xl:gap-4">
-          <Link
-            to={appPaths.introduction}
-            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-cyan-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(34,211,238,0.06)] transition-all hover:bg-zinc-800 hover:shadow-[0_0_0_5px_rgba(34,211,238,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className={cn("font-mono text-[11px]", introduction?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-cyan-300/80")}>01</span>
-              {introduction?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
-                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
-              ) : (
-                <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-              )}
-            </div>
-            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("introduction")}</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              {t("introductionDescription")}
-            </p>
-            <p className={cn(
-              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
-              introduction?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-cyan-300"
-            )}>
-              <span aria-hidden="true" className={cn("size-1.5 rounded-full", introduction?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-cyan-400")} />
-              {progressQuery.isLoading ? t("status.loading") : statusLabel(introduction?.status)}
-            </p>
-          </Link>
-
-          <div className="flex min-h-14 items-center justify-center text-zinc-500" aria-hidden="true">
-            <div className="hidden w-full items-center xl:flex">
-              <span className="flex-1 border-t border-dashed border-zinc-600" />
-              <ArrowRight className="-ml-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
-            <div className="flex h-full flex-col items-center xl:hidden">
-              <span className="flex-1 border-l border-dashed border-zinc-600" />
-              <ArrowDown className="-mt-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
+        <div className="relative mt-6 grid gap-4 xl:grid-cols-[minmax(0,3.1fr)_minmax(0,1.15fr)] xl:items-center xl:gap-5">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)_2rem_minmax(0,1fr)] xl:items-stretch xl:gap-2">
+            <RoadmapNode
+              to={appPaths.introduction}
+              step="01"
+              accent="cyan"
+              title={t("introduction")}
+              description={t("introductionDescription")}
+              status={statusLabel(introduction)}
+              completed={introduction === LEARNING_PROGRESS_STATUSES.Completed}
+            />
+            <RoadmapConnector />
+            <RoadmapNode
+              to={appPaths.programmingFundamentals}
+              step="02"
+              accent="blue"
+              title={t("fundamentals")}
+              description={t("fundamentalsDescription")}
+              status={statusLabel(fundamentals)}
+              completed={fundamentals === LEARNING_PROGRESS_STATUSES.Completed}
+            />
+            <RoadmapConnector />
+            <RoadmapNode
+              to={appPaths.timeComplexity}
+              step="03"
+              accent="violet"
+              title={t("timeComplexity")}
+              description={t("timeComplexityDescription")}
+              status={statusLabel(timeComplexity)}
+              completed={timeComplexity === LEARNING_PROGRESS_STATUSES.Completed}
+            />
           </div>
 
-          <Link
-            to={appPaths.programmingFundamentals}
-            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-blue-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(96,165,250,0.07)] transition-all hover:bg-blue-400/[0.08] hover:shadow-[0_0_0_5px_rgba(96,165,250,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className={cn("font-mono text-[11px]", fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-blue-300/80")}>02</span>
-              {fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
-                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
-              ) : (
-                <ArrowRight className="size-4 shrink-0 text-blue-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-              )}
-            </div>
-            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("fundamentals")}</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              {t("fundamentalsDescription")}
-            </p>
-            <p className={cn(
-              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
-              fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-blue-300"
-            )}>
-              <span aria-hidden="true" className={cn("size-1.5 rounded-full", fundamentals?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-blue-400")} />
-              {progressQuery.isLoading ? t("status.loading") : statusLabel(fundamentals?.status)}
-            </p>
-          </Link>
-
-          <div className="flex min-h-14 items-center justify-center text-zinc-500" aria-hidden="true">
-            <div className="hidden w-full items-center xl:flex">
-              <span className="flex-1 border-t border-dashed border-zinc-600" />
-              <ArrowRight className="-ml-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
-            <div className="flex h-full flex-col items-center xl:hidden">
-              <span className="flex-1 border-l border-dashed border-zinc-600" />
-              <ArrowDown className="-mt-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
+          <div className="xl:hidden">
+            <RoadmapConnector />
           </div>
 
-          <Link
-            to={appPaths.timeComplexity}
-            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-violet-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(167,139,250,0.07)] transition-all hover:bg-violet-400/[0.08] hover:shadow-[0_0_0_5px_rgba(167,139,250,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className={cn("font-mono text-[11px]", timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-violet-300/80")}>03</span>
-              {timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
-                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
-              ) : (
-                <ArrowRight className="size-4 shrink-0 text-violet-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-              )}
-            </div>
-            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("timeComplexity")}</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">{t("timeComplexityDescription")}</p>
-            <p className={cn(
-              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
-              timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-violet-300"
-            )}>
-              <span aria-hidden="true" className={cn("size-1.5 rounded-full", timeComplexity?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-violet-400")} />
-              {progressQuery.isLoading ? t("status.loading") : statusLabel(timeComplexity?.status)}
-            </p>
-          </Link>
-
-          <div className="flex min-h-14 items-center justify-center text-zinc-500" aria-hidden="true">
-            <div className="hidden w-full items-center xl:flex">
-              <span className="flex-1 border-t border-dashed border-zinc-600" />
-              <ArrowRight className="-ml-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
-            <div className="flex h-full flex-col items-center xl:hidden">
-              <span className="flex-1 border-l border-dashed border-zinc-600" />
-              <ArrowDown className="-mt-px size-5 shrink-0" strokeWidth={1.5} />
-            </div>
+          <div className="mx-auto grid w-full max-w-[43.5rem] gap-4 sm:grid-cols-2 xl:max-w-none xl:grid-cols-[4rem_minmax(0,1fr)] xl:grid-rows-2 xl:gap-x-0">
+            <RoadmapFork />
+            <RoadmapNode
+              to={appPaths.dataStructures}
+              step="04"
+              accent="rose"
+              title={t("dataStructures")}
+              description={t("dataStructuresDescription")}
+              status={statusLabel(dataStructures)}
+              completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
+            />
+            <BruteForceResourceCard />
           </div>
-
-          <Link
-            to={appPaths.dataStructures}
-            className="group mx-auto flex w-full max-w-sm flex-col rounded-lg border border-violet-400/80 bg-zinc-900/95 px-5 py-5 shadow-[0_0_0_4px_rgba(167,139,250,0.07)] transition-all hover:bg-violet-400/[0.08] hover:shadow-[0_0_0_5px_rgba(167,139,250,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className={cn("font-mono text-[11px]", dataStructures?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300/80" : "text-violet-300/80")}>04</span>
-              {dataStructures?.status === LEARNING_PROGRESS_STATUSES.Completed ? (
-                <Check className="size-4 shrink-0 text-emerald-300" aria-hidden="true" />
-              ) : (
-                <ArrowRight className="size-4 shrink-0 text-violet-300 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-              )}
-            </div>
-            <h2 className="mt-3 text-lg font-semibold text-zinc-50">{t("dataStructures")}</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              {t("dataStructuresDescription")}
-            </p>
-            <p className={cn(
-              "mt-auto inline-flex items-center gap-2 pt-5 font-mono text-[10px] uppercase tracking-[0.14em]",
-              dataStructures?.status === LEARNING_PROGRESS_STATUSES.Completed ? "text-emerald-300" : "text-violet-300"
-            )}>
-              <span aria-hidden="true" className={cn("size-1.5 rounded-full", dataStructures?.status === LEARNING_PROGRESS_STATUSES.Completed ? "bg-emerald-400" : "bg-violet-400")} />
-              {progressQuery.isLoading ? t("status.loading") : statusLabel(dataStructures?.status)}
-            </p>
-          </Link>
-
         </div>
       </section>
-      <BruteForceResourceCard />
     </main>
   );
 }

@@ -5,7 +5,6 @@ export const resources = {
   progressError: "No se pudo cargar tu progreso. La guía sigue disponible.",
   retry: "Intentar de nuevo",
   sequenceLabel: "Secuencia de aprendizaje recomendada",
-  sequence: "Secuencia recomendada",
   completedCount: "{{completed}} / {{total}} completadas",
   introduction: "Introducción",
   introductionDescription: "Entiende los concursos, los jueces en línea y cómo practicar de forma efectiva.",
@@ -13,7 +12,7 @@ export const resources = {
   fundamentals: "Fundamentos de programación",
   fundamentalsDescription: "Aprende variables, decisiones, ciclos y funciones con ejemplos interactivos.",
   timeComplexity: "Complejidad temporal y espacial",
-  timeComplexityDescription: "Estima el tiempo y la memoria antes de elegir un algoritmo.",
+  timeComplexityDescription: "Cuenta operaciones y memoria, simplifica las fórmulas con Big O y estima límites reales.",
   dataStructures: "Estructuras de datos",
   dataStructuresDescription: "Elige el contenedor de C++ adecuado siguiendo las operaciones que exige cada problema.",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }

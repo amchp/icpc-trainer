@@ -5,6 +5,347 @@ export const timeComplexity = {
   title: "Complejidad temporal y espacial",
   subtitle: "Sigue una función de búsqueda de usuarios desde cinco cuentas hasta escala de producción: mide la base, elige un índice y contabiliza la memoria que agrega cada diseño.",
   heroQuestion: "¿Seguirá siendo rápida la búsqueda mientras crece el sitio?",
+  problemFirst: {
+    subtitle: "Cuenta operaciones ejecutadas y memoria ocupada, convierte esos conteos en fórmulas y usa Big O para comunicar cómo crecen.",
+    heroQuestion: "¿Cómo cambia la entrada el tiempo y la memoria que necesita un programa?",
+    finishDescription: "Tú decides cuándo completar. Las revelaciones, respuestas, trazas, estimadores y resultados del benchmark son solo práctica y se reinician al recargar.",
+    sections: {
+      search: "Construir fórmulas de recursos",
+      duplicates: "Comunicar con Big O",
+      stock: "Estimar tiempo y memoria",
+      power: "Contar recursión",
+      zeros: "Contar flujo de control",
+      capstone: "Intercambiar tiempo por memoria"
+    },
+    common: {
+      challenge: "Reto de aprendizaje",
+      constraints: "Restricciones",
+      sample: "Ejemplo",
+      yourTurn: "Tu turno",
+      attemptPrompt: "Pausa aquí. Bosqueja la solución correcta más simple y predice su tiempo y espacio auxiliar antes de revelar el análisis.",
+      revealTool: "Revelar la herramienta de análisis",
+      hideTool: "Ocultar la herramienta de análisis",
+      revealApplication: "Comparar enfoques de solución",
+      hideApplication: "Ocultar enfoques de solución",
+      analysisTool: "Herramienta de análisis",
+      compare: "Comparar y aplicar",
+      openSource: "Abrir el problema original",
+      expectedQualifier: "Cota esperada con hashing bien distribuido.",
+      hashCaveat: "Las cotas de tablas hash son esperadas, no garantizadas. Las colisiones y la implementación pueden degradar operaciones hacia tiempo lineal; las demás cotas usan peor caso salvo que se indique lo contrario."
+    },
+    comparison: {
+      label: "Comparación de enfoques de solución",
+      candidate: "Candidato {{number}}",
+      time: "Tiempo",
+      space: "Espacio auxiliar"
+    },
+    search: {
+      eyebrow: "Lección 1 · Reto original",
+      title: "¿Cuánto tardará esta búsqueda y cuánta memoria usará?",
+      description: "Dada una lista de IDs guardados y un lote de IDs solicitados, indica si cada usuario existe. Responde las preguntas de recursos contando lo que el programa ejecuta y almacena.",
+      constraints: "n usuarios guardados, q búsquedas; cada ID ocupa 8 bytes. No uses Big O todavía: primero construye fórmulas desde operaciones y bytes.",
+      sample: "usuarios = [4, 12, 19, 31, 44]\nconsultas = [31, 50]\nsalida = [true, false]",
+      toolTitle: "Cuenta operaciones y bytes hasta que aparezca una fórmula",
+      analysis: "Comienza eligiendo una operación modelada, como la igualdad id == consulta. Pregunta cuántas veces se ejecuta cuando cambian n y q. Para memoria, cuenta los valores guardados y multiplícalos por su tamaño. El resultado es una fórmula de tiempo T(n, q) y una de memoria M(n, q), todavía no un tiempo de reloj.",
+      applicationTitle: "Compara fórmulas de recursos antes de nombrar su complejidad",
+      applicationPrompt: "Cada diseño cambia el conteo de operaciones, el preprocesamiento y los datos guardados. Lee estas fórmulas ligadas a n y q; la siguiente lección ofrece un lenguaje más corto para comunicar su crecimiento.",
+      practiceLabel: "Comprobación de conteo de recursos",
+      approaches: {
+        a: { title: "Repetir un recorrido directo", description: "Revisa la lista recibida para cada ID solicitado.", time: "Como máximo qn comparaciones", space: "Estado auxiliar fijo" },
+        b: { title: "Construir una copia ordenada", description: "Ordena un índice copiado y luego usa búsqueda binaria por consulta.", time: "≈ n log₂ n + q log₂ n", space: "n IDs copiados" },
+        c: { title: "Construir un índice hash", description: "Inserta cada usuario una vez y consulta pertenencia.", time: "Esperado ≈ n + q operaciones", space: "Hasta n entradas guardadas" }
+      },
+      questions: {
+        first: {
+          question: "¿Qué evento del código es la operación modelada en la búsqueda directa?",
+          a: "Declarar la variable encontrado",
+          b: "Evaluar id == consulta",
+          c: "Regresar de la función",
+          explanation: " La igualdad es el trabajo repetido cuyo conteo cambia con n y q."
+        },
+        second: {
+          question: "¿Cuál es la fórmula de memoria de entrada para n IDs de usuario y q IDs consultados?",
+          a: "n + q bytes",
+          b: "8n + 8q bytes",
+          c: "8qn bytes",
+          explanation: " Cada ID de 64 bits ocupa 8 bytes: cuenta n + q IDs y multiplica por 8."
+        }
+      }
+    },
+    duplicates: {
+      eyebrow: "Lección 2 · Notación Big O",
+      title: "Contains Duplicate",
+      description: "Devuelve true si algún entero aparece al menos dos veces. Comienza comparando pares y luego decide si ordenar o usar una estructura merece su costo.",
+      constraints: "1 ≤ n ≤ 100.000. Conserva el arreglo recibido al evaluar el espacio auxiliar.",
+      sample: "nums = [1, 2, 3, 1]\nsalida = true",
+      toolTitle: "Convierte una fórmula de recursos en una etiqueta compartida",
+      analysis: "Big O es un lenguaje compacto para comunicar cómo crece una fórmula. Conserva el término que crece más rápido e ignora su multiplicador constante: 3n² + 4n + 20 se convierte en O(n²). Los factores constantes importan mucho menos al comparar crecimiento con n grande, aunque sí afectan programas reales y entradas pequeñas.",
+      applicationTitle: "Reemplaza la enumeración de pares solo cuando el modelo lo justifique",
+      applicationPrompt: "La fuerza bruta es simple y correcta. Ordenar y usar hashing intercambian memoria adicional o garantías más débiles por mejor crecimiento.",
+      practiceLabel: "Comprobación de duplicados",
+      approaches: {
+        a: { title: "Comparar cada par", description: "Enumera todos los pares i < j y se detiene al encontrar igualdad.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Ordenar una copia", description: "Los valores iguales quedan adyacentes después de ordenar.", time: "O(n log n)", space: "O(n)" },
+        c: { title: "Guardar valores en un hash set", description: "Una inserción fallida descubre el duplicado.", time: "O(n) esperado", space: "O(n)" }
+      },
+      questions: {
+        first: {
+          question: "¿Cómo se comunica 3n² + 4n + 20 con Big O?",
+          a: "O(3n² + 4n + 20)",
+          b: "O(n²)",
+          c: "O(n)",
+          explanation: " Conserva el término dominante n² y elimina su multiplicador constante."
+        },
+        second: {
+          question: "¿Por qué 7n y 700n pueden describirse como O(n)?",
+          a: "Ejecutan exactamente la misma cantidad de operaciones",
+          b: "Comparten crecimiento lineal aunque sus factores constantes difieren",
+          c: "Las constantes nunca afectan el tiempo real",
+          explanation: " Big O comunica la familia de crecimiento. La diferencia constante de 100× aún puede importar al medir."
+        }
+      }
+    },
+    stock: {
+      eyebrow: "Lección 3 · Estimación de recursos",
+      title: "Best Time to Buy and Sell Stock",
+      description: "Elige un día anterior para comprar y otro posterior para vender con máxima ganancia. Usa las restricciones para probar si enumerar cada par puede terminar a tiempo.",
+      constraints: "1 ≤ n ≤ 100.000 precios. Como máximo una compra y una venta posterior.",
+      sample: "precios = [7, 1, 5, 3, 6, 4]\nsalida = 5",
+      toolTitle: "Estima tiempo de reloj y memoria desde el modelo de crecimiento",
+      analysis: "Estima segundos ≈ c × f(n) ÷ 500.000.000, donde f(n) es el modelo Big O y c representa trabajo oculto por la notación. Estima memoria auxiliar con elementos guardados × bytes por elemento. Ambas son estimaciones: las pruebas pueden acercarse al peor caso y también importan lenguaje, E/S, cachés, asignación y hardware.",
+      applicationTitle: "Elimina trabajo repetido de dos maneras",
+      applicationPrompt: "Una tabla de sufijos recuerda información futura con memoria O(n). Un mínimo acumulado comprime la misma decisión en un valor.",
+      practiceLabel: "Comprobación de viabilidad",
+      approaches: {
+        a: { title: "Probar cada par compra/venta", description: "Evalúa cada par válido de días.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Precalcular máximos de sufijo", description: "Guarda el mejor precio futuro de venta para cada día.", time: "O(n)", space: "O(n)" },
+        c: { title: "Mantener un mínimo acumulado", description: "Rastrea el precio anterior más barato en un recorrido.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "Con n = 100.000, ¿qué solución tiene el tiempo asintótico más seguro?",
+          a: "Todos los pares",
+          b: "Un recorrido con mínimo acumulado",
+          c: "Ambas son equivalentes",
+          explanation: " El recorrido lineal modela cerca de n pasos; enumerar pares modela un orden de n²."
+        },
+        second: {
+          question: "¿Qué puede establecer el benchmark local del navegador?",
+          a: "Una constante universal de operaciones por segundo",
+          b: "Evidencia del dispositivo sobre factores constantes de dos ciclos O(n)",
+          c: "Que la ejecución más rápida tiene mejor Big O",
+          explanation: " Una ejecución local limitada muestra constantes, pero no demuestra una garantía asintótica ni portable."
+        }
+      }
+    },
+    power: {
+      eyebrow: "Lección 5 · Conteo recursivo",
+      title: "Número de Fibonacci",
+      description: "Devuelve el n-ésimo número de Fibonacci, donde F(0) = 0, F(1) = 1 y cada valor posterior es la suma de los dos anteriores.",
+      constraints: "0 ≤ n ≤ 30. Comienza con la definición recursiva directa y cuenta el trabajo antes de optimizarla.",
+      sample: "n = 6\nsalida = 8",
+      toolTitle: "Observa cómo una recurrencia se convierte en un árbol exponencial",
+      analysis: "Una llamada recursiva puede crear más de un hijo. Para Fibonacci ingenuo, T(n) = T(n − 1) + T(n − 2) + c: los mismos subproblemas se recalculan en un árbol ramificado. Cuenta todas las llamadas para el tiempo, pero solo la ruta activa más larga para el espacio de pila. El árbol crece exponencialmente mientras su profundidad máxima crece linealmente; O(2ⁿ) es una cota superior simple para su tiempo de ejecución.",
+      applicationTitle: "Reemplaza el árbol repetido por un recorrido hacia adelante",
+      applicationPrompt: "Compara la definición recursiva literal con dos diseños ascendentes. Los diseños rápidos calculan cada estado de Fibonacci una sola vez en lugar de reconstruir subárboles superpuestos.",
+      practiceLabel: "Comprobación de recursión Fibonacci",
+      approaches: {
+        a: { title: "Expandir el árbol ingenuo", description: "Sigue la definición matemática y calcula recursivamente ambos hijos cada vez.", time: "O(2ⁿ)", space: "O(n)" },
+        b: { title: "Construir una tabla ascendente", description: "Guarda desde F(0) hasta F(n) y calcula cada estado una vez desde las dos entradas anteriores.", time: "O(n)", space: "O(n)" },
+        c: { title: "Conservar los últimos dos valores", description: "Construye la secuencia de abajo hacia arriba y guarda solo los dos valores necesarios.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "¿Por qué Fibonacci ingenuo toma tiempo exponencial?",
+          a: "Cada marco de pila guarda un entero",
+          b: "La mayoría de llamadas no base crea dos hijos y recalcula subproblemas superpuestos",
+          c: "Los valores de Fibonacci son exponenciales",
+          explanation: " La cantidad de llamadas crece porque la recursión se ramifica y resuelve estados como F(3) muchas veces; el tamaño de la respuesta numérica no es la razón."
+        },
+        second: {
+          question: "¿Qué cambia la tabla ascendente?",
+          a: "Cambia la definición de Fibonacci",
+          b: "Calcula una vez cada uno de los n + 1 estados, con tiempo O(n) y espacio auxiliar O(n)",
+          c: "Hace que el árbol de llamadas tenga profundidad mayor que n",
+          explanation: " La tabla reemplaza subárboles repetidos por un recorrido desde F(0) hasta F(n)."
+        }
+      }
+    },
+    zeros: {
+      eyebrow: "Lección 4 · Trucos de conteo",
+      title: "Duplicate Zeros",
+      description: "Duplica cada cero de un arreglo de enteros de longitud fija, desplaza los demás valores y descarta lo que salga del arreglo.",
+      constraints: "1 ≤ n ≤ 10.000. Modifica el arreglo in situ cuando un diseño afirme espacio auxiliar O(1).",
+      sample: "entrada = [1,0,2,3,0,4,5,0]\nsalida  = [1,0,0,2,3,0,0,4]",
+      toolTitle: "Cuenta cuántas veces se ejecutan las sentencias, no cuántas aparecen",
+      analysis: "Un atajo útil es contar condiciones y cuerpos de ciclos: bloques secuenciales se suman, trabajo anidado suele multiplicarse y un ciclo que divide su variable es logarítmico. Cuidado: un solo if dentro de un ciclo puede comprobarse n veces y su cuerpo puede contener otro ciclo. Las salidas tempranas cambian el mejor caso; el peor caso supone que quizá nunca ocurran.",
+      applicationTitle: "Usa el atajo y luego inspecciona la trampa",
+      applicationPrompt: "La solución de desplazamientos tiene un solo if visible, pero cada cero puede activar un ciclo sobre todo el sufijo. Contar solo sentencias fuente ocultaría su peor caso cuadrático.",
+      practiceLabel: "Comprobación de flujo de control",
+      approaches: {
+        a: { title: "Desplazar después de cada cero", description: "Mueve el sufijo restante a la derecha cuando aparece un cero.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Construir un búfer copiado", description: "Escribe valores duplicados en otra secuencia.", time: "O(n)", space: "O(n)" },
+        c: { title: "Escribir hacia atrás in situ", description: "Cuenta ceros y llena destinos válidos de derecha a izquierda.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "Una condición if aparece una vez dentro de un ciclo de n iteraciones. ¿Cuántas veces se comprueba?",
+          a: "Una vez",
+          b: "n veces",
+          c: "n² veces",
+          explanation: " Cuenta ejecuciones, no la cantidad de palabras if en el código."
+        },
+        second: {
+          question: "¿Por qué el único if de los desplazamientos aún puede producir O(n²)?",
+          a: "Todo if es automáticamente cuadrático",
+          b: "Hasta n ramas verdaderas pueden ejecutar un ciclo de hasta n pasos",
+          c: "El arreglo ocupa n enteros",
+          explanation: " El cuerpo de la rama contiene trabajo repetido y también hay que contar sus ejecuciones."
+        }
+      }
+    },
+    capstone: {
+      eyebrow: "Lección 6 · Cierre",
+      title: "Two Sum",
+      description: "Devuelve los índices de dos valores que suman el objetivo. Usa toda la guía para decidir si la memoria adicional vale una menor cantidad de operaciones.",
+      constraints: "2 ≤ n ≤ 10.000. Existe exactamente una respuesta válida y no se puede usar dos veces el mismo elemento.",
+      sample: "nums = [2, 7, 11, 15], objetivo = 9\nsalida = [0, 1]",
+      toolTitle: "Haz explícito el intercambio tiempo–memoria",
+      analysis: "El recorrido de pares casi no almacena datos, pero repite comparaciones. Ordenar o usar hashing guarda O(n) datos adicionales para reducir operaciones. Clasifica tiempo, espacio auxiliar y garantía, y decide qué intercambio se ajusta a las restricciones.",
+      applicationTitle: "Defiende el intercambio con la implementación",
+      applicationPrompt: "Lee cada candidato apilado verticalmente después de clasificar. El diseño ordenado conserva índices y el hash intercambia comportamiento temporal esperado y almacenamiento adicional por menos operaciones.",
+      practiceLabel: "Comprobación final",
+      approaches: {
+        a: { title: "Enumerar pares de índices", description: "Prueba directamente cada par i < j.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Ordenar pares valor/índice", description: "Conserva índices, ordena por valor y mueve dos punteros.", time: "O(n log n)", space: "O(n)" },
+        c: { title: "Guardar complementos en hash map", description: "Busca el complemento necesario antes de insertar cada valor.", time: "O(n) esperado", space: "O(n)" }
+      },
+      questions: {
+        first: {
+          question: "¿Por qué el enfoque ordenado guarda pares valor/índice?",
+          a: "Para garantizar la distribución hash",
+          b: "Para devolver posiciones originales después de ordenar por valor",
+          c: "Para reducir la memoria a O(1)",
+          explanation: " Ordenar cambia el orden, así que cada valor debe conservar su índice original."
+        },
+        second: {
+          question: "¿Qué orden describe mejor la escalabilidad con hashing esperado?",
+          a: "Pares, ordenamiento, hashing",
+          b: "Hashing, ordenamiento, pares",
+          c: "Los tres escalan igual",
+          explanation: " El crecimiento lineal esperado vence a n log n, que a su vez vence al crecimiento cuadrático."
+        }
+      }
+    },
+    labs: {
+      resources: {
+        eyebrow: "Laboratorio de fórmulas de recursos",
+        title: "Cambia la entrada y observa cómo los conteos se vuelven fórmulas",
+        description: "Modela el peor caso donde cada consulta recorre toda la lista. Cada ID es un valor de 64 bits que ocupa 8 bytes.",
+        users: "Usuarios guardados n",
+        queries: "Consultas q",
+        time: "Conteo de tiempo modelado",
+        memory: "Memoria de entrada modelada",
+        comparisons: "comparaciones de igualdad",
+        note: "Las variables del ciclo y la bandera usan c_fixed bytes de trabajo. c_fixed no cambia cuando n o q cambian, así que la separamos de la memoria de entrada 8n + 8q."
+      },
+      bigO: {
+        eyebrow: "Traductor de Big O",
+        title: "Conserva el crecimiento dominante y elimina constantes",
+        description: "Elige una fórmula de conteo y comprímela en la etiqueta que otro programador pueda comparar rápidamente.",
+        examples: "Fórmulas de conteo de operaciones",
+        formula: "Fórmula contada",
+        dominant: "Término dominante",
+        label: "Etiqueta Big O",
+        note: "Eliminar constantes no afirma que sean cero. Dice que la familia de crecimiento es la primera comparación más útil cuando n se hace grande."
+      },
+      stockMemory: {
+        eyebrow: "Estimación de memoria para acciones",
+        title: "Estima la memoria de los mismos tres candidatos",
+        description: "El arreglo de precios recibido guarda n enteros de cuatro bytes. Ahora cuenta solo el almacenamiento creado por cada solución.",
+        inputSize: "Cantidad de precios n",
+        strategy: "Diseño de solución para acciones",
+        pairs: "Enumerar pares compra/venta",
+        suffix: "Guardar máximos de sufijo",
+        running: "Mantener un mínimo acumulado",
+        input: "Memoria de entrada",
+        auxiliary: "Memoria auxiliar",
+        total: "Memoria total modelada",
+        formula: "Fórmula en bytes",
+        note: "Este modelo didáctico cuenta cada entero mostrado: tres escalares al enumerar pares; n valores de sufijo más el índice del ciclo; o mejor, mínimo y el valor del ciclo para el recorrido con mínimo acumulado. Excluye la sobrecarga del vector y del asignador."
+      },
+      control: {
+        eyebrow: "Contador de flujo de control",
+        title: "Un if puede activar mucho más que una operación",
+        description: "Sea z la cantidad de ceros. La condición exterior se comprueba como máximo n veces y cada rama verdadera puede desplazar hasta n valores.",
+        length: "Longitud del arreglo n",
+        zeros: "Cantidad de ceros z",
+        ifChecks: "Cota superior de comprobaciones",
+        bodyWork: "Cota superior de desplazamientos",
+        total: "Cota superior del trabajo",
+        formula: "T(n, z) ≤ n + zn. Para esta entrada z = {{zeros}}; en el peor caso z puede crecer con n, así que n + n² se simplifica a O(n²)."
+      },
+      recursion: {
+        eyebrow: "Laboratorio del árbol de Fibonacci",
+        title: "Expande F(6) una capa a la vez",
+        description: "Revela la definición recursiva directa una capa a la vez. Compara la cantidad total de llamadas con la ruta activa más larga de la pila.",
+        naiveAnimation: "Animación de Fibonacci ingenuo: cada llamada no base se ramifica en F(n menos 1) y F(n menos 2).",
+        treePath: "Árbol de llamadas ramificado",
+        recurrence: "T(n) = T(n − 1) + T(n − 2) + c",
+        treeDepth: "Capas reveladas",
+        calls: "Llamadas reveladas",
+        depth: "Máxima profundidad activa",
+        callLabel: "F({{value}})",
+        layerSummary: "La capa {{layer}} de 6 está visible con {{calls}} llamadas totales. Nuevas llamadas en esta capa: {{nodes}}.",
+        visibleRelationships: "Relaciones visibles entre llamadas padre e hijas",
+        callRelationship: "F({{parent}}) llama a F({{child}})",
+        naiveScale: "F(30) activa 2.692.537 llamadas con esta recursión directa.",
+        nextLayer: "Revelar siguiente capa",
+        reset: "Reiniciar traza"
+      },
+      memory: {
+        eyebrow: "Libro de memoria",
+        title: "Calcula el arreglo recibido y el almacenamiento adicional",
+        description: "Supón un int de cuatro bytes. La entrada forma parte de la memoria total, pero solo el almacenamiento creado por el algoritmo cuenta como auxiliar.",
+        length: "Longitud del arreglo: {{value}} enteros",
+        strategy: "Diseño de solución",
+        shift: "Desplazamientos repetidos",
+        buffer: "Búfer copiado",
+        backward: "Escritura hacia atrás in situ",
+        input: "Memoria de entrada",
+        extra: "Memoria adicional",
+        total: "Memoria total modelada",
+        convention: "La entrada O(n) existe en todos los diseños. El búfer agrega espacio auxiliar O(n); los diseños in situ agregan estado fijo, modelado aquí como un entero."
+      },
+      capstone: {
+        eyebrow: "Laboratorio de clasificación",
+        title: "Clasifica antes de comparar",
+        description: "Elige tiempo / espacio auxiliar / garantía para cada candidato y luego ordena cómo escalan.",
+        quadratic: "Pares de índices anidados",
+        sort: "Pares valor/índice ordenados",
+        hash: "Complementos en hash map",
+        classify: "Clasificar {{approach}}",
+        choose: "Elige una clasificación",
+        worst: "peor caso",
+        expected: "esperado",
+        rank: "Ordena la escalabilidad esperada de mejor a peor",
+        rankCorrect: "Hash → ordenamiento → pares",
+        rankReverse: "Pares → ordenamiento → hash",
+        rankMixed: "Ordenamiento → hash → pares",
+        check: "Revelar el modelo de referencia",
+        reset: "Reiniciar",
+        feedback: "Modelo de referencia: compáralo con tus clasificaciones. Es retroalimentación de análisis, no un resultado de aprobado o fallido."
+      }
+    },
+    next: {
+      eyebrow: "Continúa el kit de herramientas",
+      title: "Complejidad dice cuánto cuesta una herramienta; las siguientes guías enseñan las herramientas.",
+      description: "Esta guía nombra ordenamiento, hashing y enumeración para analizar soluciones. Aprende su mecánica en Estructuras de datos y Fuerza bruta. Búsqueda binaria es una guía futura, por eso aún no tiene enlace.",
+      dataStructures: "Abrir Estructuras de datos",
+      bruteForce: "Abrir Fuerza bruta",
+      binarySearch: "Búsqueda binaria · próximamente"
+    }
+  },
   sections: {
     count: "Rastrea la base",
     notation: "Describe el crecimiento",
