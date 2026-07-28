@@ -24,6 +24,10 @@ _Avoid_: Task
 A **Judge User**'s attempt at a **Problem** on a **Judge**. A **Judge User** may have many **Submissions** for the same **Problem**.
 _Avoid_: Attempt, run
 
+**Problem Solve**:
+A **Judge User**'s distinct **Problem** with at least one accepted **Submission**. It occurs at the earliest accepted Submission; later accepted Submissions for the same Problem do not create another Problem Solve.
+_Avoid_: Accepted submission count, solved submission
+
 **App User**:
 A person signed into ICPC Trainer through Clerk. App Users own **Judge Credentials** and choose which **Judge Users** are Team Users or Friends for their workspace.
 _Avoid_: User, judge account, handle
@@ -76,6 +80,14 @@ _Avoid_: Gym view, contest split
 The app page that ranks **Unsimulated Contests** using **Friend** **Contest Participation**.
 _Avoid_: Gym finder
 
+**Leaderboard**:
+The app page that ranks **Judge Users** by their number of **Problem Solves**, either all-time or within a selected date range.
+_Avoid_: Scoreboard, App User ranking
+
+**Class**:
+The single application-wide set of **Judge Users** curated for **Leaderboard** filtering. Class membership is independent of an **App User**'s Team Users and Friends.
+_Avoid_: Current Class, personal class, custom list, team
+
 **Find Problems**:
 The app page where a user browses saved Codeforces **Problems** by difficulty and tags, then selects a random visible **Problem** for practice.
 _Avoid_: Problem finder, Codeforces catalog, practice picker
@@ -109,3 +121,11 @@ Domain expert: "No. Problems come from Contests. If enough missing Problems poin
 Dev: "Can QOJ profile contests count even when profile problem submissions are ambiguous?"
 
 Domain expert: "Yes. Store Contest Participation for the Contest Finder, and only store Submissions when they match known Problems."
+
+Dev: "Should two accepted Submissions for the same Problem increase the Leaderboard score twice?"
+
+Domain expert: "No. They represent one Problem Solve, dated at the earliest accepted Submission."
+
+Dev: "If a Judge User is in Class, must that user also be on my Team or Friends roster?"
+
+Domain expert: "No. Class is one application-wide Leaderboard list, independent of every App User's personal rosters."

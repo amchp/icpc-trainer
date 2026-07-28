@@ -4,6 +4,7 @@ import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
+import { BruteForceResourceCard } from "./BruteForceResourceCard.js";
 import { cn } from "./lib.js";
 import { useLearningProgress } from "./useLearningProgress.js";
 
@@ -124,6 +125,7 @@ export function ResourcesPage(): React.JSX.Element {
 
         </div>
       </section>
+      <BruteForceResourceCard />
     </main>
   );
 }

@@ -10,6 +10,7 @@ export const appPaths = {
   friends: "/friends",
   judges: "/judges",
   playground: "/playground",
+  bruteForce: "/resources/brute-force",
   resources: "/resources",
   introduction: "/resources/introduction",
   programmingFundamentals: "/resources/programming-fundamentals",

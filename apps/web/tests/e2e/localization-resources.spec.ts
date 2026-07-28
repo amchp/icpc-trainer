@@ -52,7 +52,7 @@ test("keeps six localized code traces synchronized and responsive without persis
   await page.getByRole("combobox", { name: /^(Choose language|Elegir idioma)$/ }).selectOption("en");
 
   const labels = [
-    "Conditional code trace",
+    "Problem-solving decision trace",
     "For loop code trace",
     "While loop code trace",
     "Function call code trace",
@@ -61,14 +61,14 @@ test("keeps six localized code traces synchronized and responsive without persis
   ];
   for (const label of labels) await expect(page.getByLabel(label)).toBeVisible();
 
-  const conditional = page.getByLabel("Conditional code trace");
+  const conditional = page.getByLabel("Problem-solving decision trace");
   await expect(conditional.locator("[aria-current='step']")).toHaveAttribute("data-guide-line", "1");
-  await expect(conditional.getByRole("status").first()).toContainText("raining");
-  await conditional.getByRole("checkbox", { name: "It is raining" }).check();
+  await expect(conditional.getByRole("status").first()).toContainText("submitted solution");
+  await conditional.getByRole("checkbox", { name: "Solution accepted" }).check();
   await expect(conditional.getByText("Step 1 of 2")).toBeVisible();
   await conditional.getByRole("button", { name: "Next trace step" }).click();
   await expect(conditional.locator("[aria-current='step']")).toHaveAttribute("data-guide-line", "2");
-  await expect(conditional.getByText("true — Take an umbrella")).toBeVisible();
+  await expect(conditional.getByText("true — Next problem")).toBeVisible();
 
   const vector = page.getByLabel("Vector traversal code trace");
   await vector.getByRole("button", { name: "Next trace step" }).click();
@@ -96,16 +96,16 @@ test("keeps six localized code traces synchronized and responsive without persis
 
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.reload();
-  await expect(page.getByLabel("Conditional code trace").getByText("Step 1 of 3")).toBeVisible();
-  await expect(page.getByLabel("Conditional code trace").getByRole("checkbox", { name: "It is raining" })).not.toBeChecked();
+  await expect(page.getByLabel("Problem-solving decision trace").getByText("Step 1 of 3")).toBeVisible();
+  await expect(page.getByLabel("Problem-solving decision trace").getByRole("checkbox", { name: "Solution accepted" })).not.toBeChecked();
 
   await page.getByRole("combobox", { name: "Choose language" }).selectOption("es");
-  const spanishConditional = page.getByLabel("Traza de código condicional");
+  const spanishConditional = page.getByLabel("Traza de decisión al resolver un problema");
   await expect(spanishConditional).toBeVisible();
   await expect(page.getByRole("button", { name: "Paso siguiente de la traza" }).first()).toBeVisible();
-  await spanishConditional.getByRole("checkbox", { name: "Está lloviendo" }).check();
+  await spanishConditional.getByRole("checkbox", { name: "Solución aceptada" }).check();
   await spanishConditional.getByRole("button", { name: "Paso siguiente de la traza" }).click();
-  await expect(spanishConditional.getByText("true — Lleva paraguas")).toBeVisible();
+  await expect(spanishConditional.getByText("true — Siguiente problema")).toBeVisible();
   await page.getByRole("combobox", { name: "Elegir idioma" }).selectOption("en");
 
   expect(progressRequests.length).toBeGreaterThan(0);

@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const authStatePath = "playwright/.clerk/user.json";
 const envFiles = [".env.e2e.local", ".env.e2e", ".env.local", ".env"];
+const webPort = Number(process.env.ICPC_TRAINER_E2E_WEB_PORT ?? "5173");
+const webBaseUrl = `http://127.0.0.1:${webPort}`;
 
 for (const file of envFiles) {
   const path = join(repoRoot, file);
@@ -20,7 +22,7 @@ export default defineConfig({
   timeout: 30_000,
   workers: 1,
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: webBaseUrl,
     trace: "on-first-retry"
   },
   webServer: [
@@ -36,8 +38,8 @@ export default defineConfig({
       }
     },
     {
-      command: "pnpm --filter @icpc-trainer/web dev",
-      url: "http://127.0.0.1:5173",
+      command: `pnpm --filter @icpc-trainer/web exec vite --host 127.0.0.1 --port ${webPort} --strictPort`,
+      url: webBaseUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
       cwd: repoRoot,
