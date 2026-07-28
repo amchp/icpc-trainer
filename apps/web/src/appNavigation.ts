@@ -11,6 +11,7 @@ export const appPaths = {
   judges: "/judges",
   leaderboard: "/leaderboard",
   playground: "/playground",
+  bruteForce: "/resources/brute-force",
   resources: "/resources",
   introduction: "/resources/introduction",
   programmingFundamentals: "/resources/programming-fundamentals",

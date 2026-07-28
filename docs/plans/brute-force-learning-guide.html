@@ -1,0 +1,1686 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Implementation plan — Brute Force Learning Guide</title>
+  <meta
+    name="description"
+    content="Implementation plan for a problem-first ICPC Trainer guide covering brute force, permutations, subset generation, and backtracking."
+  >
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem("brute-force-plan-theme");
+        const dark = saved === "dark" || (saved === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      } catch {
+        const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      --page: #f6f3ea;
+      --surface: #fffdf8;
+      --surface-soft: #eeeadf;
+      --surface-strong: #172127;
+      --ink: #182026;
+      --ink-soft: #596269;
+      --ink-faint: #7d8589;
+      --line: #d5d0c4;
+      --line-strong: #aaa397;
+      --cyan: #087f8c;
+      --cyan-soft: #d7eef0;
+      --orange: #d4632f;
+      --orange-soft: #f7dfd2;
+      --green: #517850;
+      --green-soft: #dfead9;
+      --violet: #6657a5;
+      --violet-soft: #e5e0f3;
+      --red: #a53f3f;
+      --red-soft: #f3dddd;
+      --shadow: 0 18px 50px rgb(24 32 38 / 8%);
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: Iowan Old Style, Palatino Linotype, Book Antiqua, Palatino, Georgia, serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    html.dark {
+      --page: #0b0f12;
+      --surface: #12181c;
+      --surface-soft: #192126;
+      --surface-strong: #080b0d;
+      --ink: #edf1f2;
+      --ink-soft: #aab4b9;
+      --ink-faint: #7e898e;
+      --line: #2b353a;
+      --line-strong: #49555b;
+      --cyan: #62d7e3;
+      --cyan-soft: #13343a;
+      --orange: #f39668;
+      --orange-soft: #3b271e;
+      --green: #91c88e;
+      --green-soft: #203321;
+      --violet: #b9a7ff;
+      --violet-soft: #2b2644;
+      --red: #f08d8d;
+      --red-soft: #3c2324;
+      --shadow: 0 24px 70px rgb(0 0 0 / 28%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 82% -10%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 30rem),
+        var(--page);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    a {
+      color: var(--cyan);
+      text-underline-offset: 3px;
+    }
+
+    code,
+    pre {
+      font-family: var(--mono);
+    }
+
+    code {
+      font-size: .92em;
+    }
+
+    .page {
+      width: min(1160px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 96px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 64px;
+      color: var(--ink-faint);
+      font: 600 11px/1 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: var(--surface);
+      color: var(--ink-soft);
+      font: 600 11px/1 var(--mono);
+      cursor: pointer;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--line-strong);
+      color: var(--ink);
+    }
+
+    .theme-toggle:focus-visible,
+    a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--cyan) 35%, transparent);
+      outline-offset: 3px;
+    }
+
+    .theme-toggle svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
+      gap: 52px;
+      align-items: end;
+      margin-bottom: 48px;
+    }
+
+    .eyebrow,
+    .section-index,
+    .label,
+    .tag {
+      font-family: var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 20px;
+      font-family: var(--serif);
+      font-size: clamp(42px, 7vw, 76px);
+      font-weight: 500;
+      letter-spacing: -.045em;
+      line-height: .98;
+    }
+
+    .lede {
+      max-width: 700px;
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: clamp(17px, 2vw, 20px);
+      line-height: 1.65;
+    }
+
+    .hero-note {
+      border-top: 2px solid var(--cyan);
+      padding-top: 18px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .hero-note strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 84px;
+    }
+
+    .summary-card {
+      min-height: 112px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card .label {
+      margin-bottom: 8px;
+      color: var(--ink-faint);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .summary-card .value {
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    section {
+      margin-bottom: 84px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 50px minmax(0, 1fr);
+      gap: 14px;
+      align-items: baseline;
+      margin-bottom: 28px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-index {
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-family: var(--serif);
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 500;
+      letter-spacing: -.025em;
+      line-height: 1.15;
+    }
+
+    h3 {
+      color: var(--ink);
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .section-intro {
+      max-width: 780px;
+      margin: -10px 0 32px 64px;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .decision-grid,
+    .component-grid,
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .decision,
+    .component,
+    .risk {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 21px;
+      background: var(--surface);
+    }
+
+    .decision .tag,
+    .component .tag,
+    .risk .tag {
+      display: inline-block;
+      margin-bottom: 12px;
+      border-radius: 5px;
+      padding: 4px 7px;
+      background: var(--cyan-soft);
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .decision p,
+    .component p,
+    .risk p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .journey {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .journey-step {
+      position: relative;
+      min-height: 144px;
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--cyan);
+      border-radius: 10px;
+      padding: 16px;
+      background: var(--surface);
+    }
+
+    .journey-step:nth-child(3) {
+      border-top-color: var(--orange);
+    }
+
+    .journey-step:nth-child(4) {
+      border-top-color: var(--violet);
+    }
+
+    .journey-step:nth-child(5) {
+      border-top-color: var(--green);
+    }
+
+    .journey-step:not(:last-child)::after {
+      position: absolute;
+      z-index: 2;
+      top: 54px;
+      right: -16px;
+      content: "→";
+      color: var(--line-strong);
+      font-family: var(--mono);
+      font-size: 18px;
+    }
+
+    .journey-step .number {
+      display: block;
+      margin-bottom: 14px;
+      color: var(--ink-faint);
+      font: 700 10px/1 var(--mono);
+    }
+
+    .journey-step strong {
+      display: block;
+      margin-bottom: 7px;
+      line-height: 1.3;
+    }
+
+    .journey-step span:last-child {
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .lesson-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .lesson {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr) minmax(230px, .48fr);
+      gap: 22px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 22px;
+      background: var(--surface);
+    }
+
+    .lesson-num {
+      color: var(--orange);
+      font: 700 24px/1 var(--mono);
+    }
+
+    .lesson-title {
+      margin-bottom: 8px;
+      font-family: var(--serif);
+      font-size: 24px;
+      font-weight: 500;
+      line-height: 1.15;
+    }
+
+    .lesson-copy {
+      margin-bottom: 12px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: var(--ink-soft);
+      font: 600 10px/1.3 var(--mono);
+    }
+
+    .lesson-output {
+      border-left: 2px solid var(--line);
+      padding-left: 18px;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .lesson-output strong {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--ink);
+      font: 700 10px/1.3 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .practice-band {
+      margin-top: 18px;
+      border: 1px solid color-mix(in srgb, var(--violet) 45%, var(--line));
+      border-radius: 13px;
+      padding: 24px;
+      background: var(--violet-soft);
+    }
+
+    .practice-band h3 {
+      margin-bottom: 10px;
+    }
+
+    .practice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .practice-card {
+      border: 1px solid color-mix(in srgb, var(--violet) 30%, var(--line));
+      border-radius: 9px;
+      padding: 16px;
+      background: color-mix(in srgb, var(--surface) 82%, transparent);
+    }
+
+    .practice-card a {
+      font-weight: 750;
+    }
+
+    .practice-card p {
+      margin: 8px 0 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, auto);
+      gap: 9px;
+      align-items: center;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      background: var(--surface);
+    }
+
+    .flow-node {
+      min-width: 132px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 14px;
+      background: var(--surface-soft);
+      text-align: center;
+    }
+
+    .flow-node strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+
+    .flow-node span {
+      color: var(--ink-soft);
+      font-size: 11px;
+    }
+
+    .flow-arrow {
+      color: var(--line-strong);
+      font: 700 16px/1 var(--mono);
+    }
+
+    .callout {
+      margin-top: 18px;
+      border-left: 4px solid var(--orange);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 19px;
+      background: var(--orange-soft);
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .callout strong {
+      color: var(--ink);
+    }
+
+    .component-grid {
+      margin-top: 20px;
+    }
+
+    .component .tag {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 0;
+      max-width: 920px;
+    }
+
+    .slice {
+      display: grid;
+      grid-template-columns: 128px 28px minmax(0, 1fr);
+      gap: 0 16px;
+    }
+
+    .slice-label {
+      padding-top: 2px;
+      color: var(--ink-faint);
+      text-align: right;
+      font: 700 11px/1.4 var(--mono);
+    }
+
+    .slice-mark {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .slice-dot {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      border: 3px solid var(--orange);
+      border-radius: 50%;
+      background: var(--page);
+    }
+
+    .slice-line {
+      width: 2px;
+      flex: 1;
+      margin: 5px 0;
+      background: var(--line);
+    }
+
+    .slice:last-child .slice-line {
+      display: none;
+    }
+
+    .slice-body {
+      padding-bottom: 34px;
+    }
+
+    .slice-body h3 {
+      margin-bottom: 6px;
+    }
+
+    .slice-body p {
+      max-width: 720px;
+      margin-bottom: 10px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .code-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .code-card {
+      min-width: 0;
+      border-radius: 11px;
+      overflow: hidden;
+      background: var(--surface-strong);
+      color: #e8eef0;
+    }
+
+    .code-label {
+      border-bottom: 1px solid #2c373d;
+      padding: 9px 14px;
+      color: #849198;
+      font: 700 10px/1.4 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      padding: 18px;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--surface-soft);
+      color: var(--ink-faint);
+      font: 700 10px/1.4 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td:first-child {
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    td:not(:first-child) {
+      color: var(--ink-soft);
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .test-card {
+      border-top: 3px solid var(--cyan);
+      border-radius: 10px;
+      padding: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .test-card:nth-child(2) {
+      border-top-color: var(--violet);
+    }
+
+    .test-card:nth-child(3) {
+      border-top-color: var(--green);
+    }
+
+    .test-card ul,
+    .checklist {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .test-card li,
+    .checklist li {
+      position: relative;
+      margin: 8px 0;
+      padding-left: 20px;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .test-card li::before {
+      position: absolute;
+      left: 0;
+      content: "·";
+      color: var(--cyan);
+      font-size: 20px;
+      line-height: 15px;
+    }
+
+    .risk .tag {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .acceptance {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 28px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      background: var(--surface);
+    }
+
+    .checklist li {
+      margin: 0;
+      padding: 9px 0 9px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .checklist li::before {
+      position: absolute;
+      top: 10px;
+      left: 1px;
+      content: "✓";
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .footnote {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      color: var(--ink-faint);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+
+      .hero-note {
+        max-width: 560px;
+      }
+
+      .summary,
+      .journey {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .journey-step:not(:last-child)::after {
+        display: none;
+      }
+
+      .lesson {
+        grid-template-columns: 58px minmax(0, 1fr);
+      }
+
+      .lesson-output {
+        grid-column: 2;
+      }
+
+      .practice-grid,
+      .test-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        width: min(100% - 28px, 1160px);
+        padding-top: 20px;
+      }
+
+      .topbar {
+        margin-bottom: 44px;
+      }
+
+      .summary,
+      .decision-grid,
+      .component-grid,
+      .risk-grid,
+      .code-grid,
+      .acceptance {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-card {
+        min-height: 0;
+      }
+
+      .section-head {
+        grid-template-columns: 36px minmax(0, 1fr);
+      }
+
+      .section-intro {
+        margin-left: 0;
+      }
+
+      .journey {
+        grid-template-columns: 1fr;
+      }
+
+      .lesson {
+        grid-template-columns: 1fr;
+      }
+
+      .lesson-output {
+        grid-column: auto;
+        border-top: 1px solid var(--line);
+        border-left: 0;
+        padding-top: 14px;
+        padding-left: 0;
+      }
+
+      .slice {
+        grid-template-columns: 18px minmax(0, 1fr);
+        gap: 0 13px;
+      }
+
+      .slice-label {
+        grid-column: 2;
+        margin-bottom: 7px;
+        padding-top: 0;
+        text-align: left;
+      }
+
+      .slice-mark {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+      }
+
+      .slice-body {
+        grid-column: 2;
+      }
+
+      .footnote {
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span>ICPC Trainer · Learning roadmap</span>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M18.36 5.64l-1.42 1.42M7.06 16.94l-1.42 1.42"/>
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+        <span id="theme-label">Theme</span>
+      </button>
+    </div>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Implementation plan · New learning guide</p>
+        <h1>Brute Force:<br>generate, check, backtrack.</h1>
+        <p class="lede">
+          A problem-first class that teaches learners to read the bounds, estimate the
+          search space, and reach for the simplest exhaustive solution that fits.
+        </p>
+      </div>
+      <aside class="hero-note">
+        <strong>Source and direction</strong>
+        Based on <code>Fuerza Bruta.pdf</code>. Preserve its progression from direct
+        enumeration to permutations, subset generation, and backtracking, while
+        rebuilding the material in ICPC Trainer’s app-native visual language.
+      </aside>
+    </header>
+
+    <div class="summary" aria-label="Plan summary">
+      <div class="summary-card">
+        <div class="label">Roadmap</div>
+        <div class="value">Guide 03, after Programming Fundamentals</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Stable route</div>
+        <div class="value"><code>/resources/brute-force</code></div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Teaching loop</div>
+        <div class="value">Problem → pause → tool → fragments</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Persistence</div>
+        <div class="value">Guide status only; reveals stay in session</div>
+      </div>
+    </div>
+
+    <main>
+      <section id="decisions">
+        <div class="section-head">
+          <span class="section-index">01</span>
+          <h2>Decisions already locked</h2>
+        </div>
+        <p class="section-intro">
+          These are product decisions, not open questions for the implementer.
+        </p>
+        <div class="decision-grid">
+          <article class="decision">
+            <span class="tag">Scope</span>
+            <h3>One new Learning Topic and Guide</h3>
+            <p>
+              Add the third roadmap node after Programming Fundamentals. Access remains
+              open; the prerequisite is recommended, never enforced.
+            </p>
+          </article>
+          <article class="decision">
+            <span class="tag">Vocabulary</span>
+            <h3>Say “generate subsets”</h3>
+            <p>
+              Learner-facing copy uses permutations, subset generation, and backtracking.
+              Do not use “combinatorics” as the section label.
+            </p>
+          </article>
+          <article class="decision">
+            <span class="tag">Code depth</span>
+            <h3>Fragments, not complete programs</h3>
+            <p>
+              Show signatures, core loops, recursive calls, traces, and complexity.
+              Leave input parsing and the final accepted program to the learner.
+            </p>
+          </article>
+          <article class="decision">
+            <span class="tag">Presentation</span>
+            <h3>App-native visuals</h3>
+            <p>
+              Recreate useful ideas as state traces, search trees, grids, and counters.
+              Do not ship screenshots or memes extracted from the source PDF.
+            </p>
+          </article>
+          <article class="decision">
+            <span class="tag">Method order</span>
+            <h3>Recursive first, iterative second</h3>
+            <p>
+              Establish the decision tree, then derive <code>next_permutation</code>
+              and bitmask enumeration as compact contest implementations.
+            </p>
+          </article>
+          <article class="decision">
+            <span class="tag">Localization</span>
+            <h3>English and Spanish at launch</h3>
+            <p>
+              Add matching catalogs and localized code fragments. Preserve the existing
+              bilingual Resources journey and catalog-shape checks.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="lesson">
+        <div class="section-head">
+          <span class="section-index">02</span>
+          <h2>Lesson arc</h2>
+        </div>
+        <p class="section-intro">
+          The curriculum moves from counting candidates to pruning them. Each worked
+          problem starts with a brief attempt before the technique is named.
+        </p>
+
+        <div class="journey" aria-label="Learning progression">
+          <div class="journey-step">
+            <span class="number">00</span>
+            <strong>Read the bounds</strong>
+            <span>Count candidates and total work before choosing an algorithm.</span>
+          </div>
+          <div class="journey-step">
+            <span class="number">01</span>
+            <strong>Simulate</strong>
+            <span>Repeat a known process and check whether the target appears.</span>
+          </div>
+          <div class="journey-step">
+            <span class="number">02</span>
+            <strong>Permute</strong>
+            <span>Generate every ordering recursively and iteratively.</span>
+          </div>
+          <div class="journey-step">
+            <span class="number">03</span>
+            <strong>Choose</strong>
+            <span>Generate every binary choice with recursion and bitmasks.</span>
+          </div>
+          <div class="journey-step">
+            <span class="number">04</span>
+            <strong>Backtrack</strong>
+            <span>Reject invalid partial candidates and undo failed choices.</span>
+          </div>
+        </div>
+
+        <div class="lesson-list">
+          <article class="lesson">
+            <div class="lesson-num">00</div>
+            <div>
+              <h3 class="lesson-title">Bounds before algorithms</h3>
+              <p class="lesson-copy">
+                Introduce the candidate-counting habit with an interactive meter.
+                Learners vary <code>n</code>, test cases, and per-candidate work, then
+                compare <code>n!</code>, <code>2^n</code>, and <code>3^n</code>.
+              </p>
+              <div class="chips">
+                <span class="chip">BigInt counts</span>
+                <span class="chip">heuristic bands</span>
+                <span class="chip">n = 1…20</span>
+                <span class="chip">full input budget</span>
+              </div>
+            </div>
+            <div class="lesson-output">
+              <strong>Success signal</strong>
+              The learner can explain why multiplying by test cases and work per
+              candidate can change an apparently small bound.
+            </div>
+          </article>
+
+          <article class="lesson">
+            <div class="lesson-num">01</div>
+            <div>
+              <h3 class="lesson-title">
+                <a href="https://codeforces.com/problemset/problem/2028/A" target="_blank" rel="noreferrer">
+                  Alice’s Adventures in “Chess”
+                </a>
+              </h3>
+              <p class="lesson-copy">
+                Begin with a paraphrased prompt, sample path, target, and constraints.
+                Reveal direct simulation: update <code>(x, y)</code>, repeat the known
+                movement sequence, and check the target after every move.
+              </p>
+              <div class="chips">
+                <span class="chip">quick pause</span>
+                <span class="chip">path trace</span>
+                <span class="chip">finite guard</span>
+              </div>
+            </div>
+            <div class="lesson-output">
+              <strong>Code shown</strong>
+              The movement update loop and target check only. Explain the bound instead
+              of using an unexplained magic number.
+            </div>
+          </article>
+
+          <article class="lesson">
+            <div class="lesson-num">02</div>
+            <div>
+              <h3 class="lesson-title">
+                <a href="https://codeforces.com/gym/102219/problem/J" target="_blank" rel="noreferrer">
+                  Kitchen Plates
+                </a>
+              </h3>
+              <p class="lesson-copy">
+                Generate an ordering of <code>ABCDE</code>, then check all five
+                comparisons. Trace recursive placement with <code>used[]</code> first;
+                follow it with sorted input plus <code>next_permutation</code>.
+              </p>
+              <div class="chips">
+                <span class="chip">5! candidates</span>
+                <span class="chip">call stack</span>
+                <span class="chip">next_permutation</span>
+              </div>
+            </div>
+            <div class="lesson-output">
+              <strong>Comparison</strong>
+              Recursion exposes the decision tree; the standard-library form is compact
+              when every complete ordering must be checked.
+            </div>
+          </article>
+
+          <article class="lesson">
+            <div class="lesson-num">03</div>
+            <div>
+              <h3 class="lesson-title">
+                <a href="https://codeforces.com/problemset/problem/2008/A" target="_blank" rel="noreferrer">
+                  Sakurako’s Exam
+                </a>
+              </h3>
+              <p class="lesson-copy">
+                Treat each sign as a binary choice. Trace recursive <code>+</code> /
+                <code>-</code> branches, then enumerate the same choices with masks from
+                <code>0</code> through <code>(1 &lt;&lt; n) - 1</code>.
+              </p>
+              <div class="chips">
+                <span class="chip">choose + / −</span>
+                <span class="chip">2^n candidates</span>
+                <span class="chip">bitmask mapping</span>
+              </div>
+            </div>
+            <div class="lesson-output">
+              <strong>Complexity shown</strong>
+              Use <code>O(t · n · 2^n)</code>, not just <code>O(2^n)</code>. Do not
+              present the fragment as an acceptance guarantee across every worst-case
+              input.
+            </div>
+          </article>
+
+          <article class="lesson">
+            <div class="lesson-num">04</div>
+            <div>
+              <h3 class="lesson-title">Sudoku backtracking capstone</h3>
+              <p class="lesson-copy">
+                Select an empty cell, try a digit, reject invalid candidates, recurse,
+                and reset the cell when a branch fails. Use a small deterministic trace,
+                not a full animated solve.
+              </p>
+              <div class="chips">
+                <span class="chip">try</span>
+                <span class="chip">validate</span>
+                <span class="chip">recurse</span>
+                <span class="chip">undo</span>
+              </div>
+            </div>
+            <div class="lesson-output">
+              <strong>Visual shown</strong>
+              Synchronized code line, call stack, and accessible Sudoku grid with fixed,
+              active, accepted, and rejected cell states.
+            </div>
+          </article>
+        </div>
+
+        <div class="practice-band">
+          <h3>Closing transfer practice</h3>
+          <p>
+            These remain at the end of the guide. Each gets two or three progressive
+            hints and an expected complexity, but no full in-app solution.
+          </p>
+          <div class="practice-grid">
+            <article class="practice-card">
+              <a href="https://codeforces.com/problemset/problem/23/A" target="_blank" rel="noreferrer">
+                You’re Given a String…
+              </a>
+              <p>
+                Lead toward two start positions and a candidate length. Count the cost
+                of creating and comparing substrings, not only the visible loops.
+              </p>
+            </article>
+            <article class="practice-card">
+              <a href="https://codeforces.com/gym/105164/problem/C" target="_blank" rel="noreferrer">
+                Chocolate Packing
+              </a>
+              <p>
+                Treat the small box orientation as one of <code>3!</code> dimension
+                permutations and maximize the product of three integer quotients.
+              </p>
+            </article>
+            <article class="practice-card">
+              <a
+                href="https://codeforces.com/gym/101291/attachments/download/5256/20162017-acmicpc-pacific-northwest-regional-contest-div-2-en.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Barbells
+              </a>
+              <p>
+                Explain the three states for each plate—left, right, unused—so
+                <code>m ≤ 14</code> becomes a feasible <code>3^m</code> search.
+                Keep balanced assignments, combine them with each barbell, deduplicate,
+                and sort.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="experience">
+        <div class="section-head">
+          <span class="section-index">03</span>
+          <h2>Problem-first experience</h2>
+        </div>
+        <p class="section-intro">
+          The pause is short and learner-controlled. It should create productive
+          friction without locking the rest of the guide.
+        </p>
+
+        <div class="flow" aria-label="Problem-first interaction flow">
+          <div class="flow-node">
+            <strong>Problem</strong>
+            <span>Prompt, sample, constraints</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">
+            <strong>Quick pause</strong>
+            <span>Form an idea and sketch the code</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">
+            <strong>Reveal tool</strong>
+            <span>Only when progress stalls</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">
+            <strong>Trace + fragments</strong>
+            <span>Understand, then implement</span>
+          </div>
+        </div>
+
+        <div class="callout">
+          <strong>Attempt copy:</strong> “If you already have an idea, pause and think
+          through how you would code it. If you are sitting here with no way to make
+          progress, show the tool and use it to unlock the problem.”
+        </div>
+
+        <div class="component-grid">
+          <article class="component">
+            <span class="tag">Reusable UI</span>
+            <h3><code>ProblemFirstChallenge</code></h3>
+            <p>
+              Renders the paraphrased problem, constraints, sample, original Judge link,
+              attempt prompt, and an accessible <code>aria-expanded</code> reveal.
+              On reveal, move focus to the technique heading.
+            </p>
+          </article>
+          <article class="component">
+            <span class="tag">Interactive concept</span>
+            <h3><code>SearchSpaceMeter</code></h3>
+            <p>
+              Uses exact <code>BigInt</code> counts, includes all test cases and
+              per-candidate work, and labels feasibility as a cautious heuristic rather
+              than a runtime promise.
+            </p>
+          </article>
+          <article class="component">
+            <span class="tag">Practice support</span>
+            <h3><code>ProgressiveHints</code></h3>
+            <p>
+              Reveals hints in order, with expected complexity last. It never includes
+              a complete solution and never writes reveal state to the backend.
+            </p>
+          </article>
+          <article class="component">
+            <span class="tag">Trace extension</span>
+            <h3>Typed grid visual</h3>
+            <p>
+              Extend the existing trace visual union so Sudoku can synchronize code,
+              narration, call stack, and cell state through the established trace player.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="implementation">
+        <div class="section-head">
+          <span class="section-index">04</span>
+          <h2>Implementation slices</h2>
+        </div>
+        <p class="section-intro">
+          Build in five reviewable slices. Each slice leaves the application in a
+          testable state.
+        </p>
+
+        <div class="timeline">
+          <article class="slice">
+            <div class="slice-label">Slice 1</div>
+            <div class="slice-mark"><span class="slice-dot"></span><span class="slice-line"></span></div>
+            <div class="slice-body">
+              <h3>Guide identity, route, and roadmap</h3>
+              <p>
+                Add the shared guide ID, stable path, lazy route, Resources active path,
+                and third roadmap card. Refactor the two hard-coded cards into a mapped
+                sequence and derive the completion total from the guide list.
+              </p>
+              <div class="chips">
+                <span class="chip">packages/shared</span>
+                <span class="chip">appNavigation</span>
+                <span class="chip">router</span>
+                <span class="chip">ResourcesPage</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="slice">
+            <div class="slice-label">Slice 2</div>
+            <div class="slice-mark"><span class="slice-dot"></span><span class="slice-line"></span></div>
+            <div class="slice-body">
+              <h3>Shared guide controls and localization</h3>
+              <p>
+                Move generic copy, trace, practice, and sidebar labels into a shared
+                <code>learning</code> namespace. Add matching English and Spanish
+                brute-force catalogs and typed localized snippet factories.
+              </p>
+              <div class="chips">
+                <span class="chip">i18next catalogs</span>
+                <span class="chip">catalog parity</span>
+                <span class="chip">localized snippets</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="slice">
+            <div class="slice-label">Slice 3</div>
+            <div class="slice-mark"><span class="slice-dot"></span><span class="slice-line"></span></div>
+            <div class="slice-body">
+              <h3>Problem-first building blocks</h3>
+              <p>
+                Implement the attempt card, progressive hints, and search-space meter.
+                Keep all transient state local to the page and cover keyboard, focus,
+                overflow, and heuristic calculation behavior.
+              </p>
+              <div class="chips">
+                <span class="chip">session-only state</span>
+                <span class="chip">BigInt</span>
+                <span class="chip">accessible reveal</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="slice">
+            <div class="slice-label">Slice 4</div>
+            <div class="slice-mark"><span class="slice-dot"></span><span class="slice-line"></span></div>
+            <div class="slice-body">
+              <h3>Traces and full lesson composition</h3>
+              <p>
+                Add recursive and iterative permutation traces, recursive and bitmask
+                subset traces, the grid visual, the focused Sudoku trace, the four
+                worked cycles, and the closing practice bank.
+              </p>
+              <div class="chips">
+                <span class="chip">GuideCodeBlock</span>
+                <span class="chip">grid visual</span>
+                <span class="chip">BruteForcePage</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="slice">
+            <div class="slice-label">Slice 5</div>
+            <div class="slice-mark"><span class="slice-dot"></span><span class="slice-line"></span></div>
+            <div class="slice-body">
+              <h3>Progress, end-to-end coverage, and polish</h3>
+              <p>
+                Reuse guide start/complete behavior, validate bilingual and responsive
+                journeys, confirm transient interaction state never enters API payloads,
+                and run the full repository verification set.
+              </p>
+              <div class="chips">
+                <span class="chip">progress</span>
+                <span class="chip">mobile</span>
+                <span class="chip">reduced motion</span>
+                <span class="chip">e2e</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="interfaces">
+        <div class="section-head">
+          <span class="section-index">05</span>
+          <h2>Interfaces and data boundaries</h2>
+        </div>
+        <p class="section-intro">
+          The feature is additive. Progress already stores guide IDs as text, so no
+          database migration or new endpoint is required.
+        </p>
+
+        <div class="code-grid">
+          <div class="code-card">
+            <div class="code-label">Shared guide identity</div>
+            <pre><code>export enum LEARNING_GUIDE_IDS {
+  Introduction = "introduction",
+  ProgrammingFundamentals = "programming-fundamentals",
+  BruteForce = "brute-force",
+}
+
+appPaths.bruteForce = "/resources/brute-force";</code></pre>
+          </div>
+          <div class="code-card">
+            <div class="code-label">New typed grid visual</div>
+            <pre><code>type GuideTraceGridCell = {
+  readonly value: GuideTracePrimitive;
+  readonly tone?: "default" | "fixed" | "active"
+    | "accepted" | "rejected";
+};
+
+type GuideTraceGridVisual = {
+  readonly kind: "grid";
+  readonly label: string;
+  readonly cells:
+    readonly (readonly GuideTraceGridCell[])[];
+};</code></pre>
+          </div>
+        </div>
+
+        <div class="callout">
+          <strong>Persistence boundary:</strong> only
+          <code>in_progress</code>/<code>completed</code> guide status is sent through
+          the current learning-progress API. Attempt choices, hint reveals, search-meter
+          inputs, trace frames, and Sudoku state stay in React state and reset on reload.
+        </div>
+      </section>
+
+      <section id="files">
+        <div class="section-head">
+          <span class="section-index">06</span>
+          <h2>File map</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Files</th>
+                <th>Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Shared contract</td>
+                <td><code>packages/shared/src/enum.ts</code></td>
+                <td>Add <code>LEARNING_GUIDE_IDS.BruteForce</code>.</td>
+              </tr>
+              <tr>
+                <td>Routing</td>
+                <td>
+                  <code>appNavigation.ts</code>, <code>router.tsx</code>,
+                  <code>BruteForceRoute.tsx</code>
+                </td>
+                <td>Add the stable route, lazy boundary, and Resources active path.</td>
+              </tr>
+              <tr>
+                <td>Roadmap</td>
+                <td><code>ResourcesPage.tsx</code>, <code>locales/*/resources.ts</code></td>
+                <td>Render a data-driven three-guide sequence and dynamic completion count.</td>
+              </tr>
+              <tr>
+                <td>Guide page</td>
+                <td><code>BruteForcePage.tsx</code></td>
+                <td>Compose the hero, sidebar, meter, worked cycles, practice, and progress finish.</td>
+              </tr>
+              <tr>
+                <td>Guide UI</td>
+                <td>
+                  <code>learning/ProblemFirstChallenge.tsx</code>,
+                  <code>learning/ProgressiveHints.tsx</code>,
+                  <code>learning/SearchSpaceMeter.tsx</code>
+                </td>
+                <td>Add reusable, accessible, session-only teaching interactions.</td>
+              </tr>
+              <tr>
+                <td>Traces</td>
+                <td>
+                  <code>learning/guideTrace.ts</code>,
+                  <code>learning/GuideCodeBlock.tsx</code>,
+                  <code>learning/BruteForceGuideTraces.ts</code>
+                </td>
+                <td>Add grid validation/rendering and the five focused traces.</td>
+              </tr>
+              <tr>
+                <td>Content</td>
+                <td>
+                  <code>learning/snippets/bruteForceSnippets.*</code>,
+                  <code>locales/en/bruteForce.ts</code>,
+                  <code>locales/es/bruteForce.ts</code>
+                </td>
+                <td>Add typed localized fragments, narration, hints, and lesson copy.</td>
+              </tr>
+              <tr>
+                <td>Shared copy</td>
+                <td>
+                  <code>locales/en/learning.ts</code>, <code>locales/es/learning.ts</code>,
+                  locale indexes
+                </td>
+                <td>Move generic guide-control labels out of the fundamentals namespace.</td>
+              </tr>
+              <tr>
+                <td>Tests</td>
+                <td>Component, page, router, API, catalog, navigation, and Resources e2e tests</td>
+                <td>Cover content, state boundaries, localization, accessibility, and responsiveness.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tests">
+        <div class="section-head">
+          <span class="section-index">07</span>
+          <h2>Verification matrix</h2>
+        </div>
+        <div class="test-grid">
+          <article class="test-card">
+            <h3>Model and components</h3>
+            <ul>
+              <li>Exact factorial, binary, and ternary candidate counts</li>
+              <li>Totals include cases and work per candidate</li>
+              <li>Attempt tools start hidden and reset on remount</li>
+              <li>Hints reveal in order without a full solution</li>
+              <li>Malformed trace grids fail validation safely</li>
+            </ul>
+          </article>
+          <article class="test-card">
+            <h3>Guide behavior</h3>
+            <ul>
+              <li>Four worked cycles appear in the agreed order</li>
+              <li>Both permutation and subset methods are present</li>
+              <li>Barbells explains left, right, and unused states</li>
+              <li>English and Spanish catalogs stay structurally equal</li>
+              <li>Reduced-motion users keep manual trace controls</li>
+            </ul>
+          </article>
+          <article class="test-card">
+            <h3>Integration and e2e</h3>
+            <ul>
+              <li>Roadmap counts zero through three completed guides</li>
+              <li>The stable route resolves and marks Resources active</li>
+              <li>Completion persists while reveals reset on reload</li>
+              <li>Transient state never appears in progress requests</li>
+              <li>No horizontal page overflow at 320px</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="code-card" style="margin-top: 18px">
+          <div class="code-label">Required verification</div>
+          <pre><code>pnpm --filter @icpc-trainer/web test
+pnpm --filter @icpc-trainer/web i18n:check
+pnpm typecheck
+pnpm test
+pnpm --filter @icpc-trainer/web test:e2e
+pnpm build</code></pre>
+        </div>
+      </section>
+
+      <section id="risks">
+        <div class="section-head">
+          <span class="section-index">08</span>
+          <h2>Risks and safeguards</h2>
+        </div>
+        <div class="risk-grid">
+          <article class="risk">
+            <span class="tag">Complexity</span>
+            <h3>A small per-case bound can still mislead</h3>
+            <p>
+              Always include test cases and per-candidate work. Sakurako explicitly uses
+              <code>O(t · n · 2^n)</code> and avoids claiming automatic acceptance.
+            </p>
+          </article>
+          <article class="risk">
+            <span class="tag">Length</span>
+            <h3>The guide could become another fundamentals monolith</h3>
+            <p>
+              Keep exactly four worked cycles, use fragments rather than programs, and
+              move String, Chocolate Packing, and Barbells into one closing practice bank.
+            </p>
+          </article>
+          <article class="risk">
+            <span class="tag">Trace size</span>
+            <h3>Recursive trees can explode in the browser</h3>
+            <p>
+              Trace only tiny fixed inputs and cap recorded frames. The Sudoku trace
+              demonstrates one failure and undo path rather than solving a full board.
+            </p>
+          </article>
+          <article class="risk">
+            <span class="tag">Source use</span>
+            <h3>Slide screenshots reduce clarity and complicate reuse</h3>
+            <p>
+              Paraphrase the prompts, link to the original Judge statements, and create
+              native diagrams. Do not copy full statements or PDF images into the app.
+            </p>
+          </article>
+          <article class="risk">
+            <span class="tag">Shared controls</span>
+            <h3>New guide UI could depend on the wrong namespace</h3>
+            <p>
+              Move generic control labels to a shared <code>learning</code> namespace
+              and verify that the existing Fundamentals guide is visually unchanged.
+            </p>
+          </article>
+          <article class="risk">
+            <span class="tag">Mobile</span>
+            <h3>Code, grids, and controls can widen the page</h3>
+            <p>
+              Constrain overflow to local panels, stack code and state on narrow screens,
+              and include a 320px document-width assertion in the Resources e2e journey.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="acceptance">
+        <div class="section-head">
+          <span class="section-index">09</span>
+          <h2>Definition of done</h2>
+        </div>
+        <div class="acceptance">
+          <ul class="checklist">
+            <li>A third Brute Force guide follows Programming Fundamentals.</li>
+            <li>The guide is complete in English and Spanish.</li>
+            <li>Every worked topic begins with a quick attempt.</li>
+            <li>Permutations use recursive and iterative generation.</li>
+            <li>Subset generation uses recursive and bitmask forms.</li>
+            <li>Sudoku closes the guide with backtracking.</li>
+          </ul>
+          <ul class="checklist">
+            <li>No worked example exposes a complete copy-paste program.</li>
+            <li>Three practice problems use progressive hints.</li>
+            <li>Barbells receives a conceptual three-state explanation.</li>
+            <li>Only guide-level progress persists.</li>
+            <li>All controls work with keyboard and reduced motion.</li>
+            <li>Unit, integration, e2e, typecheck, and build checks pass.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footnote">
+      <span>
+        No <code>CONTEXT.md</code> change: the new vocabulary is general programming
+        language, while Learning Topic and Learning Guide already exist.
+      </span>
+      <span>No ADR: this is additive and follows established course architecture.</span>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      const button = document.getElementById("theme-toggle");
+      const label = document.getElementById("theme-label");
+
+      const updateLabel = () => {
+        const dark = document.documentElement.classList.contains("dark");
+        label.textContent = dark ? "Light mode" : "Dark mode";
+        button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      };
+
+      button.addEventListener("click", () => {
+        const dark = !document.documentElement.classList.contains("dark");
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        try {
+          localStorage.setItem("brute-force-plan-theme", dark ? "dark" : "light");
+        } catch {
+          // The selected theme still applies for this page view.
+        }
+        updateLabel();
+      });
+
+      updateLabel();
+    })();
+  </script>
+</body>
+</html>

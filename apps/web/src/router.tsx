@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 
 import { AccountRoute } from "./AccountRoute.js";
 import { appPaths } from "./appNavigation.js";
+import { BruteForceRoute } from "./BruteForceRoute.js";
 import { ConnectJudgeProviderRoute } from "./ConnectJudgeProviderRoute.js";
 import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
 import { ContestFinderRoute } from "./ContestFinderRoute.js";
@@ -122,6 +123,12 @@ const programmingFundamentalsRoute = createRoute({
   component: ProgrammingFundamentalsRoute
 });
 
+const bruteForceRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.bruteForce,
+  component: BruteForceRoute
+});
+
 const introductionRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.introduction,
@@ -169,6 +176,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   resourcesAppRoute.addChildren([
     resourcesRoute,
+    bruteForceRoute,
     introductionRoute,
     programmingFundamentalsRoute,
     resourcesSubpathRoute
