@@ -61,4 +61,11 @@ describe("problem-first interactions", () => {
     expect(screen.queryByText("Technique body")).not.toBeInTheDocument();
     expect(screen.queryByText("Application body")).not.toBeInTheDocument();
   });
+
+  it("supports an original learning challenge without inventing an external source", () => {
+    const { sourceUrl: _sourceUrl, sourceLabel: _sourceLabel, ...originalChallengeProps } = props;
+    render(<ProblemFirstChallenge {...originalChallengeProps}><p>Technique body</p></ProblemFirstChallenge>);
+
+    expect(screen.queryByRole("link", { name: "Open problem" })).not.toBeInTheDocument();
+  });
 });

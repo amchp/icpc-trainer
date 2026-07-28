@@ -1,7 +1,7 @@
 export const bruteForce = {
   loading: "Cargando guía…",
   roadmap: "Ruta de aprendizaje",
-  eyebrow: "Guía 03 · Técnicas de búsqueda",
+  eyebrow: "Guía 04 · Técnicas de búsqueda",
   title: "Genera. Comprueba. Retrocede.",
   subtitle: "La fuerza bruta no es adivinar. Es la disciplina de contar cada candidato, generarlos de forma sistemática y comprobar solo lo que permiten los límites.",
   heroNoteTitle: "La búsqueda correcta más simple",

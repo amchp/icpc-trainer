@@ -5,6 +5,347 @@ export const timeComplexity = {
   title: "Time & Space Complexity",
   subtitle: "Follow one user-search feature from five accounts to production scale: measure the baseline, choose an index, and account for the memory each design adds.",
   heroQuestion: "Will user search stay fast as the site grows?",
+  problemFirst: {
+    subtitle: "Count executed operations and occupied memory, turn those counts into formulas, then use Big O to communicate how the formulas grow.",
+    heroQuestion: "How does the input change the time and memory a program needs?",
+    finishDescription: "Completion is your choice. Reveals, answers, traces, estimators, and benchmark results are practice state only and reset when this page reloads.",
+    sections: {
+      search: "Build resource formulas",
+      duplicates: "Communicate with Big O",
+      stock: "Estimate time and memory",
+      power: "Count recursion",
+      zeros: "Count control flow",
+      capstone: "Trade time for memory"
+    },
+    common: {
+      challenge: "Learning challenge",
+      constraints: "Constraints",
+      sample: "Example",
+      yourTurn: "Your turn",
+      attemptPrompt: "Pause here. Sketch the simplest correct solution and predict its time and auxiliary space before revealing the analysis.",
+      revealTool: "Reveal the analysis tool",
+      hideTool: "Hide the analysis tool",
+      revealApplication: "Compare solution approaches",
+      hideApplication: "Hide solution approaches",
+      analysisTool: "Analysis tool",
+      compare: "Compare and apply",
+      openSource: "Open the original problem",
+      expectedQualifier: "Expected bound under well-distributed hashing.",
+      hashCaveat: "Hash-table bounds here are expected, not guaranteed. Collisions and implementation details can degrade operations toward linear time; all other bounds use worst-case analysis unless stated otherwise."
+    },
+    comparison: {
+      label: "Solution approach comparison",
+      candidate: "Candidate {{number}}",
+      time: "Time",
+      space: "Auxiliary space"
+    },
+    search: {
+      eyebrow: "Lesson 1 · Original challenge",
+      title: "How long will this search run, and how much memory will it use?",
+      description: "Given a stored list of user IDs and a batch of requested IDs, report whether each requested user exists. Answer the resource questions by counting what the program executes and stores.",
+      constraints: "n stored users, q searches; each ID occupies 8 bytes. Do not use Big O yet—first build formulas from operations and bytes.",
+      sample: "users = [4, 12, 19, 31, 44]\nqueries = [31, 50]\noutput = [true, false]",
+      toolTitle: "Count operations and bytes until a formula appears",
+      analysis: "Start by choosing one modeled operation, such as the equality check id == query. Ask how often it executes as n and q change. For memory, count the values stored and multiply by their size. The result is a time formula T(n, q) and a memory formula M(n, q), not a clock time yet.",
+      applicationTitle: "Compare resource formulas before naming their complexity",
+      applicationPrompt: "Each design changes the operation count, preprocessing, and stored data. Read these as formulas tied to n and q; the next lesson gives us a shorter language for communicating their growth.",
+      practiceLabel: "Resource-counting check",
+      approaches: {
+        a: { title: "Repeat a direct scan", description: "Inspect the supplied list for each requested ID.", time: "At most qn comparisons", space: "Fixed auxiliary state" },
+        b: { title: "Build a sorted copy", description: "Sort one copied index, then binary-search every request.", time: "≈ n log₂ n + q log₂ n", space: "n copied IDs" },
+        c: { title: "Build a hash index", description: "Insert each user once, then query set membership.", time: "Expected ≈ n + q operations", space: "Up to n stored entries" }
+      },
+      questions: {
+        first: {
+          question: "Which source event is the modeled operation in the direct search?",
+          a: "Declaring the found variable",
+          b: "Evaluating id == query",
+          c: "Returning from the function",
+          explanation: " The equality check is the repeated work whose execution count changes with n and q."
+        },
+        second: {
+          question: "What is the supplied-input memory formula for n user IDs and q query IDs?",
+          a: "n + q bytes",
+          b: "8n + 8q bytes",
+          c: "8qn bytes",
+          explanation: " Each 64-bit ID occupies 8 bytes, so count n + q stored IDs and multiply by 8."
+        }
+      }
+    },
+    duplicates: {
+      eyebrow: "Lesson 2 · Big O notation",
+      title: "Contains Duplicate",
+      description: "Return true when any integer occurs at least twice. Start with the obvious pair comparison, then decide whether sorting or a data structure earns its cost.",
+      constraints: "1 ≤ n ≤ 100,000. Preserve the supplied array when evaluating auxiliary space.",
+      sample: "nums = [1, 2, 3, 1]\noutput = true",
+      toolTitle: "Turn a resource formula into a shared growth label",
+      analysis: "Big O is a compact language for communicating how a formula grows. Keep the fastest-growing term and ignore its constant multiplier: 3n² + 4n + 20 becomes O(n²). We care much less about constant factors when comparing growth at large n, although constants still affect real programs and small inputs.",
+      applicationTitle: "Replace pair enumeration only when the model justifies it",
+      applicationPrompt: "The brute-force pairs are simple and correct. Sorting and hashing trade extra memory or weaker worst-case guarantees for better growth.",
+      practiceLabel: "Duplicate-detection check",
+      approaches: {
+        a: { title: "Compare every pair", description: "Enumerate all i < j pairs and stop on equality.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Sort a copy", description: "Equal values become adjacent after sorting.", time: "O(n log n)", space: "O(n)" },
+        c: { title: "Track values in a hash set", description: "A failed insertion reveals the duplicate.", time: "Expected O(n)", space: "O(n)" }
+      },
+      questions: {
+        first: {
+          question: "How should 3n² + 4n + 20 be communicated with Big O?",
+          a: "O(3n² + 4n + 20)",
+          b: "O(n²)",
+          c: "O(n)",
+          explanation: " Keep the dominant n² term, then drop its constant multiplier."
+        },
+        second: {
+          question: "Why can 7n and 700n both be described as O(n)?",
+          a: "They execute the same exact number of operations",
+          b: "They share linear growth even though their constant factors differ",
+          c: "Constants never affect real runtime",
+          explanation: " Big O communicates the growth family. The 100× constant difference can still matter in measurements."
+        }
+      }
+    },
+    stock: {
+      eyebrow: "Lesson 3 · Resource estimates",
+      title: "Best Time to Buy and Sell Stock",
+      description: "Choose one earlier day to buy and one later day to sell for maximum profit. Use the constraints to test whether enumerating every valid pair can finish in time.",
+      constraints: "1 ≤ n ≤ 100,000 prices. At most one buy and one later sell.",
+      sample: "prices = [7, 1, 5, 3, 6, 4]\noutput = 5",
+      toolTitle: "Estimate clock time and memory from the growth model",
+      analysis: "Estimate time with seconds ≈ c × f(n) ÷ 500,000,000, where f(n) is the Big O growth model and c represents work hidden by the notation. Estimate auxiliary memory with stored items × bytes per item. Both are planning estimates: judge tests can approach the worst case, while language, I/O, caches, allocation, and hardware still matter.",
+      applicationTitle: "Remove repeated work in two different ways",
+      applicationPrompt: "A suffix table remembers future information with O(n) memory. A running minimum compresses the same decision into one value.",
+      practiceLabel: "Stock-feasibility check",
+      approaches: {
+        a: { title: "Try every buy/sell pair", description: "Evaluate every legal pair of days.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Precompute suffix maxima", description: "Store the best future sell price for every day.", time: "O(n)", space: "O(n)" },
+        c: { title: "Keep a running minimum", description: "Track the cheapest earlier price while scanning once.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "At n = 100,000, which solution has the safest asymptotic time?",
+          a: "Every pair",
+          b: "One scan with a running minimum",
+          c: "Both are equivalent",
+          explanation: " The linear scan models about n steps; the pair enumeration models on the order of n²."
+        },
+        second: {
+          question: "What can the local browser benchmark establish?",
+          a: "A universal operations-per-second constant",
+          b: "Device-specific evidence about constant factors for two O(n) loops",
+          c: "That the faster run has better Big O",
+          explanation: " A bounded local run can expose constants, but it cannot prove an asymptotic or portable timing guarantee."
+        }
+      }
+    },
+    power: {
+      eyebrow: "Lesson 5 · Recursive counting",
+      title: "Fibonacci Number",
+      description: "Return the nth Fibonacci number, where F(0) = 0, F(1) = 1, and every later value is the sum of the previous two.",
+      constraints: "0 ≤ n ≤ 30. Start with the direct recursive definition, then count the work before optimizing it.",
+      sample: "n = 6\noutput = 8",
+      toolTitle: "Watch one recurrence grow into an exponential call tree",
+      analysis: "A recursive call can create more than one child. For naive Fibonacci, T(n) = T(n − 1) + T(n − 2) + c: the same subproblems are recomputed across a branching tree. Count every call for time, but only the longest simultaneously active path for stack space. The tree grows exponentially while its maximum depth grows linearly; O(2ⁿ) is a simple upper bound for its running time.",
+      applicationTitle: "Replace the repeated call tree with one forward pass",
+      applicationPrompt: "Compare the literal recursive definition with two bottom-up designs. The faster designs compute each Fibonacci state once instead of rebuilding overlapping subtrees.",
+      practiceLabel: "Fibonacci recursion check",
+      approaches: {
+        a: { title: "Expand the naive call tree", description: "Follow the mathematical definition and recursively compute both children every time.", time: "O(2ⁿ)", space: "O(n)" },
+        b: { title: "Build a bottom-up table", description: "Store F(0) through F(n), computing each state once from the previous two entries.", time: "O(n)", space: "O(n)" },
+        c: { title: "Keep the last two values", description: "Build the sequence bottom-up while retaining only the two values needed next.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "Why does naive Fibonacci take exponential time?",
+          a: "Each stack frame stores an integer",
+          b: "Most non-base calls create two children and recompute overlapping subproblems",
+          c: "The Fibonacci values themselves are exponential",
+          explanation: " The call count grows because the recursion branches and solves states such as F(3) many times; the size of the numeric answer is not the reason."
+        },
+        second: {
+          question: "What does the bottom-up table change?",
+          a: "It changes the Fibonacci definition",
+          b: "It computes each of the n + 1 states once, giving O(n) time and O(n) auxiliary space",
+          c: "It makes the call tree deeper than n",
+          explanation: " The table replaces repeated subtrees with one forward pass from F(0) to F(n)."
+        }
+      }
+    },
+    zeros: {
+      eyebrow: "Lesson 4 · Counting tricks",
+      title: "Duplicate Zeros",
+      description: "Duplicate every zero in a fixed-length integer array, shifting remaining values right and discarding anything that leaves the array.",
+      constraints: "1 ≤ n ≤ 10,000. Modify the array in place when a design claims O(1) auxiliary space.",
+      sample: "input  = [1,0,2,3,0,4,5,0]\noutput = [1,0,0,2,3,0,0,4]",
+      toolTitle: "Count how often statements execute—not how many appear in the source",
+      analysis: "A useful shortcut is to count condition checks and loop bodies: sequential blocks add, nested work often multiplies, and a loop that halves its variable is logarithmic. Be careful: one if statement inside a loop may be checked n times, and its body may contain another loop. Early exits change best cases, but worst-case analysis assumes the exit may never happen.",
+      applicationTitle: "Use the shortcut, then inspect the trap",
+      applicationPrompt: "The repeated-shift solution has one visible if, but each zero can activate a full suffix loop. Counting only source statements would miss its quadratic worst case.",
+      practiceLabel: "Control-flow counting check",
+      approaches: {
+        a: { title: "Shift after every zero", description: "Move the remaining suffix right whenever a zero appears.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Build a copied buffer", description: "Write duplicated values to a separate sequence.", time: "O(n)", space: "O(n)" },
+        c: { title: "Write backward in place", description: "Count zeros, then fill valid destinations from right to left.", time: "O(n)", space: "O(1)" }
+      },
+      questions: {
+        first: {
+          question: "An if condition appears once inside a loop that runs n times. How often is it checked?",
+          a: "Once",
+          b: "n times",
+          c: "n² times",
+          explanation: " Count executions, not the number of if keywords in the source."
+        },
+        second: {
+          question: "Why can the single if in repeated shifting still lead to O(n²) time?",
+          a: "Every if is automatically quadratic",
+          b: "Up to n true branches can each run a suffix loop of up to n steps",
+          c: "The array occupies n integers",
+          explanation: " The branch body contains repeated work; its execution count must be included."
+        }
+      }
+    },
+    capstone: {
+      eyebrow: "Lesson 6 · Capstone",
+      title: "Two Sum",
+      description: "Return the indices of two values whose sum equals the target. Use everything in the guide to choose whether extra memory is worth a lower operation count.",
+      constraints: "2 ≤ n ≤ 10,000. Exactly one valid answer exists, and the same element cannot be used twice.",
+      sample: "nums = [2, 7, 11, 15], target = 9\noutput = [0, 1]",
+      toolTitle: "Make the time–memory trade-off explicit",
+      analysis: "The pair scan stores almost nothing but repeats comparisons. Sorting or hashing stores O(n) extra data to reduce the operation count. Classify time, auxiliary space, and guarantee, then decide which trade-off fits the constraints.",
+      applicationTitle: "Defend the trade-off with the implementation",
+      applicationPrompt: "Read each vertically stacked candidate after making your classification. The sorted design retains original indices, while the hash design exchanges expected-time behavior and extra storage for fewer operations.",
+      practiceLabel: "Capstone check",
+      approaches: {
+        a: { title: "Enumerate index pairs", description: "Test every i < j pair directly.", time: "O(n²)", space: "O(1)" },
+        b: { title: "Sort value/index pairs", description: "Preserve indices, sort by value, then move two pointers.", time: "O(n log n)", space: "O(n)" },
+        c: { title: "Store complements in a hash map", description: "Look for the needed complement before inserting each value.", time: "Expected O(n)", space: "O(n)" }
+      },
+      questions: {
+        first: {
+          question: "Why does the sorted approach store value/index pairs?",
+          a: "To guarantee hash distribution",
+          b: "To return original positions after sorting by value",
+          c: "To reduce memory to O(1)",
+          explanation: " Sorting changes order, so each value must carry its original index."
+        },
+        second: {
+          question: "Which ranking best describes scalability under expected hash behavior?",
+          a: "Pair enumeration, sorting, hashing",
+          b: "Hashing, sorting, pair enumeration",
+          c: "All three scale equally",
+          explanation: " Expected linear growth beats n log n, which in turn beats quadratic growth as n becomes large."
+        }
+      }
+    },
+    labs: {
+      resources: {
+        eyebrow: "Resource formula lab",
+        title: "Change the input; watch the counts become formulas",
+        description: "Model the worst case where every query scans the entire user list. Each ID is a 64-bit value occupying 8 bytes.",
+        users: "Stored users n",
+        queries: "Search queries q",
+        time: "Modeled time count",
+        memory: "Modeled input memory",
+        comparisons: "equality comparisons",
+        note: "The loop variables and found flag use c_fixed working bytes. c_fixed does not change when n or q changes, so we keep it separate from the supplied input memory 8n + 8q."
+      },
+      bigO: {
+        eyebrow: "Big O translator",
+        title: "Keep the dominant growth; drop constants",
+        description: "Choose an operation-count formula and compress it into the label another programmer can compare quickly.",
+        examples: "Operation-count formulas",
+        formula: "Counted formula",
+        dominant: "Dominant term",
+        label: "Big O label",
+        note: "Dropping constants does not claim that constants are zero. It says the growth family is the most useful first comparison as n becomes large."
+      },
+      stockMemory: {
+        eyebrow: "Stock memory estimate",
+        title: "Estimate memory for the same three candidates",
+        description: "The received price array stores n four-byte integers. Now count only the storage created by each Stock solution.",
+        inputSize: "Number of prices n",
+        strategy: "Stock solution design",
+        pairs: "Enumerate buy/sell pairs",
+        suffix: "Store suffix maxima",
+        running: "Keep a running minimum",
+        input: "Input memory",
+        auxiliary: "Auxiliary memory",
+        total: "Total modeled memory",
+        formula: "Byte formula",
+        note: "This teaching model counts every displayed integer: three scalars for pair enumeration; n suffix values plus the loop index; or best, minimum, and the loop value for the running-minimum scan. It excludes vector and allocator overhead."
+      },
+      control: {
+        eyebrow: "Control-flow counter",
+        title: "One if can trigger much more than one operation",
+        description: "Let z be the number of zeros. The outer condition is checked at most n times, while every true branch may shift up to n values.",
+        length: "Array length n",
+        zeros: "Number of zeros z",
+        ifChecks: "Upper bound on if checks",
+        bodyWork: "Upper bound on shifts",
+        total: "Upper bound on counted work",
+        formula: "T(n, z) ≤ n + zn. For this input z = {{zeros}}; in the worst case z can grow with n, so n + n² simplifies to O(n²)."
+      },
+      recursion: {
+        eyebrow: "Fibonacci call-tree lab",
+        title: "Expand F(6) one layer at a time",
+        description: "Reveal the direct recursive definition one layer at a time. Compare the total number of calls with the longest active stack path.",
+        naiveAnimation: "Naive Fibonacci animation: every non-base call branches into F(n minus 1) and F(n minus 2).",
+        treePath: "Branching call tree",
+        recurrence: "T(n) = T(n − 1) + T(n − 2) + c",
+        treeDepth: "Tree layers revealed",
+        calls: "Calls revealed",
+        depth: "Maximum active depth",
+        callLabel: "F({{value}})",
+        layerSummary: "Layer {{layer}} of 6 is visible with {{calls}} total calls. New calls on this layer: {{nodes}}.",
+        visibleRelationships: "Visible parent and child call relationships",
+        callRelationship: "F({{parent}}) calls F({{child}})",
+        naiveScale: "F(30) triggers 2,692,537 calls in this direct recursion.",
+        nextLayer: "Reveal next layer",
+        reset: "Reset trace"
+      },
+      memory: {
+        eyebrow: "Memory ledger",
+        title: "Price the supplied array and the extra storage",
+        description: "Assume a four-byte int. Input memory is part of total memory, but only algorithm-created storage contributes to auxiliary space.",
+        length: "Array length: {{value}} integers",
+        strategy: "Solution design",
+        shift: "Repeated shifting",
+        buffer: "Copied buffer",
+        backward: "Backward in-place write",
+        input: "Input memory",
+        extra: "Extra memory",
+        total: "Total modeled memory",
+        convention: "The O(n) input is present for every design. The copied buffer adds O(n) auxiliary space; both in-place designs add only fixed working state, modeled here as one integer."
+      },
+      capstone: {
+        eyebrow: "Classification lab",
+        title: "Classify before comparing",
+        description: "Choose time / auxiliary space / guarantee for each candidate, then rank how they scale.",
+        quadratic: "Nested index pairs",
+        sort: "Sorted value/index pairs",
+        hash: "Hash-map complements",
+        classify: "Classify {{approach}}",
+        choose: "Choose a classification",
+        worst: "worst-case",
+        expected: "expected",
+        rank: "Rank expected scalability from strongest to weakest",
+        rankCorrect: "Hash → sort → nested pairs",
+        rankReverse: "Nested pairs → sort → hash",
+        rankMixed: "Sort → hash → nested pairs",
+        check: "Reveal the reference model",
+        reset: "Reset",
+        feedback: "Reference model — compare it with your classifications. This is analysis feedback, not a pass/fail result."
+      }
+    },
+    next: {
+      eyebrow: "Continue the toolkit",
+      title: "Complexity tells you what a tool costs; the next guides teach the tools.",
+      description: "This guide names sorting, hashing, and enumeration so you can analyze candidate solutions. Learn their mechanics in the existing Data Structures and Brute Force guides. Binary Search is a future guide, so it is intentionally not linked yet.",
+      dataStructures: "Open Data Structures",
+      bruteForce: "Open Brute Force",
+      binarySearch: "Binary Search · coming later"
+    }
+  },
   sections: {
     count: "Trace the baseline",
     notation: "Describe the growth",

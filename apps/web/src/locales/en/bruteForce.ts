@@ -1,7 +1,7 @@
 export const bruteForce = {
   loading: "Loading guide…",
   roadmap: "Learning roadmap",
-  eyebrow: "Guide 03 · Search techniques",
+  eyebrow: "Guide 04 · Search techniques",
   title: "Generate. Check. Backtrack.",
   subtitle: "Brute force is not guessing. It is the discipline of counting every candidate, generating each one systematically, and checking only as much as the bounds allow.",
   heroNoteTitle: "The simplest correct search",
