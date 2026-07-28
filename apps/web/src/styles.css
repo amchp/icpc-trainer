@@ -25,7 +25,7 @@ select {
   font: inherit;
 }
 
-.guide-copy code {
+.guide-copy :not(pre) > code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
   padding: 0.1em 0.4em;
@@ -34,6 +34,18 @@ select {
   background: rgba(39, 39, 42, 0.55);
   color: #e4e4e7;
   white-space: nowrap;
+}
+
+.guide-copy pre code,
+.guide-copy code.guide-code {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre;
 }
 
 .guide-rise {

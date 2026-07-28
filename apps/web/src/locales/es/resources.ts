@@ -15,5 +15,9 @@ export const resources = {
   timeComplexityDescription: "Cuenta operaciones y memoria, simplifica las fórmulas con Big O y estima límites reales.",
   dataStructures: "Estructuras de datos",
   dataStructuresDescription: "Elige el contenedor de C++ adecuado siguiendo las operaciones que exige cada problema.",
+  bruteForce: "Fuerza bruta",
+  bruteForceDescription: "Cuenta, genera, comprueba y retrocede en espacios de búsqueda acotados.",
+  binarySearch: "Búsqueda binaria",
+  binarySearchDescription: "Convierte una condición monótona en una búsqueda logarítmica sobre posiciones y respuestas.",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
 } as const;

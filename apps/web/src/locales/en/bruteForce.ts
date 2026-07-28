@@ -8,11 +8,6 @@ export const bruteForce = {
   heroNote: "Read the limits first. A direct exhaustive method is often the fastest route to an accepted solution—and the clearest baseline for a better one.",
   conceptsLabel: "Guide progression",
   concepts: { count: "Count candidates", simulate: "Simulate", generate: "Generate", undo: "Undo" },
-  resourceCard: {
-    sectionLabel: "Next search guide", next: "Continue the roadmap", title: "Brute Force",
-    description: "Count candidates, generate permutations and binary decisions, then prune with backtracking.",
-    status: { completed: "Completed", inProgress: "In progress", available: "Available", loading: "Loading" }
-  },
   sidebar: { label: "Guide sections", progress: "Section {{current}} of {{total}}" },
   trace: {
     inputs: "Trace inputs", stepCount: "Step {{current}} of {{total}}", previous: "Previous trace step", next: "Next trace step", reset: "Reset trace", play: "Play", pause: "Pause",

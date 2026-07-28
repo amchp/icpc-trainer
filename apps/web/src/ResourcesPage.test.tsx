@@ -47,7 +47,8 @@ describe("ResourcesPage", () => {
       "/resources/data-structures"
     );
     expect(screen.getByRole("link", { name: /Brute Force/ })).toHaveAttribute("href", "/resources/brute-force");
-    expect(screen.getByText("0 / 5 completed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Binary Search/ })).toHaveAttribute("href", "/resources/binary-search");
+    expect(screen.getByText("0 / 6 completed")).toBeInTheDocument();
   });
 
   it("shows saved completion state", () => {
@@ -65,7 +66,7 @@ describe("ResourcesPage", () => {
     }));
     render(<ResourcesPage />);
     expect(screen.getAllByText("Completed")).toHaveLength(4);
-    expect(screen.getByText("4 / 5 completed")).toBeInTheDocument();
+    expect(screen.getByText("4 / 6 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -77,7 +78,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 5 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 6 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -89,5 +90,6 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Data Structures/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Brute Force/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Binary Search/ })).toBeInTheDocument();
   });
 });

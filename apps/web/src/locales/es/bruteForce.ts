@@ -8,11 +8,6 @@ export const bruteForce = {
   heroNote: "Lee primero los límites. Un método exhaustivo directo suele ser el camino más rápido hacia una solución aceptada y la referencia más clara para mejorarla.",
   conceptsLabel: "Progresión de la guía",
   concepts: { count: "Contar candidatos", simulate: "Simular", generate: "Generar", undo: "Deshacer" },
-  resourceCard: {
-    sectionLabel: "Siguiente guía de búsqueda", next: "Continúa la ruta", title: "Fuerza bruta",
-    description: "Cuenta candidatos, genera permutaciones y decisiones binarias, y luego poda con backtracking.",
-    status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
-  },
   sidebar: { label: "Secciones de la guía", progress: "Sección {{current}} de {{total}}" },
   trace: {
     inputs: "Entradas de la traza", stepCount: "Paso {{current}} de {{total}}", previous: "Paso anterior de la traza", next: "Paso siguiente de la traza", reset: "Reiniciar traza", play: "Reproducir", pause: "Pausar",
