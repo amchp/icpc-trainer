@@ -11,19 +11,19 @@ describe("protected navigation", () => {
 
     expect(items.map(({ to }) => to)).toEqual([
       appPaths.findProblems,
-      appPaths.leaderboard,
       appPaths.upsolving,
       appPaths.contestFinder,
       appPaths.resources,
-      appPaths.team
+      appPaths.team,
+      appPaths.leaderboard
     ]);
     expect(items.map(({ label }) => label)).toEqual([
       "Find Problems",
-      "Leaderboard",
       "Upsolving",
       "Contest Finder",
       "Resources",
-      "Team"
+      "Team",
+      "Leaderboard"
     ]);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.introduction);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.timeComplexity);
