@@ -35,4 +35,10 @@ describe("locale catalogs", () => {
       expect(interpolationParams(spanishValue ?? ""), `${key} interpolation differs`).toEqual(interpolationParams(englishValue));
     }
   });
+
+  it("separates the two Windows setup statements for copy-and-paste execution", () => {
+    const expected = 'Set-ExecutionPolicy -Scope Process Bypass; & "$HOME\\Downloads\\install-cpp-vscode.ps1"';
+    expect(en.introduction.setup.windowsCommand).toBe(expected);
+    expect(es.introduction.setup.windowsCommand).toBe(expected);
+  });
 });

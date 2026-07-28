@@ -9,6 +9,7 @@ export interface PracticeQuestion {
   readonly question: string;
   readonly code?: string;
   readonly input?: string;
+  readonly answerCode?: string;
   readonly options: readonly string[];
   readonly correctOption: number;
   readonly explanation: string;
@@ -37,7 +38,7 @@ export function PracticeQuestionSet({
   };
 
   return (
-    <div className="my-10 rounded-lg border border-zinc-800 border-l-2 border-l-blue-400 bg-zinc-900/25 p-5 sm:p-6">
+    <div role="region" aria-label={label ?? t("practice.label")} className="my-10 rounded-lg border border-zinc-800 border-l-2 border-l-blue-400 bg-zinc-900/25 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-blue-300">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-blue-400" />
@@ -121,30 +122,37 @@ export function PracticeQuestionSet({
         })}
       </div>
       {activeAnswer !== null ? (
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <p
-            role="status"
-            className={cn(
-              "min-w-0 flex-1 text-sm leading-6",
-              activeAnswer === activeQuestion.correctOption ? "text-emerald-300" : "text-red-200"
-            )}
-          >
-            <strong className="font-semibold">
-              {activeAnswer === activeQuestion.correctOption ? t("practice.correct") : t("practice.retry")}
-            </strong>
-            {activeQuestion.explanation}
-          </p>
-          {questionIndex < questions.length - 1 ? (
-            <button
-              type="button"
-              aria-label={t("practice.continueToNextQuestion")}
-              onClick={() => setQuestionIndex((current) => current + 1)}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-blue-500 bg-blue-500 px-3 text-sm font-medium text-white transition-colors hover:border-blue-400 hover:bg-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        <div className="mt-3">
+          {activeQuestion.answerCode === undefined ? null : (
+            <div aria-label={t("practice.answerCode")} className="[&>div]:my-4">
+              <GuideCodeBlock code={activeQuestion.answerCode} />
+            </div>
+          )}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p
+              role="status"
+              className={cn(
+                "min-w-0 flex-1 text-sm leading-6",
+                activeAnswer === activeQuestion.correctOption ? "text-emerald-300" : "text-red-200"
+              )}
             >
-              {t("practice.nextQuestion")}
-              <ChevronRight aria-hidden="true" className="size-4" />
-            </button>
-          ) : null}
+              <strong className="font-semibold">
+                {activeAnswer === activeQuestion.correctOption ? t("practice.correct") : t("practice.retry")}
+              </strong>
+              {activeQuestion.explanation}
+            </p>
+            {questionIndex < questions.length - 1 ? (
+              <button
+                type="button"
+                aria-label={t("practice.continueToNextQuestion")}
+                onClick={() => setQuestionIndex((current) => current + 1)}
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-blue-500 bg-blue-500 px-3 text-sm font-medium text-white transition-colors hover:border-blue-400 hover:bg-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                {t("practice.nextQuestion")}
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

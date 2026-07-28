@@ -11,6 +11,7 @@ import { programmingFundamentals } from "./programmingFundamentals.js";
 import { resources } from "./resources.js";
 import { roster } from "./roster.js";
 import { shell } from "./shell.js";
+import { timeComplexity } from "./timeComplexity.js";
 import { upsolving } from "./upsolving.js";
 
-export const es = { auth, common, contestFinder, contests, findProblems, introduction, judges, leaderboard, playground, programmingFundamentals, resources, roster, shell, upsolving } as const;
+export const es = { auth, common, contestFinder, contests, findProblems, introduction, judges, leaderboard, playground, programmingFundamentals, resources, roster, shell, timeComplexity, upsolving } as const;

@@ -31,10 +31,14 @@ describe("learningProgress router", () => {
         const introduction = await firstCaller.learningProgress.start({
           guideId: LEARNING_GUIDE_IDS.Introduction
         });
+        const timeComplexity = await firstCaller.learningProgress.start({
+          guideId: LEARNING_GUIDE_IDS.TimeComplexity
+        });
         return {
           started,
           startedAgain,
           introduction,
+          timeComplexity,
           first: await firstCaller.learningProgress.list(),
           second: await secondCaller.learningProgress.list()
         };
@@ -47,10 +51,12 @@ describe("learningProgress router", () => {
     expect(Number.isNaN(Date.parse(result.started.updatedAt))).toBe(false);
     expect(result.startedAgain.startedAt).toBe(result.started.startedAt);
     expect(result.introduction.guideId).toBe(LEARNING_GUIDE_IDS.Introduction);
-    expect(result.first).toHaveLength(2);
+    expect(result.timeComplexity.guideId).toBe(LEARNING_GUIDE_IDS.TimeComplexity);
+    expect(result.first).toHaveLength(3);
     expect(result.first.map(({ guideId }) => guideId).sort()).toEqual([
       LEARNING_GUIDE_IDS.Introduction,
-      LEARNING_GUIDE_IDS.ProgrammingFundamentals
+      LEARNING_GUIDE_IDS.ProgrammingFundamentals,
+      LEARNING_GUIDE_IDS.TimeComplexity
     ]);
     expect(result.second).toEqual([]);
   });

@@ -14,13 +14,43 @@ function Add-UserPathEntry {
     }
 }
 
+function Find-VSCodeCommand {
+    $pathCommand = Get-Command code.cmd -ErrorAction SilentlyContinue
+    if ($pathCommand) { return $pathCommand.Source }
+
+    $candidatePaths = @(
+        "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+        "$env:ProgramFiles\Microsoft VS Code\bin\code.cmd"
+    )
+    if (${env:ProgramFiles(x86)}) {
+        $candidatePaths += "${env:ProgramFiles(x86)}\Microsoft VS Code\bin\code.cmd"
+    }
+
+    foreach ($candidatePath in $candidatePaths) {
+        if (Test-Path $candidatePath) { return $candidatePath }
+    }
+    return $null
+}
+
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     throw "WinGet is required. Install 'App Installer' from Microsoft Store, then run this script again."
 }
 
-Write-Host "Installing Visual Studio Code and MSYS2..."
-winget install --exact --id Microsoft.VisualStudioCode --accept-package-agreements --accept-source-agreements --silent
-if ($LASTEXITCODE -ne 0) { throw "VS Code installation failed with exit code $LASTEXITCODE. Check WinGet, then run this script again." }
+Write-Host "Checking Visual Studio Code..."
+$codePath = Find-VSCodeCommand
+if (-not $codePath) {
+    Write-Host "Installing Visual Studio Code..."
+    winget install --exact --id Microsoft.VisualStudioCode --accept-package-agreements --accept-source-agreements --silent
+    if ($LASTEXITCODE -ne 0) { throw "VS Code installation failed with exit code $LASTEXITCODE. Check WinGet, then run this script again." }
+    $codePath = Find-VSCodeCommand
+} else {
+    Write-Host "Visual Studio Code is already installed. Skipping installation."
+}
+if (-not $codePath) {
+    throw "VS Code installed, but code.cmd was not found. Open a new PowerShell window and run this script again."
+}
+
+Write-Host "Installing MSYS2..."
 winget install --exact --id MSYS2.MSYS2 --accept-package-agreements --accept-source-agreements --silent
 if ($LASTEXITCODE -ne 0) { throw "MSYS2 installation failed with exit code $LASTEXITCODE. Check WinGet, then run this script again." }
 
@@ -38,18 +68,9 @@ if ($LASTEXITCODE -ne 0) { throw "The second MSYS2 system update failed with exi
 if ($LASTEXITCODE -ne 0) { throw "The UCRT64 compiler installation failed with exit code $LASTEXITCODE. Fix pacman, then run this script again." }
 
 $compilerDirectory = "C:\msys64\ucrt64\bin"
-$vscodeDirectory = "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin"
+$vscodeDirectory = Split-Path -Parent $codePath
 Add-UserPathEntry -Entry $compilerDirectory
-if (Test-Path $vscodeDirectory) { Add-UserPathEntry -Entry $vscodeDirectory }
-
-$codeCommand = Get-Command code.cmd -ErrorAction SilentlyContinue
-$codePath = if ($codeCommand) { $codeCommand.Source } else { "$vscodeDirectory\code.cmd" }
-if (-not (Test-Path $codePath)) {
-    $codePath = $null
-}
-if (-not $codePath) {
-    throw "VS Code installed, but code.cmd was not found. Open a new PowerShell window and run this script again."
-}
+Add-UserPathEntry -Entry $vscodeDirectory
 
 Write-Host "Installing the Microsoft C/C++ extension..."
 & $codePath --install-extension ms-vscode.cpptools --force

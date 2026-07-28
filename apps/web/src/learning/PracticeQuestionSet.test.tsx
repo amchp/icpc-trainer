@@ -17,6 +17,7 @@ const questions = [
   },
   {
     question: "Second question?",
+    answerCode: "return 3;",
     options: ["One", "Two", "Three"],
     correctOption: 2,
     explanation: "Three is correct."
@@ -29,6 +30,7 @@ describe("PracticeQuestionSet", () => {
   it("shows one question at a time without decorative option letters", () => {
     const { container } = render(<PracticeQuestionSet questions={questions} />);
 
+    expect(screen.getByRole("region", { name: "Check your understanding" })).toBeInTheDocument();
     expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
     expect(screen.getByText("First question?")).toBeInTheDocument();
     expect(screen.getByLabelText("Question code")).toBeInTheDocument();
@@ -70,8 +72,11 @@ describe("PracticeQuestionSet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to next question" }));
 
     expect(screen.getByText("Second question?")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Answer code")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue to next question" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Three" }));
+    expect(screen.getByLabelText("Answer code")).toBeInTheDocument();
+    expect(document.querySelector('[data-guide-line="1"]')).toHaveTextContent("return 3;");
     expect(screen.queryByRole("button", { name: "Continue to next question" })).not.toBeInTheDocument();
   });
 
@@ -109,5 +114,10 @@ describe("PracticeQuestionSet", () => {
     expect(screen.queryByText(/Question 1 of/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Previous question" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next question" })).not.toBeInTheDocument();
+  });
+
+  it("uses a custom label as the question-set region name", () => {
+    render(<PracticeQuestionSet label="Complexity practice" questions={questions} />);
+    expect(screen.getByRole("region", { name: "Complexity practice" })).toBeInTheDocument();
   });
 });

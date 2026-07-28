@@ -66,6 +66,14 @@ function AuthenticatedProviders({ children }: { readonly children: ReactNode }):
 }
 
 export function AuthGate({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const isResourcesPreview =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get("preview") === "resources";
+
+  if (isResourcesPreview) {
+    return <>{children}</>;
+  }
+
   const firstUserRedirectUrl = getFirstUserRedirectUrl(window.location);
 
   return (
