@@ -57,7 +57,7 @@ test("calculates, measures, localizes, and resets the Time & Space Complexity gu
     await expect(page.getByText("Guide marked in progress")).toBeVisible();
   }
 
-  const comparisons = page.getByLabel("Pair comparisons");
+  const comparisons = page.getByLabel("Total ID comparisons");
   const variables = page.getByLabel("Working variables");
   await comparisons.fill("9");
   await variables.fill("3");
@@ -65,19 +65,21 @@ test("calculates, measures, localizes, and resets the Time & Space Complexity gu
   await expect(page.getByText(/Hint: add 4/)).toBeVisible();
   await page.getByRole("button", { name: "Check answer" }).click();
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  await expect(page.getByText(/Correct: 10 comparisons/)).toBeVisible();
+  await expect(page.getByText(/for 9 total/)).toBeVisible();
 
   await page.getByRole("button", { name: "Use n = 100,000,000" }).click();
   await expect(page.getByRole("progressbar", { name: /O\(n²\): 1 × 10\^16/ })).toHaveAttribute("aria-valuenow", "16");
   await expect(page.getByText(/longer than the current age of the universe/).first()).toBeVisible();
 
-  await page.getByLabel("Input size n").fill("10000");
-  await expect(page.getByLabel("Package count n")).toHaveValue("10000");
-  await expect(page.getByText("1 s", { exact: true })).toBeVisible();
-  await page.getByLabel("Constant c").fill("8");
-  await expect(page.getByText("8 s", { exact: true })).toBeVisible();
+  const runtimeEstimator = page.getByRole("region", { name: "Runtime estimator" });
+  const memoryModel = page.getByRole("region", { name: "Calculate your program's total memory" });
+  await runtimeEstimator.getByLabel("Input size n").fill("10000");
+  await expect(memoryModel.getByLabel("Input size n")).toHaveValue("10000");
+  await expect(runtimeEstimator.getByText("200 ms", { exact: true })).toBeVisible();
+  await runtimeEstimator.getByLabel("Constant c").fill("8");
+  await expect(runtimeEstimator.getByText("1.6 s", { exact: true })).toBeVisible();
   await expect(page.getByText("Big O label: O(n²)")).toBeVisible();
-  await page.getByLabel("Bytes per stored item").fill("100000");
+  await memoryModel.getByLabel("Bytes per stored item").fill("100000");
   await expect(page.getByText("Exceeds the modeled limit")).toBeVisible();
 
   await page.getByRole("button", { name: "Run local O(n) comparison" }).click();
@@ -96,7 +98,7 @@ test("calculates, measures, localizes, and resets the Time & Space Complexity gu
   await expect(page.getByText("Guía completada")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "Volver a marcar en progreso" })).toBeVisible();
-  await expect(page.getByLabel("Comparaciones entre pares")).toHaveValue("");
+  await expect(page.getByLabel("Comparaciones totales de IDs")).toHaveValue("");
   await expect(page.getByRole("button", { name: "Ejecutar comparación O(n) local" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recorrido directo" })).toHaveCount(0);
 

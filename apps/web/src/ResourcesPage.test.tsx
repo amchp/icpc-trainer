@@ -34,7 +34,7 @@ describe("ResourcesPage", () => {
     progressState.refetch.mockReset();
   });
 
-  it("renders all three available guides as links", () => {
+  it("renders every available guide as a link", () => {
     render(<ResourcesPage />);
     expect(screen.getByRole("link", { name: /Introduction/ })).toHaveAttribute("href", "/resources/introduction");
     expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toHaveAttribute(
@@ -42,6 +42,7 @@ describe("ResourcesPage", () => {
       "/resources/programming-fundamentals"
     );
     expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toHaveAttribute("href", "/resources/time-complexity");
+    expect(screen.getByRole("link", { name: /Brute Force/ })).toHaveAttribute("href", "/resources/brute-force");
     expect(screen.getByText("0 / 3 completed")).toBeInTheDocument();
   });
 
@@ -77,5 +78,6 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Introduction/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Time & Space Complexity/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Brute Force/ })).toBeInTheDocument();
   });
 });
