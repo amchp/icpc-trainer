@@ -55,7 +55,7 @@ describe("BinarySearchPage", () => {
     fireEvent.click(within(introductionLab).getByRole("button", { name: "Next step" }));
     fireEvent.click(within(introductionLab).getByRole("button", { name: "Next step" }));
     expect(introductionLab).toHaveTextContent("left ← mid");
-    expect(introductionLab).toHaveTextContent("The crossed-out side can no longer contain the boundary.");
+    expect(introductionLab).toHaveTextContent("Crossed-out side is ruled out.");
     const conditionLab = document.querySelector("section[aria-label='Can this condition be searched?']");
     if (!(conditionLab instanceof HTMLElement)) throw new Error("Condition-pattern lab was not rendered.");
     expect(document.getElementById("recognize")).not.toContainElement(conditionLab);
@@ -75,7 +75,7 @@ describe("BinarySearchPage", () => {
     expect(within(closestSection).queryByRole("button", { name: "true-false" })).not.toBeInTheDocument();
     expect(within(closestSection).getByLabelText("Last-true exclusive-sentinel template")).toBeInTheDocument();
     expect(screen.getAllByText("C++ synchronized with this trace")).toHaveLength(5);
-    expect(screen.getAllByText("1. Calculate mid").length).toBeGreaterThanOrEqual(6);
+    expect(screen.getAllByText("1. Find mid").length).toBeGreaterThanOrEqual(6);
     expect(screen.getAllByText("Left pointer")).not.toHaveLength(0);
     expect(document.querySelectorAll("code.guide-code")).toHaveLength(5);
     expect(document.querySelectorAll("[data-tool-visual='array']")).toHaveLength(2);
