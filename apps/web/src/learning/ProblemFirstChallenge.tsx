@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "../lib.js";
 
 export interface ProblemFirstChallengeProps {
-  readonly accent?: "orange" | "violet" | "cyan" | "emerald";
+  readonly accent?: "orange" | "violet" | "cyan" | "emerald" | "rose";
   readonly eyebrow: string;
   readonly problemStageLabel: string;
   readonly title: string;
@@ -54,6 +54,12 @@ const accentStyles = {
     bar: "bg-emerald-400",
     text: "text-emerald-300",
     ring: "focus-visible:ring-emerald-300"
+  },
+  rose: {
+    border: "border-rose-400/45",
+    bar: "bg-rose-400",
+    text: "text-rose-300",
+    ring: "focus-visible:ring-rose-300"
   }
 } as const;
 

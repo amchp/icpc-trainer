@@ -28,5 +28,7 @@ describe("protected navigation", () => {
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.introduction);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.timeComplexity);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.dataStructures);
+    expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.bruteForce);
+    expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.binarySearch);
   });
 });

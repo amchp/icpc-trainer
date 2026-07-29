@@ -2,7 +2,6 @@ import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES, type LearningProgressSt
 import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
-import { BruteForceResourceCard } from "./BruteForceResourceCard.js";
 import { RoadmapConnector, RoadmapFork, RoadmapNode } from "./ResourcesRoadmapNode.js";
 import { useLearningProgress } from "./useLearningProgress.js";
 
@@ -16,9 +15,9 @@ export function ResourcesPage(): React.JSX.Element {
   const timeComplexity = guideStatus(LEARNING_GUIDE_IDS.TimeComplexity);
   const dataStructures = guideStatus(LEARNING_GUIDE_IDS.DataStructures);
   const bruteForce = guideStatus(LEARNING_GUIDE_IDS.BruteForce);
-  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce];
+  const binarySearch = guideStatus(LEARNING_GUIDE_IDS.BinarySearch);
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce, binarySearch];
   const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
-
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     progressQuery.isLoading
       ? t("status.loading")
@@ -32,22 +31,14 @@ export function ResourcesPage(): React.JSX.Element {
     <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
       <header className="max-w-3xl">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-blue-300">{t("eyebrow")}</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-zinc-100 sm:text-4xl">
-          {t("title")}
-        </h1>
-        <p className="mt-4 max-w-2xl leading-7 text-zinc-400">
-          {t("subtitle")}
-        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-zinc-100 sm:text-4xl">{t("title")}</h1>
+        <p className="mt-4 max-w-2xl leading-7 text-zinc-400">{t("subtitle")}</p>
       </header>
 
       {progressQuery.isError ? (
         <div className="mt-6 flex flex-wrap items-center gap-4 border-y border-red-500/30 py-3 text-sm text-red-200">
           <span>{t("progressError")}</span>
-          <button
-            type="button"
-            className="font-medium text-white underline underline-offset-4"
-            onClick={() => void progressQuery.refetch()}
-          >
+          <button type="button" className="font-medium text-white underline underline-offset-4" onClick={() => void progressQuery.refetch()}>
             {t("retry")}
           </button>
         </div>
@@ -55,7 +46,6 @@ export function ResourcesPage(): React.JSX.Element {
 
       <section className="relative mt-10 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-5 py-6 sm:px-7 sm:py-7" aria-label={t("sequenceLabel")}>
         <div className="pointer-events-none absolute inset-0 opacity-[0.1] [background-image:linear-gradient(to_right,#71717a_1px,transparent_1px),linear-gradient(to_bottom,#71717a_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_70%_90%_at_50%_50%,black_30%,transparent_100%)]" />
-
         <div className="relative flex items-baseline justify-end border-b border-zinc-800/80 pb-3">
           <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: guides.length })}</p>
         </div>
@@ -108,8 +98,29 @@ export function ResourcesPage(): React.JSX.Element {
               status={statusLabel(dataStructures)}
               completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
             />
-            <BruteForceResourceCard />
+            <RoadmapNode
+              to={appPaths.bruteForce}
+              step="04"
+              accent="orange"
+              title={t("bruteForce")}
+              description={t("bruteForceDescription")}
+              status={statusLabel(bruteForce)}
+              completed={bruteForce === LEARNING_PROGRESS_STATUSES.Completed}
+            />
           </div>
+        </div>
+
+        <div className="relative mx-auto mt-6 flex w-full max-w-[43.5rem] flex-col items-center gap-4">
+          <span className="h-8 border-l border-dashed border-zinc-700" aria-hidden="true" />
+          <RoadmapNode
+            to={appPaths.binarySearch}
+            step="05"
+            accent="rose"
+            title={t("binarySearch")}
+            description={t("binarySearchDescription")}
+            status={statusLabel(binarySearch)}
+            completed={binarySearch === LEARNING_PROGRESS_STATUSES.Completed}
+          />
         </div>
       </section>
     </main>
