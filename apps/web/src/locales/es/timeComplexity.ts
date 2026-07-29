@@ -655,8 +655,6 @@ export const timeComplexity = {
     n: "Tamaño de entrada n",
     constant: "Constante c",
     rate: "Operaciones por segundo",
-    fixedRateLabel: "Tasa fija de referencia",
-    fixedRateValue: "500.000.000 operaciones/segundo",
     runtimeResult: "Tiempo estimado",
     bigO: "Etiqueta Big O",
     memoryTitle: "Estimador de memoria auxiliar",

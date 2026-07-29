@@ -531,13 +531,11 @@ export const dataStructures = {
   simulator: {
     eyebrow: "Container lab",
     title: "Try operations on {{name}}",
-    description: "Start with a ready-made container. Choose an operation, change only its highlighted number slots inside parentheses or brackets, then run it and watch the state change.",
     label: "Interactive {{name}} simulator",
     code: "Initialization and executed code",
     state: "Container state",
     output: "Last query result",
     iteratorLabel: "iterator",
-    command: "Complete the next C++ line",
     commandPreview: "C++ line preview",
     run: "Run operation",
     reset: "Reset",

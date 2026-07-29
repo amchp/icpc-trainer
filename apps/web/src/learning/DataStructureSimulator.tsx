@@ -477,23 +477,22 @@ export function DataStructureSimulator({
       className="my-10 overflow-hidden rounded-xl border border-zinc-800 bg-[#0b0f14] shadow-[0_20px_70px_rgba(0,0,0,.18)]"
       aria-label={t("simulator.label", { name })}
     >
-      <div className="border-b border-zinc-800 px-5 py-5 sm:px-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+      <div className="border-b border-zinc-800 px-4 py-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
             <p className={cn("font-mono text-[10px] font-semibold uppercase tracking-[0.16em]", colors.text)}>{t("simulator.eyebrow")}</p>
-            <h4 className="mt-2 text-lg font-semibold text-zinc-100">{t("simulator.title", { name })}</h4>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{t("simulator.description")}</p>
+            <h4 className="text-base font-semibold text-zinc-100">{t("simulator.title", { name })}</h4>
           </div>
           <button
             type="button"
             onClick={resetSession}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 hover:border-zinc-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
           >
             <RotateCcw className="size-3.5" aria-hidden="true" />
             {t("simulator.reset")}
           </button>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label={t("simulator.examples")}>
+        <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={t("simulator.examples")}>
           {config.operations.map((operationConfig) => {
             const selected = operationConfig.id === selectedOperation?.id;
             return (
@@ -520,7 +519,7 @@ export function DataStructureSimulator({
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{t("simulator.code")}</span>
             <span className="font-mono text-[10px] text-zinc-600">C++17</span>
           </div>
-          <pre aria-label={t("simulator.code")} className="max-h-72 min-h-44 overflow-auto py-4 font-mono text-[13px] leading-6">
+          <pre aria-label={t("simulator.code")} className="max-h-56 min-h-40 overflow-auto py-4 font-mono text-[13px] leading-6">
             {renderedCode.map((line, index) => {
               const active = history.length > 0 && index === renderedCode.length - 1;
               return (
@@ -537,9 +536,9 @@ export function DataStructureSimulator({
           </pre>
         </div>
 
-        <div className="min-w-0 bg-zinc-950/55 p-5 sm:p-6">
+        <div className="min-w-0 bg-zinc-950/55 p-4">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{t("simulator.state")}</p>
-          <div role="region" aria-label={t("simulator.state")} className="mt-4 min-h-36" aria-live="polite" aria-atomic="true">
+          <div role="region" aria-label={t("simulator.state")} className="mt-3 min-h-32" aria-live="polite" aria-atomic="true">
             <div key={revision} className="guide-rise">
               <SimulatorVisual kind={kind} state={state} accent={accent} emptyLabel={t("simulator.empty", { name })} />
             </div>
@@ -554,13 +553,12 @@ export function DataStructureSimulator({
       </div>
 
       <form
-        className="border-t border-zinc-800 bg-zinc-900/25 px-5 py-5 sm:px-6"
+        className="border-t border-zinc-800 bg-zinc-900/25 px-4 py-3"
         onSubmit={(event) => { event.preventDefault(); run(); }}
       >
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">{t("simulator.command")}</p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
           <div
-            className="flex min-h-12 min-w-0 flex-1 flex-wrap items-center gap-y-2 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-300 focus-within:ring-2 focus-within:ring-zinc-300"
+            className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center gap-y-1.5 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-sm text-zinc-300 focus-within:ring-2 focus-within:ring-zinc-300"
             aria-label={t("simulator.commandPreview")}
           >
             {selectedOperation?.parts.map((part, index) => {
@@ -598,9 +596,9 @@ export function DataStructureSimulator({
           </button>
         </div>
         {error === null ? (
-          <p className="mt-2 text-xs leading-5 text-zinc-500">{t("simulator.hint")}</p>
+          <p className="mt-1.5 text-[11px] leading-4 text-zinc-500">{t("simulator.hint")}</p>
         ) : (
-          <p id={`simulator-error-${kind}`} role="alert" className="mt-2 text-xs leading-5 text-rose-300">{error}</p>
+          <p id={`simulator-error-${kind}`} role="alert" className="mt-1.5 text-[11px] leading-4 text-rose-300">{error}</p>
         )}
       </form>
     </section>
@@ -673,7 +671,7 @@ function SimulatorVisual({
 
 function EmptySimulatorState({ label }: { readonly label: string }): React.JSX.Element {
   return (
-    <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-5 text-center">
+    <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-5 text-center">
       <p className="max-w-xs text-sm leading-6 text-zinc-500">{label}</p>
     </div>
   );

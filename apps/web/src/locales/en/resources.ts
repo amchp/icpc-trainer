@@ -7,17 +7,11 @@ export const resources = {
   sequenceLabel: "Recommended learning sequence",
   completedCount: "{{completed}} / {{total}} completed",
   introduction: "Introduction",
-  introductionDescription: "Understand contests, online judges, and how to practice effectively.",
   comingSoon: "Coming soon",
   fundamentals: "Programming Fundamentals",
-  fundamentalsDescription: "Learn variables, decisions, loops, and functions through interactive examples.",
   timeComplexity: "Time & Space Complexity",
-  timeComplexityDescription: "Count operations and memory, simplify the formulas with Big O, and estimate real limits.",
   dataStructures: "Data Structures",
-  dataStructuresDescription: "Choose the right C++ container by tracing the operations each problem demands.",
   bruteForce: "Brute Force",
-  bruteForceDescription: "Count, generate, check, and backtrack through bounded search spaces.",
   binarySearch: "Binary Search",
-  binarySearchDescription: "Turn a monotone condition into a logarithmic search over positions and answers.",
   status: { completed: "Completed", inProgress: "In progress", available: "Available", loading: "Loading" }
 } as const;

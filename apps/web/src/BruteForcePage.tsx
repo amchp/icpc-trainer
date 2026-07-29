@@ -236,7 +236,6 @@ export function BruteForcePage(): React.JSX.Element {
                   <p>{t("sudoku.application")}</p>
                   <SudokuStrategySimulator copy={{
                     label: t("sudoku.simulator.label"),
-                    description: t("sudoku.simulator.description"),
                     searchRule: t("sudoku.simulator.searchRule"),
                     play: t("sudoku.simulator.play"),
                     pause: t("sudoku.simulator.pause"),

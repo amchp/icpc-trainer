@@ -121,8 +121,8 @@ function IconButton({
 function LabShell({ label, children }: { readonly label: string; readonly children: React.ReactNode }): React.JSX.Element {
   return (
     <section aria-label={label} className="my-8 min-w-0 overflow-hidden rounded-xl border border-cyan-400/25 bg-cyan-400/[0.025]">
-      <div className="border-b border-zinc-800 px-5 py-4 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">{label}</div>
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className="border-b border-zinc-800 px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">{label}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }
@@ -164,6 +164,9 @@ export function MotivationLab(): React.JSX.Element {
 
   return (
     <LabShell label={t("recognize.binary")}>
+      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+          <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
         <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
           <label className="grid gap-1.5 text-sm text-zinc-300">
             <span>{t("recognize.valuesLabel")}</span>
@@ -175,21 +178,25 @@ export function MotivationLab(): React.JSX.Element {
           </label>
         </div>
         {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
+            {valid && insertionTrace !== null ? <div className="mt-4"><StepControls total={insertionFrames.length} player={insertionPlayer} /></div> : null}
+          </div>
+          <div className="min-w-0 bg-zinc-950/70 p-4">
+            {valid && insertionTrace !== null && insertionFrame !== undefined ? <DiscreteStepReadout trace={insertionTrace} frame={insertionFrame} /> : null}
+          </div>
+        </div>
         {valid && insertionTrace !== null && values !== null ? (
-          <>
-            <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-950/55 p-4 sm:p-5">
+          <div className="border-t border-zinc-800 p-4">
               <p className="mb-4 font-mono text-sm text-amber-200">{t("recognize.condition", { target })}</p>
-              <StepControls total={insertionFrames.length} player={insertionPlayer} />
-              {insertionFrame === undefined ? null : <DiscreteStepState trace={insertionTrace} frame={insertionFrame} values={values} />}
-            </div>
-            <p className="mt-4 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-3 text-sm font-semibold text-rose-100">{t("recognize.insertion", { index: insertionIndex })}</p>
+              {insertionFrame === undefined ? null : <DiscreteStepVisual trace={insertionTrace} frame={insertionFrame} values={values} />}
+            <p className="mt-4 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-2.5 text-sm font-semibold text-rose-100">{t("recognize.insertion", { index: insertionIndex })}</p>
             <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-zinc-800 bg-zinc-800">
               <div className="bg-zinc-950 p-4"><span className="block text-xs text-zinc-500">{t("recognize.linear")}</span><strong className="mt-1 block font-mono text-xl text-zinc-100">{linearChecks}</strong></div>
               <div className="bg-zinc-950 p-4"><span className="block text-xs text-zinc-500">{t("recognize.binary")}</span><strong className="mt-1 block font-mono text-xl text-cyan-200">{insertionTrace.probes}</strong></div>
             </div>
             <p className="mt-3 text-xs text-zinc-500">{t("recognize.compare", { linear: linearChecks, binary: insertionTrace.probes })}</p>
-          </>
+          </div>
         ) : null}
+      </div>
     </LabShell>
   );
 }
@@ -230,29 +237,24 @@ export function ConditionPatternLab(): React.JSX.Element {
 
 export function BinarySearchToolTrace({
   orientation,
-  example,
-  allowOrientationSwitch = false
+  example
 }: {
   readonly orientation: SearchOrientation;
   readonly example: "first" | "closest" | "numeric" | "bad" | "magic";
-  readonly allowOrientationSwitch?: boolean;
 }): React.JSX.Element {
   if (example === "numeric") return <ContinuousBinarySearchToolTrace />;
-  return <DiscreteBinarySearchToolTrace orientation={orientation} example={example} allowOrientationSwitch={allowOrientationSwitch} />;
+  return <DiscreteBinarySearchToolTrace orientation={orientation} example={example} />;
 }
 
 function DiscreteBinarySearchToolTrace({
   orientation,
-  example,
-  allowOrientationSwitch
+  example
 }: {
   readonly orientation: SearchOrientation;
   readonly example: "first" | "closest" | "bad" | "magic";
-  readonly allowOrientationSwitch: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
-  const [selected, setSelected] = useState<SearchOrientation>(orientation);
-  const toolExample = useMemo(() => createToolExample(example, selected), [example, selected]);
+  const toolExample = useMemo(() => createToolExample(example, orientation), [example, orientation]);
   const { trace, values, codeKey, visualKind } = toolExample;
   const frames = useMemo(() => expandDiscreteTrace(trace), [trace]);
   const player = useStepPlayer(frames.length);
@@ -262,33 +264,21 @@ function DiscreteBinarySearchToolTrace({
   const answerPointer = trace.orientation === "false-true" ? "right" : "left";
 
   return (
-    <LabShell label={selected === "false-true" ? t("tool.titleFalseTrue") : t("tool.titleTrueFalse")}>
-      {allowOrientationSwitch ? (
-        <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label={t("controls.condition")}>
-          {(["true-false"] as const).map((value) => (
-            <button key={value} type="button" aria-pressed={selected === value} className={cn("rounded-full border px-3 py-1.5 font-mono text-xs", selected === value ? "border-cyan-400 bg-cyan-400/10 text-cyan-100" : "border-zinc-700 text-zinc-500")} onClick={() => setSelected(value)}>
-              {value}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <p className="mb-5 text-sm leading-6 text-zinc-400">{selected === "false-true" ? t("tool.falseTrueRule") : t("tool.trueFalseRule")}</p>
+    <LabShell label={orientation === "false-true" ? t("tool.titleFalseTrue") : t("tool.titleTrueFalse")}>
+      <p className="mb-5 text-sm leading-6 text-zinc-400">{orientation === "false-true" ? t("tool.falseTrueRule") : t("tool.trueFalseRule")}</p>
       <div className="overflow-hidden rounded-xl border border-zinc-800" data-tool-visual={visualKind}>
-        <ReadableCode code={code} label={t("tool.codeLabel")} frame={frame} />
-        <div className="min-w-0 border-t border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-          <div className="mb-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">{t("tool.visualizerLabel")}</p>
-              <span className="rounded-full border border-zinc-700 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-wide text-zinc-400">
-                {visualKind === "array" ? t("tool.visualKinds.array") : t("tool.visualKinds.numberLine")}
-              </span>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">{t("tool.visualizerHelp")}</p>
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,37rem)_minmax(0,1fr)]">
+          <ReadableCode code={code} label={t("tool.codeLabel")} frame={frame} />
+          <div className="min-w-0 border-t border-zinc-800 bg-zinc-950/70 p-4 lg:border-l lg:border-t-0">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">{t("tool.visualizerLabel")}</p>
+            <div className="mt-3"><StepControls total={frames.length} player={player} /></div>
+            {frame === undefined ? null : <DiscreteStepReadout trace={trace} frame={frame} />}
           </div>
-          <StepControls total={frames.length} player={player} />
-          {frame === undefined ? null : <DiscreteStepState trace={trace} frame={frame} values={values} />}
+        </div>
+        <div className="border-t border-zinc-800 p-4 sm:p-5">
+          {frame === undefined ? null : <DiscreteStepVisual trace={trace} frame={frame} values={values} />}
           {finished ? (
-            <p className="mt-5 rounded-md border border-rose-400/35 bg-rose-400/[0.07] px-4 py-3 font-mono text-sm font-semibold text-rose-100">
+            <p className="mt-4 rounded-md border border-rose-400/35 bg-rose-400/[0.07] px-4 py-2.5 font-mono text-sm font-semibold text-rose-100">
               {t("tool.boundaryWithPointer", { pointer: answerPointer, value: trace.boundary })}
             </p>
           ) : null}
@@ -314,21 +304,18 @@ function ContinuousBinarySearchToolTrace(): React.JSX.Element {
     <LabShell label={t("tool.titleContinuous")}>
       <p className="mb-5 text-sm leading-6 text-zinc-400">{t("tool.continuousRule")}</p>
       <div className="overflow-hidden rounded-xl border border-zinc-800" data-tool-visual="number-line">
-        <ReadableCode code={t("tool.codeNumeric")} label={t("tool.codeLabel")} frame={frame} />
-        <div className="min-w-0 border-t border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
-          <div className="mb-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">{t("tool.visualizerLabel")}</p>
-              <span className="rounded-full border border-zinc-700 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-wide text-zinc-400">
-                {t("tool.visualKinds.numberLine")}
-              </span>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">{t("tool.continuousVisualizerHelp")}</p>
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,37rem)_minmax(0,1fr)]">
+          <ReadableCode code={t("tool.codeNumeric")} label={t("tool.codeLabel")} frame={frame} />
+          <div className="min-w-0 border-t border-zinc-800 bg-zinc-950/70 p-4 lg:border-l lg:border-t-0">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">{t("tool.visualizerLabel")}</p>
+            <div className="mt-3"><StepControls total={frames.length} player={player} /></div>
+            {frame === undefined ? null : <ContinuousStepReadout frame={frame} />}
           </div>
-          <StepControls total={frames.length} player={player} />
-          {frame === undefined ? null : <ContinuousState frame={frame} initialRight={11} />}
+        </div>
+        <div className="border-t border-zinc-800 p-4 sm:p-5">
+          {frame === undefined ? null : <ContinuousStepVisual frame={frame} initialRight={11} />}
           {finished ? (
-            <p className="mt-5 rounded-md border border-rose-400/35 bg-rose-400/[0.07] px-4 py-3 font-mono text-sm font-semibold text-rose-100">
+            <p className="mt-4 rounded-md border border-rose-400/35 bg-rose-400/[0.07] px-4 py-2.5 font-mono text-sm font-semibold text-rose-100">
               {t("numeric.toolResult", { value: trace.result.toFixed(6) })}
             </p>
           ) : null}
@@ -420,7 +407,7 @@ function ReadableCode({ code, label, frame }: { readonly code: string; readonly 
   const activeLine = codeLineForFrame(frame);
   return (
     <div className="min-w-0 bg-[#0d1117]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
         <span className="font-mono text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">{label}</span>
         {activeLine === null ? null : (
           <span className="rounded-full border border-amber-300/35 bg-amber-300/[0.06] px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-wide text-amber-200">
@@ -428,7 +415,7 @@ function ReadableCode({ code, label, frame }: { readonly code: string; readonly 
           </span>
         )}
       </div>
-      <pre className="max-w-full overflow-x-auto p-5 text-[0.925rem] leading-7 text-zinc-200 sm:p-6 sm:text-base sm:leading-8">
+      <pre className="max-w-full overflow-x-auto p-4 text-[12.5px] leading-5 text-zinc-200">
         <code className="guide-code block min-w-max whitespace-pre border-0 bg-transparent p-0 font-mono text-inherit">
           {code.split("\n").map((line, index) => (
             <span
@@ -440,7 +427,7 @@ function ReadableCode({ code, label, frame }: { readonly code: string; readonly 
                 activeLine === index ? "border-amber-300 bg-amber-300/[0.09] text-amber-100" : "border-transparent"
               )}
             >
-              <span aria-hidden="true" className="mr-4 inline-block w-5 select-none text-right text-xs text-zinc-600">{index + 1}</span>
+              <span aria-hidden="true" className="mr-2 inline-block w-4 select-none text-right text-[10px] text-zinc-600">{index + 1}</span>
               {line || " "}
             </span>
           ))}
@@ -456,20 +443,14 @@ function phaseLabelKey(phase: SearchStepPhase): "calculate" | "evaluate" | "move
   return "move";
 }
 
-function DiscreteStepState({ trace, frame, values }: { readonly trace: DiscreteSearchTrace; readonly frame: DiscreteSearchFrame; readonly values?: readonly number[] }): React.JSX.Element {
+function DiscreteStepReadout({ trace, frame }: { readonly trace: DiscreteSearchTrace; readonly frame: DiscreteSearchFrame }): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   const { phase, probe, step } = frame;
-  const start = trace.initialLeft;
-  const end = trace.initialRight;
   const visibleLeft = phase === "move-bound" ? step.nextLeft : step.left;
   const visibleRight = phase === "move-bound" ? step.nextRight : step.right;
   const answerPointer = phase === "move-bound" && probe === trace.probes
     ? trace.orientation === "false-true" ? "right" : "left"
     : null;
-  const cells: number[] = [];
-  if (values !== undefined && end - start <= 18) {
-    for (let value = start; value <= end; value += 1) cells.push(value);
-  }
   const phaseKey = phaseLabelKey(phase);
   const narration = phase === "calculate-mid"
     ? t("tool.calculate", { left: step.left, right: step.right, mid: step.mid })
@@ -484,43 +465,63 @@ function DiscreteStepState({ trace, frame, values }: { readonly trace: DiscreteS
         result: step.conditionResult ? t("controls.trueValue") : t("controls.falseValue")
       });
   return (
-    <div className="mt-6">
-      <div className="grid grid-cols-3 gap-2" aria-label={t("tool.phaseLabel")}>
-        {(["calculate", "evaluate", "move"] as const).map((key, index) => (
-          <div key={key} className={cn(
-            "rounded-md border px-2 py-2 text-center font-mono text-[9px] font-semibold uppercase tracking-wide transition-colors sm:text-[10px]",
-            phaseKey === key ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-zinc-800 text-zinc-600"
-          )}>
-            {index + 1}. {t(`tool.phases.${key}`)}
-          </div>
-        ))}
+    <div className="mt-3">
+      <div className="min-w-0">
+        <div className="grid grid-cols-3 gap-2" aria-label={t("tool.phaseLabel")}>
+          {(["calculate", "evaluate", "move"] as const).map((key, index) => (
+            <div key={key} className={cn(
+              "rounded-md border px-2 py-1.5 text-center font-mono text-[9px] font-semibold uppercase tracking-wide transition-colors",
+              phaseKey === key ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-zinc-800 text-zinc-600"
+            )}>
+              {index + 1}. {t(`tool.phases.${key}`)}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.035] p-3">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-cyan-300">{t("tool.probe", { probe })}</span>
+          <p className="mt-1.5 text-sm font-medium leading-6 text-zinc-100" role="status" aria-live="polite">{narration}</p>
+          {phase === "calculate-mid" ? (
+            <p className="mt-2 overflow-x-auto rounded-md bg-zinc-950 px-3 py-1.5 font-mono text-[13px] text-amber-200">
+              mid = {step.left} + floor(({step.right} − {step.left}) / 2) = {step.mid}
+            </p>
+          ) : phase === "move-bound" ? (
+            <p className="mt-2 font-mono text-[13px] font-semibold text-rose-200">
+              {step.movedBound} ← mid &nbsp;({step.mid})
+            </p>
+          ) : null}
+        </div>
       </div>
-      <div className="mt-4 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.035] p-4">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-cyan-300">{t("tool.probe", { probe })}</span>
-        <p className="mt-2 text-sm font-medium leading-6 text-zinc-100" role="status" aria-live="polite">{narration}</p>
-        {phase === "calculate-mid" ? (
-          <p className="mt-3 overflow-x-auto rounded-md bg-zinc-950 px-3 py-2 font-mono text-sm text-amber-200">
-            mid = {step.left} + floor(({step.right} − {step.left}) / 2) = {step.mid}
-          </p>
-        ) : phase === "move-bound" ? (
-          <p className="mt-3 font-mono text-sm font-semibold text-rose-200">
-            {step.movedBound} ← mid &nbsp;({step.mid})
-          </p>
-        ) : null}
-      </div>
-
       <PointerSummary left={visibleLeft} mid={step.mid} right={visibleRight} answerPointer={answerPointer} />
+    </div>
+  );
+}
 
+function DiscreteStepVisual({ trace, frame, values }: { readonly trace: DiscreteSearchTrace; readonly frame: DiscreteSearchFrame; readonly values?: readonly number[] }): React.JSX.Element {
+  const { t } = useTranslation("binarySearch");
+  const { phase, probe, step } = frame;
+  const start = trace.initialLeft;
+  const end = trace.initialRight;
+  const visibleLeft = phase === "move-bound" ? step.nextLeft : step.left;
+  const visibleRight = phase === "move-bound" ? step.nextRight : step.right;
+  const answerPointer = phase === "move-bound" && probe === trace.probes
+    ? trace.orientation === "false-true" ? "right" : "left"
+    : null;
+  const cells: number[] = [];
+  if (values !== undefined && end - start <= 18) {
+    for (let value = start; value <= end; value += 1) cells.push(value);
+  }
+  return (
+    <>
       {cells.length > 0 ? (
-        <div className="mt-5 max-w-full overflow-x-auto pb-3" data-search-visual="array">
+        <div className="max-w-full overflow-x-auto pb-3" data-search-visual="array">
           <div className="flex min-w-max gap-1.5" role="img" aria-label={t("tool.rangeAria", { left: visibleLeft, mid: step.mid, right: visibleRight })}>
             {cells.map((position) => {
               const sentinel = position === start || position === end;
               const isMid = position === step.mid;
               const discarded = position < visibleLeft || position > visibleRight;
               return (
-                <div key={position} className="w-14 shrink-0">
-                  <div className="flex min-h-12 flex-col justify-end gap-0.5 text-center font-mono text-[8px] font-bold uppercase">
+                <div key={position} className="w-12 shrink-0">
+                  <div className="flex min-h-9 flex-col justify-end gap-0.5 text-center font-mono text-[8px] font-bold uppercase">
                     {position === visibleLeft ? <span className="rounded bg-rose-400/15 px-1 py-0.5 text-rose-200">left{answerPointer === "left" ? ` · ${t("tool.answer")}` : ""} ↓</span> : null}
                     {isMid ? <span className="rounded bg-amber-300/15 px-1 py-0.5 text-amber-200">mid ↓</span> : null}
                     {position === visibleRight ? <span className="rounded bg-cyan-300/15 px-1 py-0.5 text-cyan-200">right{answerPointer === "right" ? ` · ${t("tool.answer")}` : ""} ↓</span> : null}
@@ -531,7 +532,7 @@ function DiscreteStepState({ trace, frame, values }: { readonly trace: DiscreteS
                     discarded && "border-zinc-800 text-zinc-600 opacity-55"
                   )}>
                     <span className="block border-b border-inherit px-1 py-1 text-[9px] text-zinc-500">{sentinel ? t("controls.sentinel") : position}</span>
-                    <span className="block px-1 py-2 text-sm font-semibold">{sentinel ? "S" : values?.[position] ?? position}</span>
+                    <span className="block px-1 py-1.5 text-[13px] font-semibold">{sentinel ? "S" : values?.[position] ?? position}</span>
                     {discarded ? <CrossedOut /> : null}
                   </div>
                 </div>
@@ -549,7 +550,7 @@ function DiscreteStepState({ trace, frame, values }: { readonly trace: DiscreteS
           answerPointer={answerPointer}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -566,7 +567,7 @@ function PointerSummary({
 }): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   return (
-    <dl className="mt-5 grid gap-2 sm:grid-cols-3">
+    <dl className="mt-3 grid gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
       <PointerCard label={`${t("tool.pointers.left")}${answerPointer === "left" ? ` · ${t("tool.answer")}` : ""}`} variable="left" value={left} tone="rose" />
       <PointerCard label={t("tool.pointers.mid")} variable="mid" value={mid} tone="amber" />
       <PointerCard label={`${t("tool.pointers.right")}${answerPointer === "right" ? ` · ${t("tool.answer")}` : ""}`} variable="right" value={right} tone="cyan" />
@@ -577,14 +578,14 @@ function PointerSummary({
 function PointerCard({ label, variable, value, tone }: { readonly label: string; readonly variable: string; readonly value: number | string; readonly tone: "rose" | "amber" | "cyan" }): React.JSX.Element {
   return (
     <div className={cn(
-      "rounded-lg border p-3",
+      "rounded-md border px-3 py-2",
       tone === "rose" && "border-rose-400/35 bg-rose-400/[0.04]",
       tone === "amber" && "border-amber-300/35 bg-amber-300/[0.04]",
       tone === "cyan" && "border-cyan-300/35 bg-cyan-300/[0.04]"
     )}>
       <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{label}</dt>
       <dd className={cn(
-        "mt-1 font-mono text-lg font-bold",
+        "mt-0.5 font-mono text-base font-bold",
         tone === "rose" && "text-rose-200",
         tone === "amber" && "text-amber-200",
         tone === "cyan" && "text-cyan-200"
@@ -625,7 +626,7 @@ function RangeNumberLine({
   const rightPercent = percent(right);
   return (
     <div className="mt-7" data-search-visual="number-line" role="img" aria-label={t("tool.rangeAria", { left, mid, right })}>
-      <div className="relative h-36">
+      <div className="relative h-28">
         <PointerMarker pointer="left" lane={0} label={`left${answerPointer === "left" ? ` · ${t("tool.answer")}` : ""}`} value={left} percent={leftPercent} tone="rose" />
         <PointerMarker pointer="mid" lane={1} label="mid" value={mid} percent={midPercent} tone="amber" />
         <PointerMarker pointer="right" lane={2} label={`right${answerPointer === "right" ? ` · ${t("tool.answer")}` : ""}`} value={right} percent={rightPercent} tone="cyan" />
@@ -679,8 +680,8 @@ function PointerMarker({
         tone === "rose" && "border-rose-400/50",
         tone === "amber" && "border-amber-300/50",
         tone === "cyan" && "border-cyan-300/50"
-      )} style={{ bottom: `${34 + lane * 30}px` }}>{label} = {value}</span>
-      <span className="absolute bottom-6 left-0 w-px bg-current" style={{ height: `${10 + lane * 30}px` }} />
+      )} style={{ bottom: `${26 + lane * 24}px` }}>{label} = {value}</span>
+      <span className="absolute bottom-6 left-0 w-px bg-current" style={{ height: `${8 + lane * 24}px` }} />
       <span className="absolute bottom-[21px] left-0 size-1.5 -translate-x-1/2 rounded-full bg-current" />
     </span>
   );
@@ -712,19 +713,39 @@ function ArrayInputs({
   );
 }
 
-function ArrayTraceView({ trace, values, result }: { readonly trace: DiscreteSearchTrace; readonly values: readonly number[]; readonly result: React.ReactNode }): React.JSX.Element {
+function ArrayTraceView({
+  trace,
+  values,
+  controls,
+  result
+}: {
+  readonly trace: DiscreteSearchTrace;
+  readonly values: readonly number[];
+  readonly controls: React.ReactNode;
+  readonly result: React.ReactNode;
+}): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   const frames = expandDiscreteTrace(trace);
   const player = useStepPlayer(frames.length);
   const frame = frames[player.index];
   return (
-    <div className="mt-6">
-      <StepControls total={frames.length} player={player} />
-      {frame === undefined ? null : <DiscreteStepState trace={trace} frame={frame} values={values} />}
-      <div className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-3">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-rose-300">{t("controls.result")}</span>
-        <strong className="mt-1 block text-sm text-rose-100">{result}</strong>
-        <span className="mt-1 block font-mono text-[10px] text-zinc-500">{t("controls.probes", { count: trace.probes })}</span>
+    <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+      <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
+          {controls}
+          <div className="mt-4"><StepControls total={frames.length} player={player} /></div>
+        </div>
+        <div className="min-w-0 bg-zinc-950/70 p-4">
+          {frame === undefined ? null : <DiscreteStepReadout trace={trace} frame={frame} />}
+        </div>
+      </div>
+      <div className="border-t border-zinc-800 p-4">
+        {frame === undefined ? null : <DiscreteStepVisual trace={trace} frame={frame} values={values} />}
+        <div className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-2.5">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-rose-300">{t("controls.result")}</span>
+          <strong className="mt-1 block text-sm text-rose-100">{result}</strong>
+          <span className="mt-1 block font-mono text-[10px] text-zinc-500">{t("controls.probes", { count: trace.probes })}</span>
+        </div>
       </div>
     </div>
   );
@@ -740,14 +761,24 @@ export function FirstOccurrenceLab(): React.JSX.Element {
   const result = valid ? traceFirstOccurrence(values, target) : null;
   return (
     <LabShell label={t("first.applicationTitle")}>
-      <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
-      {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
       {result === null || values === null ? null : (
         <ArrayTraceView
           trace={result.trace}
           values={values}
+          controls={(
+            <>
+              <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
+              {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
+            </>
+          )}
           result={result.index >= 0 ? t("first.found", { index: result.index }) : t("first.missing")}
         />
+      )}
+      {result !== null && values !== null ? null : (
+        <>
+          <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
+          {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
+        </>
       )}
     </LabShell>
   );
@@ -757,34 +788,37 @@ export function ClosestValueLab(): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   const [rawValues, setRawValues] = useState("3, 5, 10, 13, 18, 25");
   const [rawTarget, setRawTarget] = useState("15");
-  const [side, setSide] = useState<"left" | "right">("left");
   const values = parseIntegerList(rawValues, MAX_ITEMS);
   const target = parseTarget(rawTarget);
   const valid = values !== null && values.length > 0 && target !== null && isNonDecreasing(values);
   const result = valid ? traceClosestValue(values, target) : null;
-  const trace = side === "left" ? result?.leftTrace : result?.rightTrace;
+  const trace = result?.leftTrace;
   return (
     <LabShell label={t("closest.applicationTitle")}>
-      <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
-      {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : values.length === 0 ? <ErrorText>{t("controls.emptyClosest")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
       {result === null || trace === undefined || values === null || target === null ? null : (
-        <>
-          <div className="mt-5 flex gap-2" role="group" aria-label={t("controls.range")}>
-            <button type="button" aria-pressed={side === "left"} className={cn("rounded-full border px-3 py-1.5 text-xs", side === "left" ? "border-cyan-400 text-cyan-100" : "border-zinc-700 text-zinc-500")} onClick={() => setSide("left")}>{t("closest.leftCandidate")}</button>
-            <button type="button" aria-pressed={side === "right"} className={cn("rounded-full border px-3 py-1.5 text-xs", side === "right" ? "border-cyan-400 text-cyan-100" : "border-zinc-700 text-zinc-500")} onClick={() => setSide("right")}>{t("closest.rightCandidate")}</button>
-          </div>
-          <ArrayTraceView
-            trace={trace}
-            values={values}
-            result={(
-              <span>
-                {t("closest.answer", { value: result.value, target })}
-                <span className="mt-1 block font-normal text-zinc-400">
-                  {t("closest.leftCandidate")}: {result.leftIndex >= 0 ? values[result.leftIndex] : t("closest.missingCandidate")} · {t("closest.rightCandidate")}: {result.rightIndex < values.length ? values[result.rightIndex] : t("closest.missingCandidate")}
-                </span>
+        <ArrayTraceView
+          trace={trace}
+          values={values}
+          controls={(
+            <>
+              <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
+              {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : values.length === 0 ? <ErrorText>{t("controls.emptyClosest")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
+            </>
+          )}
+          result={(
+            <span>
+              {t("closest.answer", { value: result.value, target })}
+              <span className="mt-1 block font-normal text-zinc-400">
+                {t("closest.leftCandidate")}: {result.leftIndex >= 0 ? values[result.leftIndex] : t("closest.missingCandidate")} · {t("closest.rightCandidate")}: {result.rightIndex < values.length ? values[result.rightIndex] : t("closest.missingCandidate")}
               </span>
-            )}
-          />
+            </span>
+          )}
+        />
+      )}
+      {result !== null && trace !== undefined && values !== null && target !== null ? null : (
+        <>
+          <ArrayInputs rawValues={rawValues} rawTarget={rawTarget} onValues={setRawValues} onTarget={setRawTarget} />
+          {values === null || target === null ? <ErrorText>{t("controls.invalidList")}</ErrorText> : values.length === 0 ? <ErrorText>{t("controls.emptyClosest")}</ErrorText> : !isNonDecreasing(values) ? <ErrorText>{t("controls.unsorted")}</ErrorText> : null}
         </>
       )}
     </LabShell>
@@ -820,35 +854,43 @@ export function NumericSearchLab(): React.JSX.Element {
 
   return (
     <LabShell label={t("numeric.applicationTitle")}>
-      <div className="flex flex-wrap gap-2" role="group" aria-label={t("numeric.mode")}>
-        {(["epsilon", "iterations"] as const).map((value) => (
-          <button key={value} type="button" aria-pressed={mode === value} className={cn("rounded-full border px-3 py-1.5 text-xs", mode === value ? "border-cyan-400 bg-cyan-400/10 text-cyan-100" : "border-zinc-700 text-zinc-500")} onClick={() => setMode(value)}>
-            {value === "epsilon" ? t("numeric.epsilonMode") : t("numeric.iterationsMode")}
-          </button>
-        ))}
-      </div>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-sm text-zinc-300">
-          <span>{t("numeric.x")}</span>
-          <input className={fieldClass} value={rawX} onChange={(event) => setRawX(event.target.value)} />
-        </label>
-        {mode === "epsilon" ? (
-          <label className="grid gap-1.5 text-sm text-zinc-300">
-            <span>{t("numeric.epsilon")}</span>
-            <input className={fieldClass} value={rawEpsilon} onChange={(event) => setRawEpsilon(event.target.value)} />
-          </label>
-        ) : mode === "iterations" ? (
-          <label className="grid gap-1.5 text-sm text-zinc-300">
-            <span>{t("numeric.iterations")}</span>
-            <input className={fieldClass} value={rawIterations} onChange={(event) => setRawIterations(event.target.value)} />
-          </label>
-        ) : null}
-      </div>
-      {!doubleValid ? <ErrorText>{t("numeric.invalidDouble")}</ErrorText> : mode === "epsilon" && !extraValid ? <ErrorText>{t("numeric.invalidEpsilon")}</ErrorText> : mode === "iterations" && !extraValid ? <ErrorText>{t("numeric.invalidIterations")}</ErrorText> : null}
-      {continuousResult === null ? null : (
-        <div className="mt-6">
-          <StepControls total={continuousFrames.length} player={player} />
-          {continuousFrame === undefined ? null : <ContinuousState frame={continuousFrame} initialRight={Math.max(1, x + 1)} />}
+      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+          <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t("numeric.mode")}>
+              {(["epsilon", "iterations"] as const).map((value) => (
+                <button key={value} type="button" aria-pressed={mode === value} className={cn("rounded-full border px-3 py-1.5 text-xs", mode === value ? "border-cyan-400 bg-cyan-400/10 text-cyan-100" : "border-zinc-700 text-zinc-500")} onClick={() => setMode(value)}>
+                  {value === "epsilon" ? t("numeric.epsilonMode") : t("numeric.iterationsMode")}
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-4">
+              <label className="grid gap-1.5 text-sm text-zinc-300">
+                <span>{t("numeric.x")}</span>
+                <input className={fieldClass} value={rawX} onChange={(event) => setRawX(event.target.value)} />
+              </label>
+              {mode === "epsilon" ? (
+                <label className="grid gap-1.5 text-sm text-zinc-300">
+                  <span>{t("numeric.epsilon")}</span>
+                  <input className={fieldClass} value={rawEpsilon} onChange={(event) => setRawEpsilon(event.target.value)} />
+                </label>
+              ) : mode === "iterations" ? (
+                <label className="grid gap-1.5 text-sm text-zinc-300">
+                  <span>{t("numeric.iterations")}</span>
+                  <input className={fieldClass} value={rawIterations} onChange={(event) => setRawIterations(event.target.value)} />
+                </label>
+              ) : null}
+            </div>
+            {!doubleValid ? <ErrorText>{t("numeric.invalidDouble")}</ErrorText> : mode === "epsilon" && !extraValid ? <ErrorText>{t("numeric.invalidEpsilon")}</ErrorText> : mode === "iterations" && !extraValid ? <ErrorText>{t("numeric.invalidIterations")}</ErrorText> : null}
+            {continuousResult === null ? null : <div className="mt-4"><StepControls total={continuousFrames.length} player={player} /></div>}
+          </div>
+          <div className="min-w-0 bg-zinc-950/70 p-4">
+            {continuousFrame === undefined ? null : <ContinuousStepReadout frame={continuousFrame} />}
+          </div>
+        </div>
+        {continuousResult === null ? null : (
+          <div className="border-t border-zinc-800 p-4">
+          {continuousFrame === undefined ? null : <ContinuousStepVisual frame={continuousFrame} initialRight={Math.max(1, x + 1)} />}
           <div className="mt-5 grid gap-px overflow-hidden rounded-md border border-zinc-800 bg-zinc-800 sm:grid-cols-3">
             <Metric label={t("numeric.approximation")} value={continuousResult.result.toPrecision(12)} />
             <Metric label={t("numeric.absoluteError")} value={Math.abs(continuousResult.result - Math.sqrt(x)).toPrecision(5)} />
@@ -856,18 +898,17 @@ export function NumericSearchLab(): React.JSX.Element {
           </div>
           {continuousResult?.stagnated ? <ErrorText>{t("numeric.stagnated")}</ErrorText> : null}
           <p className="mt-4 text-xs leading-5 text-zinc-500">{t("numeric.practical")}</p>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </LabShell>
   );
 }
 
-function ContinuousState({
-  frame,
-  initialRight
+function ContinuousStepReadout({
+  frame
 }: {
   readonly frame: { readonly phase: SearchStepPhase; readonly probe: number; readonly step: ContinuousSearchStep };
-  readonly initialRight: number;
 }): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   const { phase, probe, step } = frame;
@@ -890,16 +931,16 @@ function ContinuousState({
         mid: step.mid.toPrecision(6)
       });
   return (
-    <div className="mt-6">
+    <div className="mt-3">
       <div className="grid grid-cols-3 gap-2" aria-label={t("tool.phaseLabel")}>
         {(["calculate", "evaluate", "move"] as const).map((key, index) => (
           <div key={key} className={cn(
-            "rounded-md border px-2 py-2 text-center font-mono text-[9px] font-semibold uppercase tracking-wide sm:text-[10px]",
+            "rounded-md border px-2 py-1.5 text-center font-mono text-[9px] font-semibold uppercase tracking-wide",
             phaseKey === key ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-zinc-800 text-zinc-600"
           )}>{index + 1}. {t(`tool.phases.${key}`)}</div>
         ))}
       </div>
-      <div className="mt-4 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.035] p-4">
+      <div className="mt-3 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.035] p-3">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-cyan-300">{t("tool.probe", { probe })}</span>
         <p className="mt-2 text-sm font-medium leading-6 text-zinc-100" role="status" aria-live="polite">{narration}</p>
         {phase === "calculate-mid" ? (
@@ -917,9 +958,26 @@ function ContinuousState({
         mid={step.mid.toPrecision(6)}
         right={visibleRight.toPrecision(6)}
       />
+    </div>
+  );
+}
+
+function ContinuousStepVisual({
+  frame,
+  initialRight
+}: {
+  readonly frame: { readonly phase: SearchStepPhase; readonly probe: number; readonly step: ContinuousSearchStep };
+  readonly initialRight: number;
+}): React.JSX.Element {
+  const { t } = useTranslation("binarySearch");
+  const { phase, step } = frame;
+  const visibleLeft = phase === "move-bound" && step.conditionResult ? step.mid : step.left;
+  const visibleRight = phase === "move-bound" && !step.conditionResult ? step.mid : step.right;
+  return (
+    <>
       <RangeNumberLine initialLeft={0} initialRight={initialRight} left={visibleLeft} mid={step.mid} right={visibleRight} />
       <p className="mt-3 font-mono text-xs text-zinc-400">{t("numeric.width")}: {Math.max(0, visibleRight - visibleLeft).toExponential(4)}</p>
-    </div>
+    </>
   );
 }
 
@@ -941,23 +999,32 @@ export function FirstBadVersionLab(): React.JSX.Element {
   const frame = frames[player.index];
   return (
     <LabShell label={t("bad.applicationTitle")}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("bad.n")}</span><input className={fieldClass} value={rawN} onChange={(event) => setRawN(event.target.value)} /></label>
-        <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("bad.firstBad")}</span><input className={fieldClass} value={rawBad} onChange={(event) => setRawBad(event.target.value)} /></label>
-      </div>
-      {!validN ? <ErrorText>{t("bad.invalidN")}</ErrorText> : !validBad ? <ErrorText>{t("bad.invalidBad")}</ErrorText> : null}
+      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+          <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
+            <div className="grid gap-4">
+              <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("bad.n")}</span><input className={fieldClass} value={rawN} onChange={(event) => setRawN(event.target.value)} /></label>
+              <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("bad.firstBad")}</span><input className={fieldClass} value={rawBad} onChange={(event) => setRawBad(event.target.value)} /></label>
+            </div>
+            {!validN ? <ErrorText>{t("bad.invalidN")}</ErrorText> : !validBad ? <ErrorText>{t("bad.invalidBad")}</ErrorText> : null}
+            {trace === null ? null : <div className="mt-4"><StepControls total={frames.length} player={player} /></div>}
+          </div>
+          <div className="min-w-0 bg-zinc-950/70 p-4">
+            {frame === undefined || trace === null ? null : <DiscreteStepReadout trace={trace} frame={frame} />}
+          </div>
+        </div>
       {trace === null ? null : (
-        <div className="mt-6">
-          <StepControls total={frames.length} player={player} />
-          {frame === undefined ? null : <DiscreteStepState trace={trace} frame={frame} />}
+        <div className="border-t border-zinc-800 p-4">
+          {frame === undefined ? null : <DiscreteStepVisual trace={trace} frame={frame} />}
           {frame === undefined || frame.phase === "calculate-mid" ? null : (
             <p className="mt-4 border-l-2 border-rose-400 pl-3 text-sm text-zinc-200" role="status">
               {t("bad.call", { version: frame.step.mid, result: frame.step.conditionResult ? t("controls.trueValue") : t("controls.falseValue") })}
             </p>
           )}
-          <p className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-3 text-sm text-rose-100">{t("bad.answer", { version: trace.boundary, calls: trace.probes })}</p>
+          <p className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-2.5 text-sm text-rose-100">{t("bad.answer", { version: trace.boundary, calls: trace.probes })}</p>
         </div>
       )}
+      </div>
     </LabShell>
   );
 }
@@ -1011,32 +1078,40 @@ export function MagicPowderLab(): React.JSX.Element {
 
   return (
     <LabShell label={t("magic.applicationTitle")}>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("magic.powder")}</span><input className={fieldClass} value={rawPowder} onChange={(event) => setRawPowder(event.target.value)} /></label>
-        <label className="grid gap-1.5 text-sm text-zinc-300">
-          <span>{t("magic.preset")}</span>
-          <select className={fieldClass} defaultValue="third" onChange={(event) => applyPreset(event.target.value)}>
-            {(["first", "second", "third", "fourth"] as const).map((key) => <option key={key} value={key}>{t(`magic.presets.${key}`)}</option>)}
-          </select>
-        </label>
-      </div>
-      <div className="mt-5 space-y-2">
-        {rows.map((row, index) => (
-          <fieldset key={index} className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-end">
-            <legend className="px-1 font-mono text-[10px] uppercase tracking-wide text-zinc-500">{t("magic.ingredient", { index: index + 1 })}</legend>
-            <span className="hidden font-mono text-xs text-zinc-600 sm:block">#{index + 1}</span>
-            <label className="grid gap-1 text-xs text-zinc-400"><span>{t("magic.need")}</span><input className={fieldClass} value={row.need} onChange={(event) => updateRow(index, "need", event.target.value)} /></label>
-            <label className="grid gap-1 text-xs text-zinc-400"><span>{t("magic.stock")}</span><input className={fieldClass} value={row.stock} onChange={(event) => updateRow(index, "stock", event.target.value)} /></label>
-            <button type="button" disabled={rows.length === 1} className="min-h-10 rounded-md border border-zinc-700 px-3 text-xs text-zinc-400 disabled:opacity-30" onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}>{t("magic.remove")}</button>
-          </fieldset>
-        ))}
-      </div>
-      <button type="button" disabled={rows.length >= MAX_ITEMS} className="mt-3 rounded-md border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200 disabled:opacity-30" onClick={() => setRows((current) => [...current, { need: "1", stock: "1" }])}>{t("magic.add")}</button>
-      {powder === null ? <ErrorText>{t("magic.invalidPowder")}</ErrorText> : !validIngredients ? <ErrorText>{t("magic.invalidIngredient")}</ErrorText> : null}
+      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
+        <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+          <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
+            <div className="grid gap-4">
+              <label className="grid gap-1.5 text-sm text-zinc-300"><span>{t("magic.powder")}</span><input className={fieldClass} value={rawPowder} onChange={(event) => setRawPowder(event.target.value)} /></label>
+              <label className="grid gap-1.5 text-sm text-zinc-300">
+                <span>{t("magic.preset")}</span>
+                <select className={fieldClass} defaultValue="third" onChange={(event) => applyPreset(event.target.value)}>
+                  {(["first", "second", "third", "fourth"] as const).map((key) => <option key={key} value={key}>{t(`magic.presets.${key}`)}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 space-y-2">
+              {rows.map((row, index) => (
+                <fieldset key={index} className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-950/60 p-3 sm:items-end">
+                  <legend className="px-1 font-mono text-[10px] uppercase tracking-wide text-zinc-500">{t("magic.ingredient", { index: index + 1 })}</legend>
+                  <span className="hidden font-mono text-xs text-zinc-600 sm:block">#{index + 1}</span>
+                  <label className="grid gap-1 text-xs text-zinc-400"><span>{t("magic.need")}</span><input className={fieldClass} value={row.need} onChange={(event) => updateRow(index, "need", event.target.value)} /></label>
+                  <label className="grid gap-1 text-xs text-zinc-400"><span>{t("magic.stock")}</span><input className={fieldClass} value={row.stock} onChange={(event) => updateRow(index, "stock", event.target.value)} /></label>
+                  <button type="button" disabled={rows.length === 1} className="min-h-10 rounded-md border border-zinc-700 px-3 text-xs text-zinc-400 disabled:opacity-30" onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}>{t("magic.remove")}</button>
+                </fieldset>
+              ))}
+            </div>
+            <button type="button" disabled={rows.length >= MAX_ITEMS} className="mt-3 rounded-md border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200 disabled:opacity-30" onClick={() => setRows((current) => [...current, { need: "1", stock: "1" }])}>{t("magic.add")}</button>
+            {powder === null ? <ErrorText>{t("magic.invalidPowder")}</ErrorText> : !validIngredients ? <ErrorText>{t("magic.invalidIngredient")}</ErrorText> : null}
+            {result === null ? null : <div className="mt-4"><StepControls total={frames.length} player={player} /></div>}
+          </div>
+          <div className="min-w-0 bg-zinc-950/70 p-4">
+            {frame === undefined || result === null ? null : <DiscreteStepReadout trace={result.trace} frame={frame} />}
+          </div>
+        </div>
       {result === null ? null : (
-        <div className="mt-6">
-          <StepControls total={frames.length} player={player} />
-          {frame === undefined ? null : <DiscreteStepState trace={result.trace} frame={frame} />}
+        <div className="border-t border-zinc-800 p-4">
+          {frame === undefined ? null : <DiscreteStepVisual trace={result.trace} frame={frame} />}
           {frame === undefined || frame.phase === "calculate-mid" || candidateCheck === null ? null : (
             <div className="mt-5">
               <p className="border-l-2 border-cyan-400 pl-3 text-sm text-zinc-200" role="status" aria-live="polite">
@@ -1050,9 +1125,10 @@ export function MagicPowderLab(): React.JSX.Element {
               </div>
             </div>
           )}
-          <p className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-3 text-sm text-rose-100">{t("magic.answer", { cookies: result.result.toString() })}</p>
+          <p className="mt-5 rounded-md border border-rose-400/25 bg-rose-400/[0.04] px-4 py-2.5 text-sm text-rose-100">{t("magic.answer", { cookies: result.result.toString() })}</p>
         </div>
       )}
+      </div>
     </LabShell>
   );
 }

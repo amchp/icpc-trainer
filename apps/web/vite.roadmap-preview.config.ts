@@ -11,9 +11,11 @@ export default defineConfig({
     alias: [
       { find: "@icpc-trainer/shared", replacement: fileURLToPath(new URL("../../packages/shared/src/index.ts", import.meta.url)) },
       { find: "@tanstack/react-router", replacement: stubs },
-      { find: /^\.\/useLearningProgress\.js$/, replacement: stubs }
+      { find: "@clerk/clerk-react", replacement: stubs },
+      { find: /^\.\/useLearningProgress\.js$/, replacement: stubs },
+      { find: /^\.\/Toaster\.js$/, replacement: stubs }
     ]
   },
   plugins: [react(), tailwindcss()],
-  server: { host: "127.0.0.1", port: 5199, strictPort: true }
+  server: { host: "127.0.0.1", port: 5199, strictPort: true, open: "/.roadmap-preview/index.html" }
 });

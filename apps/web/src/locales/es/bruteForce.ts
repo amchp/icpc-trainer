@@ -13,8 +13,7 @@ export const bruteForce = {
     inputs: "Entradas de la traza", stepCount: "Paso {{current}} de {{total}}", previous: "Paso anterior de la traza", next: "Paso siguiente de la traza", reset: "Reiniciar traza", play: "Reproducir", pause: "Pausar",
     reducedMotion: "La reproducción automática no está disponible porque el movimiento reducido está activado. El avance manual sigue disponible.",
     variables: "Variables", name: "Nombre", type: "Tipo", value: "Valor",
-    grid: { cell: "Fila {{row}}, columna {{column}}: {{value}}, {{state}}", empty: "vacía", states: { default: "sin asignar", fixed: "fija", active: "activa", accepted: "aceptada", rejected: "rechazada" } },
-    tree: { depth: "Profundidad {{depth}}" }
+    grid: { cell: "Fila {{row}}, columna {{column}}: {{value}}, {{state}}", empty: "vacía", states: { default: "sin asignar", fixed: "fija", active: "activa", accepted: "aceptada", rejected: "rechazada" } }
   },
   code: { copyLabel: "Copiar código", copied: "Copiado", copy: "Copiar", announcement: "Código copiado" },
   sections: {
@@ -37,7 +36,6 @@ export const bruteForce = {
   },
   simulationDemo: {
     label: "Un programa ejecutando un proceso",
-    description: "Este semáforo no tiene relación con Alice a propósito. Muestra la herramienta general: guarda el estado actual, aplica exactamente una regla y observa el resultado.",
     lightLabel: "Semáforo simulado",
     states: { red: "rojo", green: "verde", yellow: "amarillo" },
     current: "estado actual",
@@ -79,7 +77,6 @@ export const bruteForce = {
     why: "Funciona porque el programa recrea cada posición que visita Alice, en el mismo orden, así que no puede saltarse el objetivo. Veintiuna pasadas completas bastan con estos límites: una pasada cambia un eje como máximo 10; después de 20 pasadas, un desplazamiento neto distinto de cero no puede salir del rango objetivo y regresar mediante un prefijo de máximo 10 movimientos. Si el desplazamiento neto es cero, la primera pasada ya contiene todas las posiciones alcanzables.",
     simulator: {
       label: "Prueba un patrón de movimientos",
-      description: "Construye la cadena repetida de Alice, escoge el objetivo y observa cómo el programa reproduce cada coordenada visitada en el tablero.",
       moves: "Patrón de movimientos (máximo 10)",
       addMove: "Agregar {{direction}} al patrón de movimientos",
       undo: "Quitar último",
@@ -122,10 +119,8 @@ export const bruteForce = {
     application: "Trata los cinco platos etiquetados como los elementos que se deben ordenar. Genera un orden completo y después evalúa las cinco restricciones entre pares sobre ese orden. El generador solo se encarga de visitar órdenes; la comprobación propia del problema queda como un paso separado.",
     explorer: {
       label: "Los 120 órdenes de platos",
-      description: "Escoge los dos platos y su relación en cada línea de entrada. El explorador genera cada orden y colorea solo los que satisfacen todas las restricciones.",
       input: "Cinco restricciones",
       run: "Revisar cada orden",
-      format: "Cada fila indica que el plato izquierdo debe aparecer antes o después del plato derecho.",
       leftPlate: "Plato izquierdo de la restricción {{number}}",
       relation: "Relación de la restricción {{number}}",
       rightPlate: "Plato derecho de la restricción {{number}}",
@@ -161,7 +156,6 @@ export const bruteForce = {
     application: "Crea el multiconjunto con a copias de 1 y b copias de 2. Mapea la decisión 0 a un signo negativo y la decisión 1 a uno positivo. Cuando cada valor tenga una decisión, calcula la suma y comprueba si es cero.",
     explorer: {
       label: "Explora cada asignación de signos",
-      description: "Ingresa los mismos a y b que recibe el problema. El explorador evalúa cada hoja y agrupa los resultados por suma final.",
       ones: "Cantidad de unos (a)",
       twos: "Cantidad de doses (b)",
       run: "Explorar todas las decisiones",
@@ -198,7 +192,6 @@ export const bruteForce = {
     focus: "Esta es una ejecución real de backtracking: recorre los dígitos del 1 al 9, rechaza conflictos inmediatos, conserva dígitos válidos de forma tentativa y los quita visiblemente cuando una rama profunda falla.",
     simulator: {
       label: "Simulación completa de backtracking",
-      description: "Sigue toda la búsqueda registrada, incluidos los dígitos rechazados, las colocaciones tentativas y las ramas que regresan a una celda anterior.",
       searchRule: "La búsqueda siempre toma la primera celda vacía en orden de lectura: de izquierda a derecha en cada fila y luego de la fila superior a la inferior. Para esa celda, prueba los dígitos del 1 al 9.",
       play: "Simular la búsqueda completa",
       pause: "Pausar simulación",

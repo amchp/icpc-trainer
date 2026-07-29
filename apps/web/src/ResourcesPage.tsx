@@ -57,7 +57,6 @@ export function ResourcesPage(): React.JSX.Element {
               step="01"
               accent="cyan"
               title={t("introduction")}
-              description={t("introductionDescription")}
               status={statusLabel(introduction)}
               completed={introduction === LEARNING_PROGRESS_STATUSES.Completed}
             />
@@ -67,7 +66,6 @@ export function ResourcesPage(): React.JSX.Element {
               step="02"
               accent="blue"
               title={t("fundamentals")}
-              description={t("fundamentalsDescription")}
               status={statusLabel(fundamentals)}
               completed={fundamentals === LEARNING_PROGRESS_STATUSES.Completed}
             />
@@ -77,7 +75,6 @@ export function ResourcesPage(): React.JSX.Element {
               step="03"
               accent="violet"
               title={t("timeComplexity")}
-              description={t("timeComplexityDescription")}
               status={statusLabel(timeComplexity)}
               completed={timeComplexity === LEARNING_PROGRESS_STATUSES.Completed}
             />
@@ -87,14 +84,14 @@ export function ResourcesPage(): React.JSX.Element {
             <RoadmapConnector />
           </div>
 
-          <div className="mx-auto grid w-full max-w-[43.5rem] gap-4 sm:grid-cols-2 xl:max-w-none xl:grid-cols-[4rem_minmax(0,1fr)] xl:grid-rows-2 xl:gap-x-0">
+          <div className="mx-auto grid w-full max-w-[21rem] gap-y-4 xl:max-w-none xl:grid-cols-[4rem_minmax(0,1fr)] xl:grid-rows-3 xl:gap-x-0">
             <RoadmapFork />
             <RoadmapNode
               to={appPaths.dataStructures}
               step="04"
               accent="rose"
               title={t("dataStructures")}
-              description={t("dataStructuresDescription")}
+              className="xl:col-start-2 xl:row-start-1"
               status={statusLabel(dataStructures)}
               completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
             />
@@ -103,24 +100,20 @@ export function ResourcesPage(): React.JSX.Element {
               step="04"
               accent="orange"
               title={t("bruteForce")}
-              description={t("bruteForceDescription")}
+              className="xl:col-start-2 xl:row-start-2"
               status={statusLabel(bruteForce)}
               completed={bruteForce === LEARNING_PROGRESS_STATUSES.Completed}
             />
+            <RoadmapNode
+              to={appPaths.binarySearch}
+              step="04"
+              accent="amber"
+              title={t("binarySearch")}
+              className="xl:col-start-2 xl:row-start-3"
+              status={statusLabel(binarySearch)}
+              completed={binarySearch === LEARNING_PROGRESS_STATUSES.Completed}
+            />
           </div>
-        </div>
-
-        <div className="relative mx-auto mt-6 flex w-full max-w-[43.5rem] flex-col items-center gap-4">
-          <span className="h-8 border-l border-dashed border-zinc-700" aria-hidden="true" />
-          <RoadmapNode
-            to={appPaths.binarySearch}
-            step="05"
-            accent="rose"
-            title={t("binarySearch")}
-            description={t("binarySearchDescription")}
-            status={statusLabel(binarySearch)}
-            completed={binarySearch === LEARNING_PROGRESS_STATUSES.Completed}
-          />
         </div>
       </section>
     </main>

@@ -531,13 +531,11 @@ export const dataStructures = {
   simulator: {
     eyebrow: "Laboratorio del contenedor",
     title: "Prueba operaciones sobre {{name}}",
-    description: "Empieza con un contenedor preparado. Elige una operación, cambia solo los números resaltados dentro de sus paréntesis o corchetes y ejecútala para observar cómo cambia el estado.",
     label: "Simulador interactivo de {{name}}",
     code: "Inicialización y código ejecutado",
     state: "Estado del contenedor",
     output: "Resultado de la última consulta",
     iteratorLabel: "iterador",
-    command: "Completa la siguiente línea de C++",
     commandPreview: "Vista previa de la línea C++",
     run: "Ejecutar operación",
     reset: "Reiniciar",

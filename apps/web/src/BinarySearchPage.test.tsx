@@ -69,8 +69,11 @@ describe("BinarySearchPage", () => {
     for (const button of tools) fireEvent.click(button);
     const closestSection = document.getElementById("closest");
     if (closestSection === null) throw new Error("Closest-value section was not rendered.");
+    // The orientation pill was a one-option group that could never change anything, so the
+    // closest-value trace now states its orientation in the lab heading instead.
     expect(within(closestSection).queryByRole("button", { name: "false-true" })).not.toBeInTheDocument();
-    expect(within(closestSection).getByRole("button", { name: "true-false" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(closestSection).queryByRole("button", { name: "true-false" })).not.toBeInTheDocument();
+    expect(within(closestSection).getByLabelText("Last-true exclusive-sentinel template")).toBeInTheDocument();
     expect(screen.getAllByText("C++ synchronized with this trace")).toHaveLength(5);
     expect(screen.getAllByText("1. Calculate mid").length).toBeGreaterThanOrEqual(6);
     expect(screen.getAllByText("Left pointer")).not.toHaveLength(0);

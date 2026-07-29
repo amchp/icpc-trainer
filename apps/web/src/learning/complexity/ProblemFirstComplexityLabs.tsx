@@ -24,7 +24,7 @@ export function ComplexityApproachComparison({
   const { t } = useTranslation("timeComplexity");
 
   return (
-    <section aria-label={t("problemFirst.comparison.label")} className="my-8">
+    <section aria-label={t("problemFirst.comparison.label")} className="my-7">
       <div className="grid gap-4">
         {approaches.map((approach, index) => (
           <article key={approach.title} className="min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950/65">
@@ -71,12 +71,12 @@ export function OperationMemoryFormulaLab(): React.JSX.Element {
   const inputBytes = (users + queries) * 8;
 
   return (
-    <section aria-labelledby="resource-formula-title" className="my-8 overflow-hidden rounded-lg border border-cyan-400/30 bg-cyan-400/[0.04]">
+    <section aria-labelledby="resource-formula-title" className="my-7 overflow-hidden rounded-lg border border-cyan-400/30 bg-cyan-400/[0.04]">
       <div className="p-5 sm:p-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300">{t("problemFirst.labs.resources.eyebrow")}</p>
         <h5 id="resource-formula-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.resources.title")}</h5>
         <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.resources.description")}</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-2 text-sm text-zinc-300">
             <span>{t("problemFirst.labs.resources.users")}</span>
             <input
@@ -105,14 +105,14 @@ export function OperationMemoryFormulaLab(): React.JSX.Element {
         <GuideCodeBlock code={`for (long long query : queries)\n  for (long long id : users)\n    if (id == query) break; // one modeled comparison`} />
       </div>
       <dl className="grid gap-px bg-zinc-800 sm:grid-cols-2" aria-live="polite">
-        <div className="bg-zinc-950 p-5">
+        <div className="bg-zinc-950 p-4">
           <dt className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">{t("problemFirst.labs.resources.time")}</dt>
           <dd className="mt-2 font-mono text-lg text-cyan-200">T(n, q) = qn</dd>
           <dd className="mt-1 text-sm text-zinc-400">
             {format.format(queries)} × {format.format(users)} = {format.format(comparisons)} {t("problemFirst.labs.resources.comparisons")}
           </dd>
         </div>
-        <div className="bg-zinc-950 p-5">
+        <div className="bg-zinc-950 p-4">
           <dt className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">{t("problemFirst.labs.resources.memory")}</dt>
           <dd className="mt-2 font-mono text-lg text-amber-200">M(n, q) = 8n + 8q + c_fixed</dd>
           <dd className="mt-1 text-sm text-zinc-400">
@@ -137,7 +137,7 @@ export function BigOSimplifierLab(): React.JSX.Element {
   const active = bigOExamples[example];
 
   return (
-    <section aria-labelledby="big-o-simplifier-title" className="my-8 rounded-lg border border-violet-400/30 bg-violet-400/[0.04] p-5 sm:p-6">
+    <section aria-labelledby="big-o-simplifier-title" className="my-7 rounded-lg border border-violet-400/30 bg-violet-400/[0.04] p-5 sm:p-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-violet-300">{t("problemFirst.labs.bigO.eyebrow")}</p>
       <h5 id="big-o-simplifier-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.bigO.title")}</h5>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.bigO.description")}</p>
@@ -200,7 +200,7 @@ export function StockMemoryEstimatorLab({
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-amber-300">{t("problemFirst.labs.stockMemory.eyebrow")}</p>
       <h3 id="stock-memory-estimator-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.stockMemory.title")}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.stockMemory.description")}</p>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-2 text-sm text-zinc-300">
           <span>{t("problemFirst.labs.stockMemory.inputSize")}</span>
           <input
@@ -225,7 +225,7 @@ export function StockMemoryEstimatorLab({
           </select>
         </label>
       </div>
-      <dl className="mt-6 grid gap-5 sm:grid-cols-3" aria-live="polite">
+      <dl className="mt-5 grid gap-4 sm:grid-cols-3" aria-live="polite">
         <div className="border-l-2 border-cyan-400/35 pl-4">
           <dt className="text-xs uppercase tracking-wide text-zinc-500">{t("problemFirst.labs.stockMemory.input")}</dt>
           <dd className="mt-2 font-mono text-sm text-cyan-100">{bytes(inputBytes)}</dd>
@@ -261,12 +261,12 @@ export function ControlFlowCounterLab(): React.JSX.Element {
   };
 
   return (
-    <section aria-labelledby="control-flow-counter-title" className="my-8 overflow-hidden rounded-lg border border-orange-400/30 bg-orange-400/[0.04]">
+    <section aria-labelledby="control-flow-counter-title" className="my-7 overflow-hidden rounded-lg border border-orange-400/30 bg-orange-400/[0.04]">
       <div className="p-5 sm:p-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-orange-300">{t("problemFirst.labs.control.eyebrow")}</p>
         <h5 id="control-flow-counter-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.control.title")}</h5>
         <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.control.description")}</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-2 text-sm text-zinc-300">
             <span>{t("problemFirst.labs.control.length")}</span>
             <input
@@ -300,7 +300,7 @@ export function ControlFlowCounterLab(): React.JSX.Element {
           [t("problemFirst.labs.control.bodyWork"), `≤ ${format.format(shiftUpperBound)}`],
           [t("problemFirst.labs.control.total"), `≤ ${format.format(totalUpperBound)}`]
         ] as const).map(([label, value]) => (
-          <div key={label} className="bg-zinc-950 p-5">
+          <div key={label} className="bg-zinc-950 p-4">
             <dt className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">{label}</dt>
             <dd className="mt-2 font-mono text-lg text-orange-200">{value}</dd>
           </div>
@@ -373,7 +373,7 @@ export function FibonacciRecursionLab(): React.JSX.Element {
   const currentLayerNodes = visibleNodes.filter((node) => node.depth === step);
 
   return (
-    <section aria-labelledby="recursion-shape-title" className="my-8 rounded-lg border border-rose-400/30 bg-rose-400/[0.04] p-5 sm:p-6">
+    <section aria-labelledby="recursion-shape-title" className="my-7 rounded-lg border border-rose-400/30 bg-rose-400/[0.04] p-5 sm:p-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-rose-300">{t("problemFirst.labs.recursion.eyebrow")}</p>
       <h5 id="recursion-shape-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.recursion.title")}</h5>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.recursion.description")}</p>
@@ -381,7 +381,7 @@ export function FibonacciRecursionLab(): React.JSX.Element {
         role="region"
         aria-label={t("problemFirst.labs.recursion.naiveAnimation")}
         data-testid="fibonacci-naive-animation"
-        className="mt-5 overflow-hidden rounded-md border border-rose-400/20 bg-zinc-950/80 p-4 sm:p-5"
+        className="mt-5 max-h-[18rem] overflow-y-auto rounded-md border border-rose-400/20 bg-zinc-950/80 p-4"
       >
         <div className="flex items-center justify-between gap-4">
           <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-rose-300">{t("problemFirst.labs.recursion.treePath")}</span>
@@ -433,7 +433,7 @@ export function FibonacciRecursionLab(): React.JSX.Element {
         </div>
         <p className="mt-2 border-l border-rose-400/40 pl-3 text-xs leading-5 text-rose-100/75">{t("problemFirst.labs.recursion.naiveScale")}</p>
       </div>
-      <div className="mt-5 grid gap-px overflow-hidden rounded-md border border-zinc-800 bg-zinc-800 sm:grid-cols-3" aria-live="polite">
+      <div className="mt-4 grid gap-px overflow-hidden rounded-md border border-zinc-800 bg-zinc-800 sm:grid-cols-3" aria-live="polite">
         {([
           [t("problemFirst.labs.recursion.treeDepth"), `${step + 1}/${FIBONACCI_TREE_DEPTH + 1}`],
           [t("problemFirst.labs.recursion.calls"), visibleNodes.length],
@@ -476,11 +476,11 @@ export function DuplicateZerosMemoryLab(): React.JSX.Element {
   const format = new Intl.NumberFormat(i18n.resolvedLanguage ?? i18n.language);
 
   return (
-    <section aria-labelledby="memory-ledger-title" className="my-8 rounded-lg border border-amber-400/30 bg-amber-400/[0.04] p-5 sm:p-6">
+    <section aria-labelledby="memory-ledger-title" className="my-7 rounded-lg border border-amber-400/30 bg-amber-400/[0.04] p-5 sm:p-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-amber-300">{t("problemFirst.labs.memory.eyebrow")}</p>
       <h5 id="memory-ledger-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.memory.title")}</h5>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.memory.description")}</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-2 text-sm text-zinc-300">
           <span>{t("problemFirst.labs.memory.length", { value: format.format(length) })}</span>
           <input
@@ -542,11 +542,11 @@ export function TwoSumCapstoneLab(): React.JSX.Element {
   };
 
   return (
-    <section aria-labelledby="capstone-classifier-title" className="my-8 rounded-lg border border-emerald-400/30 bg-emerald-400/[0.04] p-5 sm:p-6">
+    <section aria-labelledby="capstone-classifier-title" className="my-7 rounded-lg border border-emerald-400/30 bg-emerald-400/[0.04] p-5 sm:p-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">{t("problemFirst.labs.capstone.eyebrow")}</p>
       <h5 id="capstone-classifier-title" className="mt-2 text-xl font-semibold text-zinc-100">{t("problemFirst.labs.capstone.title")}</h5>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("problemFirst.labs.capstone.description")}</p>
-      <div className="mt-5 grid gap-4">
+      <div className="mt-5 grid gap-3">
         {(["quadratic", "sort", "hash"] as const).map((key) => (
           <label key={key} className="grid gap-2 rounded-md border border-zinc-800 bg-zinc-950/70 p-4 text-sm text-zinc-300 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,1fr)] sm:items-center">
             <span className="font-medium text-zinc-100">{t(`problemFirst.labs.capstone.${key}`)}</span>
