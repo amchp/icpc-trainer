@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Clipboard, Pause, Play, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clipboard, Pause, Play, RotateCcw } from "lucide-react";
 import type { TFunction } from "i18next";
 import { Highlight, themes, type Language } from "prism-react-renderer";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +24,8 @@ export type BruteForceGuideCodeBlockProps<S extends GuideTraceInputSchema = Guid
       readonly code?: never;
       readonly language?: never;
     };
+
+type TreeVisualNode = Extract<GuideTraceVisual, { readonly kind: "tree" }>["nodes"][number];
 
 export function BruteForceGuideCodeBlock<const S extends GuideTraceInputSchema = GuideTraceInputSchema>(
   props: BruteForceGuideCodeBlockProps<S>
@@ -362,37 +364,22 @@ function TraceVisual({ visual }: { readonly visual: GuideTraceVisual }): React.J
         </VisualPanel>
       );
     case "tree": {
-      const depths = [...new Set(visual.nodes.map((node) => node.depth))].sort((a, b) => a - b);
-      const completed = new Set(visual.completedIds ?? []);
+      const childrenByParent = new Map<string, TreeVisualNode[]>();
+      for (const node of visual.nodes) {
+        if (node.parentId === undefined) continue;
+        const siblings = childrenByParent.get(node.parentId) ?? [];
+        siblings.push(node);
+        childrenByParent.set(node.parentId, siblings);
+      }
+      const root = visual.nodes.find((node) => node.parentId === undefined);
       return (
         <VisualPanel label={visual.label}>
           <div className="max-w-full overflow-x-auto pb-1">
-            <div className="min-w-max space-y-3" role="tree" aria-label={visual.label}>
-              {depths.map((depth) => (
-                <div key={depth} className="flex items-center justify-center gap-2" role="group" aria-label={t("trace.tree.depth", { depth })}>
-                  {visual.nodes.filter((node) => node.depth === depth).map((node) => {
-                    const active = visual.activeId === node.id;
-                    return (
-                      <div
-                        key={node.id}
-                        role="treeitem"
-                        aria-current={active ? "step" : undefined}
-                        aria-label={node.label}
-                        className={cn(
-                          "relative min-w-10 border px-2 py-1.5 text-center font-mono text-[10px]",
-                          active && "border-cyan-300 bg-cyan-300/15 text-cyan-100",
-                          !active && completed.has(node.id) && "border-emerald-500/50 bg-emerald-400/10 text-emerald-200",
-                          !active && !completed.has(node.id) && "border-zinc-700 bg-zinc-950 text-zinc-400"
-                        )}
-                      >
-                        {depth > 0 ? <span className="absolute -top-3 left-1/2 h-3 border-l border-zinc-700" aria-hidden="true" /> : null}
-                        {node.label}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+            <ul role="tree" aria-label={visual.label} className="flex min-w-max justify-center">
+              {root === undefined ? null : (
+                <TreeBranch node={root} childrenByParent={childrenByParent} activeId={visual.activeId} completedIds={new Set(visual.completedIds ?? [])} />
+              )}
+            </ul>
           </div>
         </VisualPanel>
       );
@@ -416,6 +403,88 @@ function TraceVisual({ visual }: { readonly visual: GuideTraceVisual }): React.J
         </VisualPanel>
       );
   }
+}
+
+/**
+ * One subtree, rendered as the `treeitem` that owns its children: the node box, then a nested
+ * `group` holding an elbow-connected row of child subtrees. `slot` describes this node's position
+ * among its siblings and is absent for the root, which has no incoming edge to draw.
+ */
+function TreeBranch({
+  node,
+  childrenByParent,
+  activeId,
+  completedIds,
+  slot
+}: {
+  readonly node: TreeVisualNode;
+  readonly childrenByParent: ReadonlyMap<string, readonly TreeVisualNode[]>;
+  readonly activeId?: string;
+  readonly completedIds: ReadonlySet<string>;
+  readonly slot?: { readonly index: number; readonly count: number };
+}): React.JSX.Element {
+  const kids = childrenByParent.get(node.id) ?? [];
+  const active = activeId === node.id;
+
+  return (
+    <li
+      role="treeitem"
+      aria-current={active ? "step" : undefined}
+      aria-label={node.label}
+      aria-expanded={kids.length > 0 ? true : undefined}
+      className={cn(
+        "relative flex flex-col items-center",
+        slot !== undefined && cn("px-1 pt-4", elbowClasses(slot.index, slot.count))
+      )}
+    >
+      {slot === undefined ? null : (
+        <ChevronDown aria-hidden="true" className="absolute left-1/2 top-1.5 size-3 -translate-x-1/2 text-zinc-600" />
+      )}
+      <div
+        className={cn(
+          "min-w-10 shrink-0 rounded-sm border px-2 py-1.5 text-center font-mono text-[10px]",
+          active && "border-cyan-300 bg-cyan-300/15 text-cyan-100",
+          !active && completedIds.has(node.id) && "border-emerald-500/50 bg-emerald-400/10 text-emerald-200",
+          !active && !completedIds.has(node.id) && "border-zinc-700 bg-zinc-950 text-zinc-400"
+        )}
+      >
+        {node.label}
+      </div>
+      {kids.length === 0 ? null : (
+        <>
+          <span aria-hidden="true" className="h-2.5 w-px bg-zinc-700" />
+          <ul role="group" className="flex items-start justify-center">
+            {kids.map((kid, index) => (
+              <TreeBranch
+                key={kid.id}
+                node={kid}
+                childrenByParent={childrenByParent}
+                activeId={activeId}
+                completedIds={completedIds}
+                slot={{ index, count: kids.length }}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Horizontal bus + vertical drop for one child slot. The first child draws the bus from its own
+ * centre rightward and the last child draws it leftward, so the bus spans centre-to-centre
+ * instead of overhanging the row. A lone child needs no bus at all.
+ */
+function elbowClasses(index: number, count: number): string {
+  const drop = "after:absolute after:left-1/2 after:top-0 after:h-2 after:w-px after:bg-zinc-700";
+  if (count === 1) return drop;
+  const bus = index === 0
+    ? "before:left-1/2 before:right-0"
+    : index === count - 1
+      ? "before:left-0 before:right-1/2"
+      : "before:inset-x-0";
+  return cn("before:absolute before:top-0 before:h-px before:bg-zinc-700", bus, drop);
 }
 
 function GridCell({

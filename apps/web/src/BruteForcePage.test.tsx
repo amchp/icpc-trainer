@@ -124,7 +124,12 @@ describe("BruteForcePage", () => {
     fireEvent.click(within(permutationTrace).getByRole("button", { name: "Paso siguiente de la traza" }));
     expect(permutationTrace).toHaveTextContent("vector<char> actual");
     expect(permutationTrace).toHaveTextContent("Árbol de decisiones completo");
-    expect(within(permutationTrace).getByRole("group", { name: "Profundidad 0" })).toBeInTheDocument();
+    // The tree is now nested by parentId rather than bucketed into per-depth rows, so each node
+    // owns its children through a treeitem > group > treeitem chain.
+    const permutationTree = within(permutationTrace).getByRole("tree", { name: "Árbol de decisiones completo" });
+    const treeRoot = within(permutationTree).getByRole("treeitem", { name: "∅" });
+    expect(treeRoot).toHaveAttribute("aria-expanded", "true");
+    expect(within(treeRoot).getAllByRole("treeitem", { name: "A" })).toHaveLength(1);
     fireEvent.click(screen.getAllByRole("button", { name: "Aprender la herramienta" }).at(-1)!);
     fireEvent.click(screen.getAllByRole("button", { name: "Mostrar la conexión con el problema" }).at(-1)!);
     expect(screen.getAllByLabelText("Simulación completa de backtracking")[0]).toBeInTheDocument();

@@ -655,8 +655,6 @@ export const timeComplexity = {
     n: "Input size n",
     constant: "Constant c",
     rate: "Operations per second",
-    fixedRateLabel: "Fixed reference rate",
-    fixedRateValue: "500,000,000 operations/second",
     runtimeResult: "Estimated runtime",
     bigO: "Big O label",
     memoryTitle: "Auxiliary-memory estimator",

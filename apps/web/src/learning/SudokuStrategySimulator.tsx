@@ -32,7 +32,6 @@ export type SudokuSearchEvent = {
 
 type SimulatorCopy = {
   readonly label: string;
-  readonly description: string;
   readonly searchRule: string;
   readonly play: string;
   readonly pause: string;
@@ -82,12 +81,9 @@ export function SudokuStrategySimulator({ copy }: { readonly copy: SimulatorCopy
 
   return (
     <section className="my-8 overflow-hidden rounded-lg border border-emerald-400/25 bg-[#0d1117]" aria-label={copy.label}>
-      <div className="border-b border-zinc-800 bg-emerald-400/[0.05] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
-        <div>
-          <h6 className="font-semibold text-emerald-100">{copy.label}</h6>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-400">{copy.description}</p>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2 sm:mt-0">
+      <div className="border-b border-zinc-800 bg-emerald-400/[0.05] px-4 py-2.5 sm:flex sm:items-center sm:justify-between sm:gap-5">
+        <h6 className="font-semibold text-emerald-100">{copy.label}</h6>
+        <div className="mt-3 flex flex-wrap gap-2 sm:mt-0">
           <Control label={copy.reset} onClick={() => { setPlaying(false); setStep(0); }}><RotateCcw /></Control>
           <Control label={copy.next} disabled={complete} onClick={() => { setPlaying(false); setStep((current) => Math.min(SEARCH_EVENTS.length - 1, current + 1)); }}><ChevronRight /></Control>
           <Control label={copy.nextBacktrack} disabled={nextBacktrack === -1} onClick={() => { setPlaying(false); setStep(nextBacktrack); }}><CornerUpLeft /></Control>
@@ -104,7 +100,7 @@ export function SudokuStrategySimulator({ copy }: { readonly copy: SimulatorCopy
         </div>
       </div>
 
-      <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[auto_1fr] lg:items-start">
+      <div className="grid gap-4 p-4 lg:grid-cols-[auto_1fr] lg:items-start">
         <div className="max-w-full overflow-x-auto">
           <table className="border-collapse" aria-label={copy.label}>
             <tbody>

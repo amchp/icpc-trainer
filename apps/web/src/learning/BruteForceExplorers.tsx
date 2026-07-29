@@ -16,11 +16,10 @@ export function SimpleSimulationDemo(): React.JSX.Element {
 
   return (
     <figure className="my-7 overflow-hidden rounded-xl border border-cyan-400/25 bg-cyan-400/[0.035]">
-      <figcaption className="border-b border-zinc-800 px-5 py-4">
+      <figcaption className="border-b border-zinc-800 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300">{t("simulationDemo.label")}</span>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("simulationDemo.description")}</p>
       </figcaption>
-      <div className="grid gap-5 p-5 sm:grid-cols-[13rem_1fr] sm:items-center">
+      <div className="grid gap-4 p-4 sm:grid-cols-[13rem_1fr] sm:items-center">
         <div className="mx-auto flex flex-col items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-950 p-4" aria-label={t("simulationDemo.lightLabel")}>
           {states.map((light) => (
             <span
@@ -116,11 +115,10 @@ export function AliceMoveSimulator(): React.JSX.Element {
 
   return (
     <figure className="my-7 overflow-hidden rounded-xl border border-cyan-400/25 bg-zinc-950/80" aria-label={t("alice.simulator.label")}>
-      <figcaption className="border-b border-zinc-800 px-5 py-4">
+      <figcaption className="border-b border-zinc-800 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300">{t("alice.simulator.label")}</span>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("alice.simulator.description")}</p>
       </figcaption>
-      <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div>
           <fieldset>
             <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">{t("alice.simulator.moves")}</legend>
@@ -232,16 +230,15 @@ export function KitchenPermutationExplorer(): React.JSX.Element {
 
   return (
     <figure className="my-7 overflow-hidden rounded-xl border border-violet-400/25 bg-zinc-950/80" aria-label={t("kitchen.explorer.label")}>
-      <figcaption className="border-b border-zinc-800 px-5 py-4">
+      <figcaption className="border-b border-zinc-800 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-violet-300">{t("kitchen.explorer.label")}</span>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("kitchen.explorer.description")}</p>
       </figcaption>
-      <div className="grid gap-6 p-5 lg:grid-cols-[18rem_1fr]">
+      <div className="grid gap-5 p-4 lg:grid-cols-[18rem_1fr]">
         <div>
           <p className="text-xs text-zinc-400">{t("kitchen.explorer.input")}</p>
-          <div className="mt-2 grid gap-2">
+          <div className="mt-2 grid gap-1.5">
             {constraints.map((constraint, index) => (
-              <div key={index} className="grid grid-cols-[1.4rem_1fr_1.75fr_1fr] items-center gap-2">
+              <div key={index} className="grid grid-cols-[1.4rem_1fr_1.75fr_1fr] items-center gap-1.5">
                 <span className="font-mono text-[10px] text-zinc-600">{index + 1}</span>
                 <SelectField
                   label={t("kitchen.explorer.leftPlate", { number: index + 1 })}
@@ -267,10 +264,9 @@ export function KitchenPermutationExplorer(): React.JSX.Element {
               </div>
             ))}
           </div>
-          <button type="button" className={cn(actionClass("violet"), "mt-3 w-full justify-center")} onClick={() => setSearch(exploreKitchen(input))}>
+          <button type="button" className={cn(actionClass("violet"), "mt-2.5 w-full justify-center")} onClick={() => setSearch(exploreKitchen(input))}>
             <Play className="size-4" aria-hidden="true" /> {t("kitchen.explorer.run")}
           </button>
-          <p className="mt-3 text-xs leading-5 text-zinc-500">{t("kitchen.explorer.format")}</p>
         </div>
         <div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -279,9 +275,11 @@ export function KitchenPermutationExplorer(): React.JSX.Element {
             <TapeCell label={t("kitchen.explorer.answer")} value={search?.solutions[0] ?? "—"} />
           </div>
           {search?.error ? <p className="mt-3 rounded-md border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-sm text-rose-100" role="alert">{t(`kitchen.explorer.errors.${search.error}`)}</p> : null}
-          <div className="mt-4 grid grid-cols-4 gap-1 sm:grid-cols-6 lg:grid-cols-10" aria-label={t("kitchen.explorer.candidates")}>
+          {/* auto-fill at a 2.75rem floor: five-letter orders always fit their chip, so the
+              grid loses a column rather than spilling the label when the panel narrows. */}
+          <div className="mt-3 grid gap-1 [grid-template-columns:repeat(auto-fill,minmax(2.75rem,1fr))]" aria-label={t("kitchen.explorer.candidates")}>
             {(search?.candidates ?? plateOrders.map((order) => ({ order, valid: false }))).map((candidate, index) => (
-              <span key={candidate.order} aria-label={search === null ? `${index + 1}: ${candidate.order}` : t("kitchen.explorer.candidateState", { order: candidate.order, state: t(candidate.valid ? "kitchen.explorer.accepted" : "kitchen.explorer.rejected") })} className={cn("rounded border px-1 py-1 text-center font-mono text-[10px]", search === null ? "border-zinc-800 text-zinc-600" : candidate.valid ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/[0.035] text-zinc-500")}>{candidate.order}</span>
+              <span key={candidate.order} aria-label={search === null ? `${index + 1}: ${candidate.order}` : t("kitchen.explorer.candidateState", { order: candidate.order, state: t(candidate.valid ? "kitchen.explorer.accepted" : "kitchen.explorer.rejected") })} className={cn("rounded border px-1 py-0.5 text-center font-mono text-[10px] leading-4", search === null ? "border-zinc-800 text-zinc-600" : candidate.valid ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/[0.035] text-zinc-500")}>{candidate.order}</span>
             ))}
           </div>
         </div>
@@ -326,11 +324,10 @@ export function SignDecisionExplorer(): React.JSX.Element {
 
   return (
     <figure className="my-7 overflow-hidden rounded-xl border border-violet-400/25 bg-zinc-950/80" aria-label={t("sakurako.explorer.label")}>
-      <figcaption className="border-b border-zinc-800 px-5 py-4">
+      <figcaption className="border-b border-zinc-800 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-violet-300">{t("sakurako.explorer.label")}</span>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{t("sakurako.explorer.description")}</p>
       </figcaption>
-      <div className="grid gap-6 p-5 lg:grid-cols-[14rem_1fr]">
+      <div className="grid gap-5 p-4 lg:grid-cols-[14rem_1fr]">
         <div>
           <SelectField
             label={t("sakurako.explorer.ones")}
@@ -415,7 +412,7 @@ function AliceBoard({
   const xGrid = gridValues(minX, maxX, gridSize);
   const yGrid = gridValues(minY, maxY, gridSize);
   return (
-    <svg className="mt-3 aspect-square w-full rounded-md border border-zinc-800 bg-zinc-950" viewBox="0 0 300 300" role="img" aria-label={label}>
+    <svg className="mt-3 aspect-[5/4] w-full rounded-md border border-zinc-800 bg-zinc-950" viewBox="0 0 300 300" role="img" aria-label={label}>
       <g aria-hidden="true">
         {xGrid.map((x) => <line key={`x-${x}`} x1={mapX(x)} y1="30" x2={mapX(x)} y2="270" stroke="rgb(63 63 70 / .55)" strokeWidth="1" />)}
         {yGrid.map((y) => <line key={`y-${y}`} x1="30" y1={mapY(y)} x2="270" y2={mapY(y)} stroke="rgb(63 63 70 / .55)" strokeWidth="1" />)}

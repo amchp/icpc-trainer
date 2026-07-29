@@ -48,18 +48,18 @@ export function ExactCountWorksheet(): React.JSX.Element {
   };
 
   return (
-    <section className="my-10 rounded-lg border border-cyan-400/25 bg-cyan-400/[0.04] p-5 sm:p-7" aria-labelledby="exact-count-title">
+    <section className="my-10 rounded-lg border border-cyan-400/25 bg-cyan-400/[0.04] p-4 sm:p-5" aria-labelledby="exact-count-title">
       <h3 id="exact-count-title" className="text-xl font-semibold text-zinc-100">{t("count.worksheetTitle")}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("count.worksheetDescription")}</p>
-      <div className="mt-6 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950">
+      <div className="mt-5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950">
         <GuideCodeBlock code={snippets.countTrace} />
       </div>
-      <ol className="mt-6 grid gap-3 text-sm leading-6 text-zinc-300 sm:grid-cols-3">
+      <ol className="mt-5 grid gap-3 text-sm leading-6 text-zinc-300 sm:grid-cols-3">
         {[t("count.questionStart"), t("count.questionStop"), t("count.questionWork")].map((question, index) => (
           <li key={question} className="border-l border-cyan-400/50 pl-3"><span className="font-mono text-[10px] text-cyan-400">Q{index + 1}</span><span className="mt-1 block">{question}</span></li>
         ))}
       </ol>
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-5 overflow-x-auto">
         <table className="w-full min-w-[30rem] border-collapse text-left text-sm">
           <caption className="mb-3 text-left text-sm font-medium text-zinc-200">{t("count.traceCaption")}</caption>
           <thead className="border-y border-zinc-800 text-xs uppercase tracking-wide text-zinc-500"><tr><th className="px-3 py-2">{t("count.search")}</th><th className="px-3 py-2">{t("count.jValues")}</th><th className="px-3 py-2">{t("count.passComparisons")}</th></tr></thead>
@@ -77,7 +77,7 @@ export function ExactCountWorksheet(): React.JSX.Element {
           </tbody>
         </table>
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Label>
           <span className="mb-2 block text-sm font-medium text-cyan-200">{t("count.comparisons")}</span>
           <Input inputMode="numeric" type="number" min="0" value={comparisons} onChange={(event) => { setComparisons(event.target.value); setCorrect(false); }} />
@@ -134,7 +134,7 @@ export function ComplexityCurveChart(): React.JSX.Element {
     const visible: Array<{ x: number; y: number }> = [];
     let previous: { x: number; log10: number } | null = null;
     for (const [index, n] of CHART_INPUTS.entries()) {
-      const x = 10 + index * (84 / (CHART_INPUTS.length - 1));
+      const x = 14 + index * (140 / (CHART_INPUTS.length - 1));
       const log10 = Math.max(0, log10OperationCount(family, n));
       if (log10 <= 18) {
         visible.push({ x, y: 48 - (log10 / 18) * 40 });
@@ -151,29 +151,29 @@ export function ComplexityCurveChart(): React.JSX.Element {
   };
 
   return (
-    <figure className="my-10 border-y border-zinc-800 py-7">
-      <p className="mb-6 max-w-3xl text-sm leading-6 text-zinc-400">{t("notation.chartIntro")}</p>
-      <svg viewBox="0 0 100 62" className="h-auto w-full" role="img" aria-labelledby="complexity-chart-title complexity-chart-description" data-n-max="1000000">
+    <figure className="my-10 border-y border-zinc-800 py-5">
+      <p className="mb-4 max-w-3xl text-sm leading-6 text-zinc-400">{t("notation.chartIntro")}</p>
+      <svg viewBox="0 0 160 62" className="h-auto w-full" role="img" aria-labelledby="complexity-chart-title complexity-chart-description" data-n-max="1000000">
         <title id="complexity-chart-title">{t("notation.chartLabel")}</title>
         <desc id="complexity-chart-description">{t("notation.chartDescription")}</desc>
         {[0, 6, 12, 18].map((exponent) => {
           const y = 48 - (exponent / 18) * 40;
-          return <g key={exponent}><line x1="10" x2="94" y1={y} y2={y} stroke="#3f3f46" strokeWidth="0.35" strokeDasharray="2 2" /><text x="8" y={y + 0.8} fill="#71717a" fontSize="2.2" textAnchor="end">10^{exponent}</text></g>;
+          return <g key={exponent}><line x1="14" x2="154" y1={y} y2={y} stroke="#3f3f46" strokeWidth="0.35" strokeDasharray="2 2" /><text x="12" y={y + 0.8} fill="#71717a" fontSize="2.0" textAnchor="end">10^{exponent}</text></g>;
         })}
         {CHART_FAMILIES.map((family) => (
           <polyline key={family} data-testid={`curve-${family}`} points={points(family)} fill="none" stroke={CHART_COLORS[family]} strokeWidth="1.35" vectorEffect="non-scaling-stroke" />
         ))}
         {CHART_INPUT_LABELS.map((label, index) => {
-          const x = 10 + index * (84 / (CHART_INPUT_LABELS.length - 1));
-          return <text key={label} x={x} y="55" fill="#71717a" fontSize="2.2" textAnchor="middle">{label}</text>;
+          const x = 14 + index * (140 / (CHART_INPUT_LABELS.length - 1));
+          return <text key={label} x={x} y="55" fill="#71717a" fontSize="2.0" textAnchor="middle">{label}</text>;
         })}
-        <text x="52" y="60" fill="#a1a1aa" fontSize="2.4" textAnchor="middle">{t("notation.chartXAxis")}</text>
+        <text x="84" y="60" fill="#a1a1aa" fontSize="2.2" textAnchor="middle">{t("notation.chartXAxis")}</text>
       </svg>
       <figcaption>
-        <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-zinc-400" aria-label={t("notation.chartDescription")}>
+        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-zinc-400" aria-label={t("notation.chartDescription")}>
           {CHART_FAMILIES.map((family) => <li key={family} className="inline-flex items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: CHART_COLORS[family] }} aria-hidden="true" />{labels[family]}</li>)}
         </ul>
-        <p className="mt-4 text-sm leading-6 text-zinc-500">{t("notation.chartNote")}</p>
+        <p className="mt-3 text-sm leading-6 text-zinc-500">{t("notation.chartNote")}</p>
       </figcaption>
     </figure>
   );
@@ -214,14 +214,14 @@ export function ComplexityGrowthMeters({ n, onNChange }: { readonly n: number; r
         </div>
       </div>
       {!valid ? <p className="mt-3 text-sm text-red-300" role="alert">{t("growth.invalid")}</p> : null}
-      <div className="mt-7 space-y-5" aria-label={t("growth.metersLabel")}>
+      <div className="mt-5 space-y-3.5" aria-label={t("growth.metersLabel")}>
         {METER_FAMILIES.map((family) => {
           const estimate = operationEstimate(family, n);
           const operationText = formatLog10Value(estimate.log10, locale);
           const duration = formatDuration(estimate.log10 - Math.log10(DEFAULT_OPERATIONS_PER_SECOND), locale, t("budget.universe"));
           return (
             <div key={family}>
-              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <strong className="font-mono text-sm text-zinc-100">{familyLabel(family)}</strong>
                 <span className="text-right text-sm font-medium text-violet-200">{duration}</span>
               </div>
@@ -229,7 +229,7 @@ export function ComplexityGrowthMeters({ n, onNChange }: { readonly n: number; r
                 <div className={cn("h-full rounded-full", estimate.exceedsVisualCap ? "bg-rose-400" : "bg-violet-400")} style={{ width: `${meterWidthPercent(estimate.log10)}%` }} />
                 <span className="absolute inset-y-[-0.2rem] w-px bg-cyan-200/80" style={{ left: `${(Math.log10(DEFAULT_OPERATIONS_PER_SECOND) / 18) * 100}%` }} aria-hidden="true" />
               </div>
-              <div className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[11px] leading-4 text-zinc-500">
+              <div className="mt-1.5 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[11px] leading-4 text-zinc-500">
                 <span>{t("growth.operations", { value: operationText })}</span>
                 <span>{t("growth.fullScale")}</span>
               </div>
@@ -251,23 +251,19 @@ export function RuntimeEstimator({ n, onNChange }: { readonly n: number; readonl
   const runtimeValid = Number.isFinite(runtime) && Number(constant) >= 0.000001 && Number(constant) <= 1e12;
 
   return (
-    <section className="my-10 rounded-lg border border-zinc-800 bg-zinc-950/65 p-5 sm:p-7" aria-labelledby="runtime-estimator-title">
-      <h3 id="runtime-estimator-title" className="text-xl font-semibold text-zinc-100">{t("budget.runtimeTitle")}</h3>
+    <section className="my-10 rounded-lg border border-zinc-800 bg-zinc-950/65 p-4 sm:p-5" aria-labelledby="runtime-estimator-title">
+      <h3 id="runtime-estimator-title" className="text-lg font-semibold text-zinc-100">{t("budget.runtimeTitle")}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("budget.runtimeQuestion")}</p>
       <OperationRateAnchor compact />
-      <div className="mt-5"><RuntimeFormula label={t("budget.formulaLabel")} /></div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Label className="sm:col-span-2"><span className="mb-2 block text-sm text-zinc-300">{t("budget.family")}</span><Select value={family} onChange={(event) => setFamily(event.target.value as ComplexityFamily)}>{COMPLEXITY_FAMILIES.map((item) => <option key={item} value={item}>{BIG_O_LABELS[item]}</option>)}</Select></Label>
+      <div className="mt-4"><RuntimeFormula label={t("budget.formulaLabel")} /></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <Label className="sm:col-span-1"><span className="mb-2 block text-sm text-zinc-300">{t("budget.family")}</span><Select value={family} onChange={(event) => setFamily(event.target.value as ComplexityFamily)}>{COMPLEXITY_FAMILIES.map((item) => <option key={item} value={item}>{BIG_O_LABELS[item]}</option>)}</Select></Label>
         <Label><span className="mb-2 block text-sm text-zinc-300">{t("budget.n")}</span><Input type="number" min="1" max="1000000000" value={n} onChange={(event) => { const value = Number(event.target.value); if (isValidInputSize(value)) onNChange(value); }} /></Label>
         <Label><span className="mb-2 block text-sm text-zinc-300">{t("budget.constant")}</span><Input type="number" min="0.000001" max="1000000000000" step="any" value={constant} onChange={(event) => setConstant(event.target.value)} /></Label>
-        <div className="rounded-md border border-zinc-800 bg-zinc-900/45 px-3 py-3 sm:col-span-2">
-          <span className="block text-xs uppercase tracking-wide text-zinc-500">{t("budget.fixedRateLabel")}</span>
-          <strong className="mt-1 block font-mono text-sm text-zinc-100">{t("budget.fixedRateValue")}</strong>
-        </div>
       </div>
-      <div className="mt-6 border-l-2 border-violet-400 pl-4" aria-live="polite">
+      <div className="mt-5 border-l-2 border-violet-400 pl-4" aria-live="polite">
         <span className="block text-xs uppercase tracking-wide text-zinc-500">{t("budget.runtimeResult")}</span>
-        <strong className="mt-1 block text-2xl text-violet-200">{runtimeValid ? formatDuration(runtime, locale, t("budget.universe")) : "—"}</strong>
+        <strong className="mt-1 block text-xl text-violet-200">{runtimeValid ? formatDuration(runtime, locale, t("budget.universe")) : "—"}</strong>
         <span className="mt-2 block font-mono text-xs text-zinc-400">{t("budget.bigO")}: {BIG_O_LABELS[family]}</span>
       </div>
       {!runtimeValid ? <p className="mt-4 text-sm text-red-300" role="alert">{t("budget.invalid")}</p> : null}
@@ -278,10 +274,10 @@ export function RuntimeEstimator({ n, onNChange }: { readonly n: number; readonl
 function OperationRateAnchor({ compact = false }: { readonly compact?: boolean }): React.JSX.Element {
   const { t } = useTranslation("timeComplexity");
   return (
-    <aside className={cn("rounded-lg border border-cyan-400/25 bg-cyan-400/[0.055]", compact ? "mt-5 p-4" : "mb-7 p-5 sm:p-6")} aria-label={t("budget.rateAnchorLabel")}>
+    <aside className={cn("flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-cyan-400/25 bg-cyan-400/[0.055] px-4 py-2.5", compact ? "mt-4" : "mb-5")} aria-label={t("budget.rateAnchorLabel")}>
       <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.17em] text-cyan-300">{t("budget.rateAnchorEyebrow")}</p>
-      <strong className="mt-2 block font-mono text-lg text-cyan-100 sm:text-xl">{t("budget.rateAnchorValue")}</strong>
-      <p className="mt-2 text-xs leading-5 text-zinc-400">{t("budget.rateAnchorMnemonic")}</p>
+      <strong className="font-mono text-base text-cyan-100">{t("budget.rateAnchorValue")}</strong>
+      <p className="w-full text-xs leading-5 text-zinc-400">{t("budget.rateAnchorMnemonic")}</p>
     </aside>
   );
 }
@@ -365,11 +361,11 @@ export function MemoryAllocationLab({ n, onNChange }: { readonly n: number; read
           </Select>
         </Label>
         <p className="mt-3 border-l-2 border-amber-400/50 pl-4 text-sm leading-6 text-zinc-400">{t(`memory.${strategy}Explanation`)}</p>
-        <div className="mt-6 space-y-4">
+        <div className="mt-5 space-y-4">
           <AllocationBar label={t("memory.inputMemory")} value={rawBytes(sourceBytes)} width={Math.max(4, (sourceBytes / maxBarBytes) * 100)} color="bg-cyan-400" />
           <AllocationBar label={t("memory.auxiliaryMemory")} value={rawBytes(auxiliaryBytes)} width={Math.max(4, (auxiliaryBytes / maxBarBytes) * 100)} color="bg-amber-400" />
         </div>
-        <dl className="mt-6 grid gap-5 sm:grid-cols-3">
+        <dl className="mt-5 grid gap-4 sm:grid-cols-3">
           <MemoryNumber label={t("memory.inputMemory")} value={rawBytes(sourceBytes)} />
           <MemoryNumber label={t("memory.auxiliaryMemory")} value={rawBytes(auxiliaryBytes)} />
           <MemoryNumber label={t("memory.totalMemory")} value={rawBytes(totalBytes)} />
@@ -427,10 +423,10 @@ export function MemoryModelExplorer({ n, onNChange }: { readonly n: number; read
   };
 
   return (
-    <section className="my-14 border-y border-amber-400/25 py-10" aria-labelledby="memory-model-title">
+    <section className="my-10 border-y border-amber-400/25 py-7" aria-labelledby="memory-model-title">
       <h3 id="memory-model-title" className="text-xl font-semibold text-zinc-100">{t("memory.explorerTitle")}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{t("memory.explorerDescription")}</p>
-      <ol className="mt-7 divide-y divide-zinc-800 border-y border-zinc-800">
+      <ol className="mt-5 divide-y divide-zinc-800 border-y border-zinc-800">
         {([
           [t("memory.stepItemsLabel"), t("memory.stepItemsValue")],
           [t("memory.stepBytesLabel"), t("memory.stepBytesValue")],
@@ -444,19 +440,19 @@ export function MemoryModelExplorer({ n, onNChange }: { readonly n: number; read
         ))}
       </ol>
       <div className="mt-5"><MemoryFormula label={t("memory.formulaLabel")} /></div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Label className="sm:col-span-2"><span className="mb-2 block text-sm text-zinc-300">{t("memory.strategy")}</span><Select value={strategy} onChange={(event) => selectStrategy(event.target.value as MemoryStrategy)}><option value="pair">{t("memory.pairModel")}</option><option value="sort">{t("memory.sortModel")}</option><option value="hash">{t("memory.hashModel")}</option></Select></Label>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <Label><span className="mb-2 block text-sm text-zinc-300">{t("memory.strategy")}</span><Select value={strategy} onChange={(event) => selectStrategy(event.target.value as MemoryStrategy)}><option value="pair">{t("memory.pairModel")}</option><option value="sort">{t("memory.sortModel")}</option><option value="hash">{t("memory.hashModel")}</option></Select></Label>
         <Label><span className="mb-2 block text-sm text-zinc-300">{t("budget.n")}</span><Input type="number" min="1" max="1000000000" value={n} onChange={(event) => { const value = Number(event.target.value); if (isValidInputSize(value)) onNChange(value); }} /></Label>
         <Label><span className="mb-2 block text-sm text-zinc-300">{t("budget.limit")}</span><Input type="number" min="1" max="1000000000" step="any" value={limitMiB} onChange={(event) => setLimitMiB(event.target.value)} /></Label>
         {strategy === "pair" ? (
-          <div className="border-l-2 border-amber-400/40 pl-4 sm:col-span-2"><span className="block text-xs uppercase tracking-wide text-zinc-500">{t("memory.fixedBytes")}</span><strong className="mt-1 block font-mono text-zinc-100">12 B</strong></div>
+          <div className="border-l-2 border-amber-400/40 pl-3"><span className="block text-xs uppercase tracking-wide text-zinc-500">{t("memory.fixedBytes")}</span><strong className="mt-1 block font-mono text-zinc-100">12 B</strong></div>
         ) : (
-          <Label className="sm:col-span-2"><span className="mb-2 block text-sm text-zinc-300">{t("budget.bytesPerItem")}</span><Input type="number" min="1" max="1000000000" step="any" value={bytesPerItem} onChange={(event) => setBytesPerItem(event.target.value)} /></Label>
+          <Label><span className="mb-2 block text-sm text-zinc-300">{t("budget.bytesPerItem")}</span><Input type="number" min="1" max="1000000000" step="any" value={bytesPerItem} onChange={(event) => setBytesPerItem(event.target.value)} /></Label>
         )}
       </div>
       <p className="mt-4 border-l border-amber-400/50 pl-3 text-sm leading-6 text-amber-100/80">{t(`memory.${strategy}Explanation`)}</p>
       {memory ? (
-        <div className="mt-6" aria-live="polite">
+        <div className="mt-5" aria-live="polite">
           <dl className="grid gap-5 sm:grid-cols-3">
             <MemoryNumber label={t("memory.inputMemory")} value={formatBytes(memory.inputBytes, locale)} />
             <MemoryNumber label={t("memory.auxiliaryMemory")} value={formatBytes(memory.auxiliaryBytes, locale)} />
@@ -471,7 +467,7 @@ export function MemoryModelExplorer({ n, onNChange }: { readonly n: number; read
 }
 
 function MemoryNumber({ label, value }: { readonly label: string; readonly value: string }): React.JSX.Element {
-  return <div className="border-l-2 border-zinc-800 pl-4"><dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt><dd className="mt-2 font-mono text-sm text-zinc-100">{value}</dd></div>;
+  return <div className="border-l-2 border-zinc-800 pl-3"><dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt><dd className="mt-1 font-mono text-sm text-zinc-100">{value}</dd></div>;
 }
 
 export function RuntimeMemoryEstimators({ n, onNChange }: { readonly n: number; readonly onNChange: (n: number) => void }): React.JSX.Element {

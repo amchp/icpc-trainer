@@ -182,7 +182,7 @@ export function BinarySearchPage(): React.JSX.Element {
               application={<><p>{t("closest.toolText")}</p><ClosestValueLab /></>}
             >
               <p>{t("closest.toolText")}</p>
-              <BinarySearchToolTrace orientation="true-false" example="closest" allowOrientationSwitch />
+              <BinarySearchToolTrace orientation="true-false" example="closest" />
             </ProblemFirstChallenge>
           </GuideSection>
 

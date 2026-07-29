@@ -63,7 +63,6 @@ describe("complexity guide interactions", () => {
   it("changes estimated time with c while preserving the Big O label", () => {
     render(<RuntimeEstimator n={10_000} onNChange={() => undefined} />);
     expect(screen.getByText("200 ms")).toBeInTheDocument();
-    expect(screen.getByText("500,000,000 operations/second")).toBeInTheDocument();
     expect(screen.getByText("500,000,000 operations ≈ 1 second")).toBeInTheDocument();
     expect(screen.getByText(/50,000,000 operations ≈ 0.1 second/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Operations per second")).not.toBeInTheDocument();

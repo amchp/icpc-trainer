@@ -13,8 +13,7 @@ export const bruteForce = {
     inputs: "Trace inputs", stepCount: "Step {{current}} of {{total}}", previous: "Previous trace step", next: "Next trace step", reset: "Reset trace", play: "Play", pause: "Pause",
     reducedMotion: "Automatic playback is unavailable because reduced motion is enabled. Manual stepping remains available.",
     variables: "Variables", name: "Name", type: "Type", value: "Value",
-    grid: { cell: "Row {{row}}, column {{column}}: {{value}}, {{state}}", empty: "empty", states: { default: "unassigned", fixed: "fixed", active: "active", accepted: "accepted", rejected: "rejected" } },
-    tree: { depth: "Depth {{depth}}" }
+    grid: { cell: "Row {{row}}, column {{column}}: {{value}}, {{state}}", empty: "empty", states: { default: "unassigned", fixed: "fixed", active: "active", accepted: "accepted", rejected: "rejected" } }
   },
   code: { copyLabel: "Copy code", copied: "Copied", copy: "Copy", announcement: "Code copied" },
   sections: {
@@ -37,7 +36,6 @@ export const bruteForce = {
   },
   simulationDemo: {
     label: "A program executing a process",
-    description: "This traffic light is deliberately unrelated to Alice. It shows the general tool: store the current state, apply exactly one rule, then observe the result.",
     lightLabel: "Simulated traffic light",
     states: { red: "red", green: "green", yellow: "yellow" },
     current: "current state",
@@ -79,7 +77,6 @@ export const bruteForce = {
     why: "This works because the program recreates every position Alice visits, in the same order, so it cannot miss the target. Twenty-one full passes are enough under these bounds: a pass changes an axis by at most 10; after 20 passes, a nonzero net displacement cannot leave the target range and return through a prefix of at most 10 moves. If the net displacement is zero, the first pass already contains every reachable position.",
     simulator: {
       label: "Try a movement pattern",
-      description: "Build Alice’s repeated move string, choose the target, and watch the program replay every visited coordinate on the board.",
       moves: "Movement pattern (maximum 10)",
       addMove: "Add {{direction}} to the movement pattern",
       undo: "Remove last",
@@ -122,10 +119,8 @@ export const bruteForce = {
     application: "Treat the five labeled plates as the items to order. Generate one complete ordering, then evaluate the five pairwise restrictions against that ordering. The generator is responsible only for visiting orders; the problem-specific check remains a separate step.",
     explorer: {
       label: "All 120 plate orders",
-      description: "Choose the two plates and their relation on each input line. The explorer generates every order and colors only those that satisfy every restriction.",
       input: "Five restrictions",
       run: "Check every ordering",
-      format: "Each row means the left plate must appear before or after the right plate.",
       leftPlate: "Left plate in restriction {{number}}",
       relation: "Relation in restriction {{number}}",
       rightPlate: "Right plate in restriction {{number}}",
@@ -161,7 +156,6 @@ export const bruteForce = {
     application: "Create the multiset containing a copies of 1 and b copies of 2. Map decision 0 to a minus sign and decision 1 to a plus sign. Once every value has a decision, calculate the sum and check whether it is zero.",
     explorer: {
       label: "Explore every sign assignment",
-      description: "Enter the same a and b received by the problem. The explorer evaluates every leaf and groups the results by final sum.",
       ones: "Number of ones (a)",
       twos: "Number of twos (b)",
       run: "Explore all decisions",
@@ -198,7 +192,6 @@ export const bruteForce = {
     focus: "This is an actual backtracking run: it cycles through digits 1 to 9, rejects immediate conflicts, keeps valid digits tentatively, and visibly removes them when a deeper branch fails.",
     simulator: {
       label: "Complete backtracking simulation",
-      description: "Follow the full recorded search, including rejected digits, tentative placements, and branches that return to an earlier cell.",
       searchRule: "The search always takes the first empty cell in reading order: left to right across each row, then from the top row to the bottom. For that cell, it tests digits from 1 to 9.",
       play: "Simulate the complete search",
       pause: "Pause simulation",
