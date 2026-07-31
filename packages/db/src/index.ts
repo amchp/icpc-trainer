@@ -1,7 +1,8 @@
 import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { count } from "drizzle-orm";
+import { readMigrationFiles } from "drizzle-orm/migrator";
+import { count, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Scope } from "effect";
 import { dirname, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
@@ -51,8 +52,8 @@ export interface DatabaseConfig {
 export interface DatabaseService {
   readonly url: string;
   readonly db: DatabaseClient;
-  readonly migrate: Effect.Effect<void>;
-  readonly healthCheck: Effect.Effect<"ok">;
+  readonly migrate: Effect.Effect<void, Error>;
+  readonly healthCheck: Effect.Effect<"ok", Error>;
   readonly close: Effect.Effect<void>;
 }
 
@@ -106,9 +107,52 @@ const ensureDatabaseDirectory = (url: string): void => {
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsFolder = resolve(packageRoot, "drizzle");
+const requiredMigrations = readMigrationFiles({ migrationsFolder });
+const latestRequiredMigration = requiredMigrations.at(-1);
 
-export const migrateDatabase = (db: DatabaseClient): Effect.Effect<void> =>
-  Effect.promise(() => migrate(db, { migrationsFolder }));
+if (latestRequiredMigration === undefined) {
+  throw new Error("No database migrations are bundled with this release.");
+}
+
+const latestRequiredMigrationTimestamp = latestRequiredMigration.folderMillis;
+
+export const migrateDatabase = (db: DatabaseClient): Effect.Effect<void, Error> =>
+  Effect.tryPromise({
+    try: () => migrate(db, { migrationsFolder }),
+    catch: (cause) => cause instanceof Error ? cause : new Error(String(cause))
+  });
+
+const assertMigrationJournalCurrent = async (db: DatabaseClient): Promise<void> => {
+  let appliedMigrationTimestamp: number | undefined;
+  try {
+    const rows = await db.values<[unknown]>(sql`
+      select max(created_at) from __drizzle_migrations
+    `);
+    const rawTimestamp = rows[0]?.[0];
+    if (typeof rawTimestamp === "number" || typeof rawTimestamp === "string") {
+      const parsedTimestamp = Number(rawTimestamp);
+      if (Number.isFinite(parsedTimestamp)) {
+        appliedMigrationTimestamp = parsedTimestamp;
+      }
+    }
+  } catch (cause) {
+    throw new Error(
+      `Database migration journal is missing or unreadable. Expected migration timestamp ${latestRequiredMigrationTimestamp}.`,
+      { cause }
+    );
+  }
+
+  if (
+    appliedMigrationTimestamp === undefined ||
+    appliedMigrationTimestamp < latestRequiredMigrationTimestamp
+  ) {
+    throw new Error(
+      "Database migration journal is behind this release. " +
+      `Expected migration timestamp ${latestRequiredMigrationTimestamp}; ` +
+      `applied ${appliedMigrationTimestamp ?? "none"}.`
+    );
+  }
+};
 
 const instrumentClient = (client: Client, onQuery: () => void): Client =>
   new Proxy(client, {
@@ -147,12 +191,16 @@ export const makeDatabaseService = (
         url: config.url,
         db,
         migrate: migrateDatabase(db),
-        healthCheck: Effect.promise(async () => {
-          const [result] = await db.select({ value: count() }).from(healthChecks).all();
-          if (result?.value === undefined) {
-            throw new Error("Health table query returned no result");
-          }
-          return "ok" as const;
+        healthCheck: Effect.tryPromise({
+          try: async () => {
+            await assertMigrationJournalCurrent(db);
+            const [result] = await db.select({ value: count() }).from(healthChecks).all();
+            if (result?.value === undefined) {
+              throw new Error("Health table query returned no result");
+            }
+            return "ok" as const;
+          },
+          catch: (cause) => cause instanceof Error ? cause : new Error(String(cause))
         }),
         close: Effect.sync(() => client.close())
       };

@@ -1,5 +1,6 @@
 import { appRouter } from "@icpc-trainer/api";
 import { DatabaseLive, DatabaseServiceTag, providerCredentials } from "@icpc-trainer/db";
+import { sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { Buffer } from "node:buffer";
 import process from "node:process";
@@ -248,6 +249,76 @@ describe("internal task endpoints", () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ ok: false, error: "TASK_TOKEN is not configured." });
+  });
+});
+
+describe("database readiness", () => {
+  it("refuses remote-style startup when the migration journal is behind", async () => {
+    const config = {
+      ...testServerConfig(),
+      database: {
+        ...testServerConfig().database,
+        autoMigrate: false
+      }
+    };
+
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      yield* Effect.promise(() => database.db.run(sql`
+        delete from __drizzle_migrations
+        where created_at = (select max(created_at) from __drizzle_migrations)
+      `));
+      return yield* startServer(config);
+    });
+
+    await expect(Effect.runPromise(program.pipe(
+      Effect.provide(DatabaseLive({ url: ":memory:" })),
+      Effect.scoped
+    ))).rejects.toThrow("Remote database is not migrated or is unavailable");
+  });
+
+  it("starts in remote mode after migrations and serves a healthy readiness response", async () => {
+    const config = {
+      ...testServerConfig(),
+      database: {
+        ...testServerConfig().database,
+        autoMigrate: false
+      }
+    };
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const started = yield* startServer(config);
+      return yield* Effect.promise(() => fetch(`${started.url}/health`));
+    });
+
+    const response = await Effect.runPromise(program.pipe(
+      Effect.provide(DatabaseLive({ url: ":memory:" })),
+      Effect.scoped
+    ));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ ok: true, database: "ok" });
+  });
+
+  it("returns a non-200 readiness response if the migration journal becomes stale", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      const started = yield* startServer(testServerConfig());
+      yield* Effect.promise(() => database.db.run(sql`
+        delete from __drizzle_migrations
+        where created_at = (select max(created_at) from __drizzle_migrations)
+      `));
+      return yield* Effect.promise(() => fetch(`${started.url}/health`));
+    });
+
+    const response = await Effect.runPromise(program.pipe(
+      Effect.provide(DatabaseLive({ url: ":memory:" })),
+      Effect.scoped
+    ));
+
+    expect(response.status).not.toBe(200);
   });
 });
 

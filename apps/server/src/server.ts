@@ -85,7 +85,8 @@ export const startServer = (
       yield* database.healthCheck.pipe(
         Effect.mapError((cause) =>
           new Error(
-            "Remote database is not migrated or is unavailable. Run pnpm --filter @icpc-trainer/db db:migrate.",
+            "Remote database is not migrated or is unavailable. " +
+            "Run pnpm --filter @icpc-trainer/server db:migrate:prod.",
             { cause }
           )
         )

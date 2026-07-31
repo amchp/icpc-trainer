@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Effect, Layer } from "effect";
 import { JUDGES, SUBMISSION_STATUSES } from "@icpc-trainer/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import process from "node:process";
 
 import { DatabaseLive, DatabaseServiceTag, schema } from "../src/index.js";
@@ -16,6 +16,78 @@ describe("DatabaseLive", () => {
     });
 
     await expect(Effect.runPromise(program.pipe(Effect.provide(layer)))).resolves.toBe(":memory:");
+  });
+
+  it("requires the migration journal to be current and keeps migration idempotent", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const before = yield* Effect.promise(() =>
+        database.db.values<[number]>(sql`select count(*) from __drizzle_migrations`)
+      );
+      yield* database.migrate;
+      const health = yield* database.healthCheck;
+      const after = yield* Effect.promise(() =>
+        database.db.values<[number]>(sql`select count(*) from __drizzle_migrations`)
+      );
+      return {
+        health,
+        before: before[0]?.[0] ?? 0,
+        after: after[0]?.[0] ?? 0
+      };
+    });
+
+    const result = await Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
+    );
+    expect(result.health).toBe("ok");
+    expect(result.before).toBeGreaterThan(0);
+    expect(result.after).toBe(result.before);
+  });
+
+  it("rejects a database whose migration journal is behind the release", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      yield* Effect.promise(() => database.db.run(sql`
+        delete from __drizzle_migrations
+        where created_at = (select max(created_at) from __drizzle_migrations)
+      `));
+      return yield* database.healthCheck;
+    });
+
+    await expect(Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
+    )).rejects.toThrow(/migration journal is behind.*expected.*applied/i);
+  });
+
+  it("rejects a database with a missing migration journal", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      yield* Effect.promise(() => database.db.run(sql`drop table __drizzle_migrations`));
+      return yield* database.healthCheck;
+    });
+
+    await expect(Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
+    )).rejects.toThrow(/migration journal is missing or unreadable.*expected/i);
+  });
+
+  it("accepts a database whose migration journal is ahead of the release", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      yield* Effect.promise(() => database.db.run(sql`
+        insert into __drizzle_migrations (hash, created_at)
+        select 'synthetic-ahead', max(created_at) + 1 from __drizzle_migrations
+      `));
+      return yield* database.healthCheck;
+    });
+
+    await expect(Effect.runPromise(
+      program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" })))
+    )).resolves.toBe("ok");
   });
 
   it("stores judge submission time and enforces external judge uniqueness", async () => {
