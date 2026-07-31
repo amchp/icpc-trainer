@@ -58,6 +58,20 @@ For a Railway scheduled task service, use `pnpm catalog:sync:task`. Set `ICPC_TR
 
 On Railway, the API service reads Railway's `PORT` automatically and binds to `0.0.0.0`. Do not set `ICPC_TRAINER_HOST` or `ICPC_TRAINER_PORT` on Railway unless you intentionally want to override that behavior.
 
+### Railway database migrations
+
+Remote Turso migrations run as an API-service pre-deploy command before Railway activates a new release. Set the API service's custom config path to `/apps/server/railway.json`. Do not use that config for the web or scheduled-task services.
+
+The versioned pre-deploy command is:
+
+```bash
+pnpm --filter @icpc-trainer/server db:migrate:prod
+```
+
+The command applies every bundled Drizzle migration and then verifies the migration journal. Server startup and `GET /health` also reject a remote database whose latest applied migration is older than the release, preventing a schema-behind deployment from serving traffic. A database ahead of the application remains accepted so an additive release can be rolled back safely.
+
+If an emergency manual migration is required, run the same command from a built checkout with the production `ICPC_TRAINER_DATABASE_URL` and `ICPC_TRAINER_DATABASE_AUTH_TOKEN` configured. The production command rejects missing credentials and local database URLs so it cannot silently migrate an ephemeral fallback database. Keep migrations backward-compatible with the immediately preceding application release. Never remove migration `0003_milky_gabe_jones` or drop `class_members` during an application rollback.
+
 ## Environment
 
 ```bash
@@ -85,7 +99,7 @@ E2E_CODEFORCES_HANDLE=drew138
 # E2E_CODEFORCES_API_SECRET=
 ```
 
-`ICPC_TRAINER_DATABASE_URL` accepts local libSQL URLs such as `file:.local/icpc-trainer.sqlite` and `:memory:`, or remote Turso/libSQL URLs such as `libsql://...`. Local `file:` and `:memory:` databases auto-migrate on server startup. Remote Turso databases do not auto-migrate.
+`ICPC_TRAINER_DATABASE_URL` accepts local libSQL URLs such as `file:.local/icpc-trainer.sqlite` and `:memory:`, or remote Turso/libSQL URLs such as `libsql://...`. Local `file:` and `:memory:` databases auto-migrate on server startup. Remote Turso databases migrate through the Railway API service's pre-deploy command; direct server startup verifies readiness but does not alter a remote schema.
 
 `ICPC_TRAINER_CREDENTIAL_KEY` is required for credential encryption and must come from `.env`; generate it with `openssl rand -base64 32`. `TASK_TOKEN` protects internal task endpoints and should be a separate high-entropy secret.
 
@@ -96,7 +110,8 @@ export ICPC_TRAINER_DATABASE_URL=libsql://your-database.turso.io
 export ICPC_TRAINER_DATABASE_AUTH_TOKEN=...
 export ICPC_TRAINER_CREDENTIAL_KEY=...
 export TASK_TOKEN=...
-pnpm --filter @icpc-trainer/db db:migrate
+pnpm --filter @icpc-trainer/server... build
+pnpm --filter @icpc-trainer/server db:migrate:prod
 pnpm --filter @icpc-trainer/server dev
 ```
 

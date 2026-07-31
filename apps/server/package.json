@@ -9,6 +9,7 @@
     "dev": "tsx watch --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local src/main.ts",
     "build": "tsc -b tsconfig.json",
     "start": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/src/main.js",
+    "db:migrate:prod": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/src/migrate.js",
     "catalog:sync": "tsx --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local src/catalogSync.ts",
     "catalog:sync:task": "tsx --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local src/catalogSyncTask.ts",
     "catalog:sync:prod": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/src/catalogSync.js",
