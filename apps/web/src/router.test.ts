@@ -45,4 +45,9 @@ describe("router", () => {
     await router.navigate({ to: "/resources/data-structures" });
     expect(router.state.location.pathname).toBe("/resources/data-structures");
   });
+
+  it("recognizes the stable Graph Theory guide URL", async () => {
+    await router.navigate({ to: "/resources/graph-theory" });
+    expect(router.state.location.pathname).toBe("/resources/graph-theory");
+  });
 });

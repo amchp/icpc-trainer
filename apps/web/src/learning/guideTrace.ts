@@ -27,6 +27,20 @@ export type GuideTraceVariable = {
   readonly typeLabel?: string;
 };
 
+export type GuideTraceGridTone = "wall" | "unvisited" | "visited" | "active" | "frontier" | "path";
+
+export type GuideTraceGridCell = {
+  readonly text: string;
+  readonly tone: GuideTraceGridTone;
+  /** Short badge under the glyph, e.g. a BFS distance. */
+  readonly note?: string;
+};
+
+export type GuideTraceGraphNodeTone =
+  | "idle" | "active" | "queued" | "settled" | "colorA" | "colorB" | "conflict";
+
+export type GuideTraceGraphEdgeTone = "idle" | "active" | "tree" | "rejected";
+
 export type GuideTraceVisual =
   | { readonly kind: "output"; readonly label: string; readonly lines: readonly string[] }
   | { readonly kind: "branch"; readonly label: string; readonly condition: string; readonly outcome: string }
@@ -58,6 +72,36 @@ export type GuideTraceVisual =
         readonly value: GuideTracePrimitive;
       }[];
       readonly activeIndex?: number;
+    }
+  | {
+      readonly kind: "grid";
+      readonly label: string;
+      readonly rows: readonly (readonly GuideTraceGridCell[])[];
+      readonly cursor?: { readonly row: number; readonly column: number };
+      /** Row/column headers are always rendered; this labels what `note` means. */
+      readonly noteLabel?: string;
+    }
+  | {
+      readonly kind: "graph";
+      readonly label: string;
+      readonly directed: boolean;
+      readonly nodes: readonly {
+        readonly id: string;
+        readonly label: string;
+        /** Layout coordinates in a 0–100 square viewBox. */
+        readonly x: number;
+        readonly y: number;
+        readonly tone: GuideTraceGraphNodeTone;
+        readonly badge?: string;
+        /** Places a compact node annotation where it will not collide with incident edges. */
+        readonly badgePlacement?: "above" | "below";
+      }[];
+      readonly edges: readonly {
+        readonly from: string;
+        readonly to: string;
+        readonly weight?: number;
+        readonly tone: GuideTraceGraphEdgeTone;
+      }[];
     };
 
 export type GuideTraceFrame = {
@@ -126,6 +170,49 @@ export function runGuideTrace<S extends GuideTraceInputSchema>(
       return { valid: false, reason: `${prefix} has blank narration.` };
     }
     for (const visual of frame.visuals ?? []) {
+      if (visual.kind === "grid") {
+        const columns = visual.rows[0]?.length ?? 0;
+        if (visual.rows.length === 0 || columns === 0 || visual.rows.some((row) => row.length !== columns)) {
+          return { valid: false, reason: `${prefix} has a ragged grid.` };
+        }
+        if (visual.rows.some((row) => row.some((cell) => cell.text.trim() === ""))) {
+          return { valid: false, reason: `${prefix} has a grid cell with blank text.` };
+        }
+        const cursor = visual.cursor;
+        if (cursor !== undefined && (
+          !Number.isInteger(cursor.row)
+          || !Number.isInteger(cursor.column)
+          || cursor.row < 0
+          || cursor.row >= visual.rows.length
+          || cursor.column < 0
+          || cursor.column >= columns
+        )) {
+          return { valid: false, reason: `${prefix} has an out-of-range grid cursor (${cursor.row}, ${cursor.column}).` };
+        }
+        continue;
+      }
+      if (visual.kind === "graph") {
+        if (visual.nodes.length === 0) return { valid: false, reason: `${prefix} has no graph nodes.` };
+        const nodeIds = new Set<string>();
+        for (const node of visual.nodes) {
+          if (nodeIds.has(node.id)) {
+            return { valid: false, reason: `${prefix} has duplicate graph node id "${node.id}".` };
+          }
+          nodeIds.add(node.id);
+          if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || node.x < 0 || node.x > 100 || node.y < 0 || node.y > 100) {
+            return { valid: false, reason: `${prefix} has graph node "${node.id}" outside the 0–100 viewBox.` };
+          }
+        }
+        for (const edge of visual.edges) {
+          if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
+            return { valid: false, reason: `${prefix} has a graph edge referencing unknown node "${edge.from}" → "${edge.to}".` };
+          }
+          if (edge.weight !== undefined && !Number.isFinite(edge.weight)) {
+            return { valid: false, reason: `${prefix} has a graph edge with a non-finite weight.` };
+          }
+        }
+        continue;
+      }
       if (visual.kind !== "vector" && visual.kind !== "callStack" && visual.kind !== "collection" && visual.kind !== "entries") continue;
       const length = visual.kind === "vector" || visual.kind === "collection"
         ? visual.values.length
@@ -211,6 +298,16 @@ function cloneFrame(frame: GuideTraceFrame): GuideTraceFrame {
               case "entries": return {
                 ...visual,
                 entries: visual.entries.map((entry) => ({ ...entry }))
+              };
+              case "grid": return {
+                ...visual,
+                rows: visual.rows.map((row) => row.map((cell) => ({ ...cell }))),
+                ...(visual.cursor === undefined ? {} : { cursor: { ...visual.cursor } })
+              };
+              case "graph": return {
+                ...visual,
+                nodes: visual.nodes.map((node) => ({ ...node })),
+                edges: visual.edges.map((edge) => ({ ...edge }))
               };
             }
           })

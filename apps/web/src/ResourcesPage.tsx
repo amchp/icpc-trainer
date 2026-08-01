@@ -2,7 +2,7 @@ import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES, type LearningProgressSt
 import { useTranslation } from "react-i18next";
 
 import { appPaths } from "./appNavigation.js";
-import { RoadmapConnector, RoadmapFork, RoadmapNode } from "./ResourcesRoadmapNode.js";
+import { RoadmapBranchFan, RoadmapConnector, RoadmapNode } from "./ResourcesRoadmapNode.js";
 import { useLearningProgress } from "./useLearningProgress.js";
 
 export function ResourcesPage(): React.JSX.Element {
@@ -16,7 +16,8 @@ export function ResourcesPage(): React.JSX.Element {
   const dataStructures = guideStatus(LEARNING_GUIDE_IDS.DataStructures);
   const bruteForce = guideStatus(LEARNING_GUIDE_IDS.BruteForce);
   const binarySearch = guideStatus(LEARNING_GUIDE_IDS.BinarySearch);
-  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce, binarySearch];
+  const graphTheory = guideStatus(LEARNING_GUIDE_IDS.GraphTheory);
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce, binarySearch, graphTheory];
   const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     progressQuery.isLoading
@@ -28,15 +29,20 @@ export function ResourcesPage(): React.JSX.Element {
           : t("status.available");
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+    <main className="mx-auto w-full max-w-4xl px-5 py-7 sm:px-8 sm:py-9">
       <header className="max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-blue-300">{t("eyebrow")}</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-zinc-100 sm:text-4xl">{t("title")}</h1>
-        <p className="mt-4 max-w-2xl leading-7 text-zinc-400">{t("subtitle")}</p>
+        {/* The count rides with the eyebrow so the roadmap itself does not need a header bar. */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-blue-300">{t("eyebrow")}</p>
+          <span aria-hidden="true" className="text-zinc-700">·</span>
+          <p className="font-mono text-[10px] text-zinc-500">{t("completedCount", { completed: completedCount, total: guides.length })}</p>
+        </div>
+        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-zinc-100 sm:text-3xl">{t("title")}</h1>
+        <p className="mt-2 max-w-2xl text-[15px] leading-6 text-zinc-400">{t("subtitle")}</p>
       </header>
 
       {progressQuery.isError ? (
-        <div className="mt-6 flex flex-wrap items-center gap-4 border-y border-red-500/30 py-3 text-sm text-red-200">
+        <div className="mt-5 flex flex-wrap items-center gap-4 border-y border-red-500/30 py-3 text-sm text-red-200">
           <span>{t("progressError")}</span>
           <button type="button" className="font-medium text-white underline underline-offset-4" onClick={() => void progressQuery.refetch()}>
             {t("retry")}
@@ -44,14 +50,12 @@ export function ResourcesPage(): React.JSX.Element {
         </div>
       ) : null}
 
-      <section className="relative mt-10 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-5 py-6 sm:px-7 sm:py-7" aria-label={t("sequenceLabel")}>
+      <section className="relative mt-6 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-4 py-5 sm:px-6" aria-label={t("sequenceLabel")}>
         <div className="pointer-events-none absolute inset-0 opacity-[0.1] [background-image:linear-gradient(to_right,#71717a_1px,transparent_1px),linear-gradient(to_bottom,#71717a_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_70%_90%_at_50%_50%,black_30%,transparent_100%)]" />
-        <div className="relative flex items-baseline justify-end border-b border-zinc-800/80 pb-3">
-          <p className="font-mono text-[10px] text-zinc-600">{t("completedCount", { completed: completedCount, total: guides.length })}</p>
-        </div>
 
-        <div className="relative mt-6 grid gap-4 xl:grid-cols-[minmax(0,3.1fr)_minmax(0,1.15fr)] xl:items-center xl:gap-5">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)_2rem_minmax(0,1fr)] xl:items-stretch xl:gap-2">
+        <div className="relative grid gap-3">
+          {/* The ordered spine reads top to bottom, then fans out into the parallel branches. */}
+          <div className="mx-auto flex w-full max-w-[19rem] flex-col">
             <RoadmapNode
               to={appPaths.introduction}
               step="01"
@@ -83,24 +87,35 @@ export function ResourcesPage(): React.JSX.Element {
           <div className="xl:hidden">
             <RoadmapConnector />
           </div>
+          <RoadmapBranchFan />
 
-          <div className="mx-auto grid w-full max-w-[21rem] gap-y-4 xl:max-w-none xl:grid-cols-[4rem_minmax(0,1fr)] xl:grid-rows-3 xl:gap-x-0">
-            <RoadmapFork />
-            <RoadmapNode
-              to={appPaths.dataStructures}
-              step="04"
-              accent="rose"
-              title={t("dataStructures")}
-              className="xl:col-start-2 xl:row-start-1"
-              status={statusLabel(dataStructures)}
-              completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
-            />
+          {/* `items-start` keeps every card its natural height: without it the single-guide
+              branches stretch to match the taller Data Structures → Graph Theory column. */}
+          <div className="mx-auto grid w-full max-w-[17rem] items-start gap-3 sm:max-w-none sm:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-col">
+              <RoadmapNode
+                to={appPaths.dataStructures}
+                step="04"
+                accent="rose"
+                title={t("dataStructures")}
+                status={statusLabel(dataStructures)}
+                completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
+              />
+              <RoadmapConnector />
+              <RoadmapNode
+                to={appPaths.graphTheory}
+                step="05"
+                accent="emerald"
+                title={t("graphTheory")}
+                status={statusLabel(graphTheory)}
+                completed={graphTheory === LEARNING_PROGRESS_STATUSES.Completed}
+              />
+            </div>
             <RoadmapNode
               to={appPaths.bruteForce}
               step="04"
               accent="orange"
               title={t("bruteForce")}
-              className="xl:col-start-2 xl:row-start-2"
               status={statusLabel(bruteForce)}
               completed={bruteForce === LEARNING_PROGRESS_STATUSES.Completed}
             />
@@ -109,7 +124,6 @@ export function ResourcesPage(): React.JSX.Element {
               step="04"
               accent="amber"
               title={t("binarySearch")}
-              className="xl:col-start-2 xl:row-start-3"
               status={statusLabel(binarySearch)}
               completed={binarySearch === LEARNING_PROGRESS_STATUSES.Completed}
             />

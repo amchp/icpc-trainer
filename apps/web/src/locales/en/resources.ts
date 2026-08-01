@@ -13,5 +13,6 @@ export const resources = {
   dataStructures: "Data Structures",
   bruteForce: "Brute Force",
   binarySearch: "Binary Search",
+  graphTheory: "Graph Theory",
   status: { completed: "Completed", inProgress: "In progress", available: "Available", loading: "Loading" }
 } as const;
