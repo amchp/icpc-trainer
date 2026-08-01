@@ -4,7 +4,7 @@ import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { cn } from "./lib.js";
 
 /**
- * Cool hues carry the ordered spine (01 → 03); warm/cool accents distinguish the three
+ * Cool hues carry the ordered spine (01 → 03); warm/cool accents distinguish the four
  * step-04 branches, while Graph Theory continues from Data Structures as step 05.
  */
 const ROADMAP_ACCENTS = {
@@ -88,21 +88,21 @@ export function RoadmapConnector(): React.JSX.Element {
 
 /**
  * Horizontal reach of each branch's rail: from its own column centre out across the grid gap,
- * so the three segments join into one continuous line. Negative insets bridge the `gap-3`
- * between columns, which keeps every drop on its column's true centre instead of the
- * approximate thirds that percentage positioning would give.
+ * so the four segments join into one continuous line. Negative insets bridge the `gap-3`
+ * between columns, keeping every drop on its column's true centre instead of approximate
+ * quarter positions.
  */
-const BRANCH_RAILS = ["left-1/2 -right-1.5", "-left-1.5 -right-1.5", "-left-1.5 right-1/2"] as const;
+const BRANCH_RAILS = ["left-1/2 -right-1.5", "-left-1.5 -right-1.5", "-left-1.5 -right-1.5", "-left-1.5 right-1/2"] as const;
 
 /**
- * Fans the stacked spine out to the three step-04 guides. At xl the branch is a three-column
- * row, so the fan mirrors that grid exactly: a drop from the spine, a rail across, and three
+ * Fans the stacked spine out to the four step-04 guides. At xl the branch is a four-column
+ * row, so the fan mirrors that grid exactly: a drop from the spine, a rail across, and four
  * drops landing on the column centres. Below xl the branch stacks and a plain connector is used.
  */
 export function RoadmapBranchFan(): React.JSX.Element {
   return (
     <div className="hidden h-9 text-zinc-600 xl:block" aria-hidden="true">
-      <div className="relative grid h-full grid-cols-3 gap-3">
+      <div className="relative grid h-full grid-cols-4 gap-3">
         <span className="absolute left-1/2 top-0 h-4 border-l border-dashed border-zinc-700" />
         {BRANCH_RAILS.map((rail, index) => (
           <div key={index} className="relative">

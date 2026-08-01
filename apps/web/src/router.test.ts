@@ -50,4 +50,9 @@ describe("router", () => {
     await router.navigate({ to: "/resources/graph-theory" });
     expect(router.state.location.pathname).toBe("/resources/graph-theory");
   });
+
+  it("recognizes the stable Greedy Algorithms guide URL", async () => {
+    await router.navigate({ to: "/resources/greedy" });
+    expect(router.state.location.pathname).toBe("/resources/greedy");
+  });
 });

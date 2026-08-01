@@ -7,8 +7,10 @@ import { BinarySearchPage } from "../src/BinarySearchPage.js";
 import { BruteForcePage } from "../src/BruteForcePage.js";
 import { DataStructuresPage } from "../src/DataStructuresPage.js";
 import { GraphTheoryPage } from "../src/GraphTheoryPage.js";
+import { GreedyPage } from "../src/GreedyPage.js";
 import { ResourcesPage } from "../src/ResourcesPage.js";
 import { TimeComplexityPage } from "../src/TimeComplexityPage.js";
+import "../src/i18n/registerGreedyResources.js";
 
 /** ?page=<key> picks which guide to render; the roadmap is the default. */
 const pages = {
@@ -17,6 +19,7 @@ const pages = {
   dataStructures: DataStructuresPage,
   bruteForce: BruteForcePage,
   binarySearch: BinarySearchPage,
+  greedy: GreedyPage,
   graphTheory: GraphTheoryPage
 } as const;
 
