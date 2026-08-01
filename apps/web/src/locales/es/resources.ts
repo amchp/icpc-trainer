@@ -14,5 +14,7 @@ export const resources = {
   bruteForce: "Fuerza bruta",
   binarySearch: "Búsqueda binaria",
   graphTheory: "Teoría de grafos",
+  greedy: "Algoritmos voraces",
+  greedyDescription: "Justifica una regla de elección local y descarta las que solo parecen seguras.",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
 } as const;

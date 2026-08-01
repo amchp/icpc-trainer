@@ -14,5 +14,7 @@ export const resources = {
   bruteForce: "Brute Force",
   binarySearch: "Binary Search",
   graphTheory: "Graph Theory",
+  greedy: "Greedy",
+  greedyDescription: "Justify a local choice rule, then break the ones that only look safe.",
   status: { completed: "Completed", inProgress: "In progress", available: "Available", loading: "Loading" }
 } as const;

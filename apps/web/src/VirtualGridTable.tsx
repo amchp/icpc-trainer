@@ -31,18 +31,19 @@ export function VirtualGridTable<TRow>({
   const { t } = useTranslation("common");
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollMargin = tableContainerRef.current?.offsetTop ?? 0;
+  const shouldVirtualizeRows =
+    typeof navigator !== "undefined" && !navigator.userAgent.toLowerCase().includes("jsdom");
   const rowVirtualizer = useWindowVirtualizer({
     count: rows.length,
     estimateSize: () => estimateSize,
     overscan: 12,
     scrollMargin,
+    enabled: shouldVirtualizeRows,
     initialRect: {
       width: 1000,
       height: 640
     }
   });
-  const shouldVirtualizeRows =
-    typeof navigator !== "undefined" && !navigator.userAgent.toLowerCase().includes("jsdom");
   const virtualRows: readonly VirtualRow[] = shouldVirtualizeRows
     ? rowVirtualizer.getVirtualItems()
     : rows.map((_, index) => ({

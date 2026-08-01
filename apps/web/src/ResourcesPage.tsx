@@ -16,8 +16,9 @@ export function ResourcesPage(): React.JSX.Element {
   const dataStructures = guideStatus(LEARNING_GUIDE_IDS.DataStructures);
   const bruteForce = guideStatus(LEARNING_GUIDE_IDS.BruteForce);
   const binarySearch = guideStatus(LEARNING_GUIDE_IDS.BinarySearch);
+  const greedy = guideStatus(LEARNING_GUIDE_IDS.Greedy);
   const graphTheory = guideStatus(LEARNING_GUIDE_IDS.GraphTheory);
-  const guides = [introduction, fundamentals, timeComplexity, dataStructures, bruteForce, binarySearch, graphTheory];
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, greedy, bruteForce, binarySearch, graphTheory];
   const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     progressQuery.isLoading
@@ -51,8 +52,6 @@ export function ResourcesPage(): React.JSX.Element {
       ) : null}
 
       <section className="relative mt-6 overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0d] px-4 py-5 sm:px-6" aria-label={t("sequenceLabel")}>
-        <div className="pointer-events-none absolute inset-0 opacity-[0.1] [background-image:linear-gradient(to_right,#71717a_1px,transparent_1px),linear-gradient(to_bottom,#71717a_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_70%_90%_at_50%_50%,black_30%,transparent_100%)]" />
-
         <div className="relative grid gap-3">
           {/* The ordered spine reads top to bottom, then fans out into the parallel branches. */}
           <div className="mx-auto flex w-full max-w-[19rem] flex-col">
@@ -89,28 +88,25 @@ export function ResourcesPage(): React.JSX.Element {
           </div>
           <RoadmapBranchFan />
 
-          {/* `items-start` keeps every card its natural height: without it the single-guide
-              branches stretch to match the taller Data Structures → Graph Theory column. */}
-          <div className="mx-auto grid w-full max-w-[17rem] items-start gap-3 sm:max-w-none sm:grid-cols-2 xl:grid-cols-3">
-            <div className="flex flex-col">
-              <RoadmapNode
-                to={appPaths.dataStructures}
-                step="04"
-                accent="rose"
-                title={t("dataStructures")}
-                status={statusLabel(dataStructures)}
-                completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
-              />
-              <RoadmapConnector />
-              <RoadmapNode
-                to={appPaths.graphTheory}
-                step="05"
-                accent="emerald"
-                title={t("graphTheory")}
-                status={statusLabel(graphTheory)}
-                completed={graphTheory === LEARNING_PROGRESS_STATUSES.Completed}
-              />
-            </div>
+          {/* `items-start` keeps every card at its natural height while Graph Theory continues
+              beneath Data Structures without stretching the other step-04 branches. */}
+          <div className="mx-auto grid w-full max-w-[17rem] items-start gap-3 sm:max-w-none sm:grid-cols-2 xl:grid-cols-4">
+            <RoadmapNode
+              to={appPaths.dataStructures}
+              step="04"
+              accent="rose"
+              title={t("dataStructures")}
+              status={statusLabel(dataStructures)}
+              completed={dataStructures === LEARNING_PROGRESS_STATUSES.Completed}
+            />
+            <RoadmapNode
+              to={appPaths.greedy}
+              step="04"
+              accent="emerald"
+              title={t("greedy")}
+              status={statusLabel(greedy)}
+              completed={greedy === LEARNING_PROGRESS_STATUSES.Completed}
+            />
             <RoadmapNode
               to={appPaths.bruteForce}
               step="04"
@@ -127,6 +123,17 @@ export function ResourcesPage(): React.JSX.Element {
               status={statusLabel(binarySearch)}
               completed={binarySearch === LEARNING_PROGRESS_STATUSES.Completed}
             />
+            <div className="flex flex-col xl:col-start-1">
+              <RoadmapConnector />
+              <RoadmapNode
+                to={appPaths.graphTheory}
+                step="05"
+                accent="emerald"
+                title={t("graphTheory")}
+                status={statusLabel(graphTheory)}
+                completed={graphTheory === LEARNING_PROGRESS_STATUSES.Completed}
+              />
+            </div>
           </div>
         </div>
       </section>

@@ -25,7 +25,8 @@ export function useLearningProgress() {
       { guideId: LEARNING_GUIDE_IDS.DataStructures, status: status("4") },
       { guideId: LEARNING_GUIDE_IDS.BruteForce, status: status("5") },
       { guideId: LEARNING_GUIDE_IDS.BinarySearch, status: status("6") },
-      { guideId: LEARNING_GUIDE_IDS.GraphTheory, status: status("7") }
+      { guideId: LEARNING_GUIDE_IDS.Greedy, status: status("7") },
+      { guideId: LEARNING_GUIDE_IDS.GraphTheory, status: status("8") }
     ],
     isLoading: false,
     isError: false,
@@ -43,9 +44,8 @@ export function useSetLearningProgressStatus() {
   return noopMutation;
 }
 
-/** Clerk stand-in: the preview runs signed out, so no progress mutation ever fires. */
 export function useAuth() {
-  return { userId: null };
+  return { userId: "preview-user" };
 }
 
 export function useToaster() {
