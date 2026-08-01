@@ -24,7 +24,8 @@ export function useLearningProgress() {
       { guideId: LEARNING_GUIDE_IDS.TimeComplexity, status: status("3") },
       { guideId: LEARNING_GUIDE_IDS.DataStructures, status: status("4") },
       { guideId: LEARNING_GUIDE_IDS.BruteForce, status: status("5") },
-      { guideId: LEARNING_GUIDE_IDS.BinarySearch, status: status("6") }
+      { guideId: LEARNING_GUIDE_IDS.BinarySearch, status: status("6") },
+      { guideId: LEARNING_GUIDE_IDS.GraphTheory, status: status("7") }
     ],
     isLoading: false,
     isError: false,

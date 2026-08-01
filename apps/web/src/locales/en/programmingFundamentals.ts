@@ -224,6 +224,13 @@ export const programmingFundamentals = {
   },
   trace: {
     inputs: "Trace inputs", stepCount: "Step {{current}} of {{total}}", previous: "Previous trace step", next: "Next trace step", reset: "Reset trace", play: "Play", pause: "Pause", reducedMotion: "Automatic playback is unavailable because reduced motion is enabled. Manual stepping remains available.", variables: "Variables", name: "Name", type: "Type", value: "Value",
+    gridTone: { wall: "wall", unvisited: "unvisited", visited: "visited", frontier: "frontier", active: "active", path: "path" },
+    graphTone: { idle: "idle", active: "active", queued: "queued", settled: "settled", colorA: "colour A", colorB: "colour B", conflict: "conflict" },
+    edgeTone: { idle: "idle edge", active: "active edge", tree: "tree edge", rejected: "rejected edge" },
+    gridCell: "row {{row}} column {{column}}",
+    graphNodes: "Graph nodes",
+    graphEdges: "Graph edges",
+    graphWeight: "weight {{weight}}",
     visuals: { output: "Program output", branch: "Branch outcome", vector: "Vector values", callStack: "Call stack" },
     conditionals: { label: "Problem-solving decision trace", accepted: "Solution accepted", hasStrategy: "Has a strategy", checkAccepted: "Check the first boolean directly: is the submitted solution already accepted?", acceptedBranch: "solution_accepted is true, so the first branch runs and the remaining branches are skipped.", checkStrategy: "The first boolean is false, so the else-if branch checks the next boolean.", strategyBranch: "has_strategy is true, so keep working on the current problem.", elseBranch: "Both booleans are false, so the final else branch runs.", acceptedOutcome: "true — Next problem", strategyOutcome: "true — Keep trying", hintOutcome: "Review a hint" },
     forLoop: { label: "For loop code trace", initialize: "Initialize i to 1 before checking the loop condition.", check: "Check whether i = {{i}} is still less than or equal to 5.", print: "Print {{i}} and keep it in the accumulated output.", increment: "Increment i. Its next value is {{next}}.", exit: "The condition is false for i = 6, so the loop ends." },
@@ -235,6 +242,7 @@ export const programmingFundamentals = {
     countdown: { label: "Countdown recursion trace", start: "main calls countdown(3).", enter: "Enter countdown({{n}}) and add its frame to the call stack.", check: "Check the base case: is n = {{n}} equal to zero?", base: "n is zero, so return immediately. No value is printed and no new call is created.", print: "The base case was false, so print {{n}}.", descend: "Make the recursive step with the smaller input countdown({{next}}).", finishCall: "The smaller call finished, so countdown({{n}}) has no work left and returns.", finish: "All calls have returned to main. The completed output is 3 2 1." },
     fibonacci: { label: "Fibonacci recursion trace", start: "main calls fibonacci(4).", enter: "Enter fibonacci({{n}}) and add its frame to the call stack.", check: "Check whether n = {{n}} is one of the base cases, 0 or 1.", base: "n = {{n}} is a base case, so return it directly without creating more calls.", firstCall: "The value is not a base case. Evaluate the left branch, fibonacci({{next}}), first.", secondCall: "The left branch returned {{first}}. Now evaluate the right branch, fibonacci({{next}}).", combine: "Combine both returned values: {{first}} + {{second}} = {{result}}.", finish: "fibonacci(4) returns {{result}}, so cout prints it." }
   },
+  scenario: { presets: "Scenarios", unavailable: "This scenario is unavailable." },
   sidebar: { label: "Guide sections", title: "In this guide", progress: "Section {{current}} of {{total}}" },
   practice: { label: "Check your understanding", correct: "Correct. ", retry: "Try again. ", questionCode: "Question code", questionInput: "Question input", copyInput: "Copy question input", answerCode: "Answer code", questionCount: "Question {{current}} of {{total}}", previousQuestion: "Previous question", nextQuestion: "Next question", continueToNextQuestion: "Continue to next question" },
   code: { copyLabel: "Copy code", copied: "Copied", copy: "Copy", announcement: "Code copied" }

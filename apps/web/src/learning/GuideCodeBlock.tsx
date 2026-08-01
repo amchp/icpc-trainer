@@ -10,10 +10,9 @@ import {
   type GuideTraceDefinition,
   type GuideTraceFrame,
   type GuideTraceInputSchema,
-  type GuideTraceInputValues,
-  type GuideTracePrimitive,
-  type GuideTraceVisual
+  type GuideTraceInputValues
 } from "./guideTrace.js";
+import { formatPrimitive, TraceVisual, usePrefersReducedMotion } from "./GuideTraceVisuals.js";
 
 export type GuideCodeBlockProps<S extends GuideTraceInputSchema = GuideTraceInputSchema> =
   | { readonly code: string; readonly language?: Language; readonly copyLabel?: string; readonly trace?: never }
@@ -307,124 +306,4 @@ function TraceState({ frame }: { readonly frame: GuideTraceFrame }): React.JSX.E
       {frame.visuals?.map((visual, index) => <TraceVisual key={`${visual.kind}-${visual.label}-${index}`} visual={visual} />)}
     </div>
   );
-}
-
-function TraceVisual({ visual }: { readonly visual: GuideTraceVisual }): React.JSX.Element {
-  switch (visual.kind) {
-    case "output":
-      return <VisualPanel label={visual.label}><output className="block whitespace-pre-wrap font-mono text-xs text-violet-200">{visual.lines.length === 0 ? "∅" : visual.lines.join("\n")}</output></VisualPanel>;
-    case "branch":
-      return <VisualPanel label={visual.label}><p className="font-mono text-xs text-amber-200"><span className="text-zinc-500">{visual.condition} → </span>{visual.outcome}</p></VisualPanel>;
-    case "vector":
-      return (
-        <VisualPanel label={visual.label}>
-          <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1">
-            {visual.values.map((value, index) => (
-              <div key={index} className={cn("min-w-10 border text-center font-mono", visual.activeIndex === index ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-zinc-700 text-zinc-300")}>
-                <span className="block border-b border-inherit px-2 py-0.5 text-[9px] text-zinc-500">{index}</span>
-                <span className="block px-2 py-1.5 text-xs">{formatPrimitive(value)}</span>
-              </div>
-            ))}
-          </div>
-        </VisualPanel>
-      );
-    case "callStack":
-      return (
-        <VisualPanel label={visual.label}>
-          <ol className="flex flex-col gap-1.5">
-            {[...visual.frames].reverse().map((callFrame, reversedIndex) => {
-              const originalIndex = visual.frames.length - reversedIndex - 1;
-              return (
-                <li key={`${callFrame.label}-${originalIndex}`} className={cn("border-l-2 bg-zinc-900/70 px-3 py-2 font-mono text-xs", visual.activeIndex === originalIndex ? "border-emerald-300 text-emerald-100" : "border-zinc-700 text-zinc-400")}>
-                  <span className="block">{callFrame.label}</span>
-                  {callFrame.detail === undefined ? null : <span className="mt-1 block text-[10px] text-zinc-500">{callFrame.detail}</span>}
-                </li>
-              );
-            })}
-          </ol>
-        </VisualPanel>
-      );
-    case "collection": {
-      const values = visual.layout === "stack" ? [...visual.values].reverse() : visual.values;
-      return (
-        <VisualPanel label={visual.label}>
-          <ol className={cn(
-            "max-w-full gap-1.5",
-            visual.layout === "stack" ? "flex w-fit min-w-28 flex-col" : "flex overflow-x-auto pb-1"
-          )}>
-            {values.map((value, renderedIndex) => {
-              const originalIndex = visual.layout === "stack"
-                ? visual.values.length - renderedIndex - 1
-                : renderedIndex;
-              const markers = visual.markers?.filter((marker) => marker.index === originalIndex) ?? [];
-              return (
-                <li
-                  key={originalIndex}
-                  className={cn(
-                    "min-w-12 border bg-zinc-900/70 px-2 py-2 text-center font-mono text-xs",
-                    visual.layout === "intervals" && "min-w-max",
-                    visual.activeIndex === originalIndex
-                      ? "border-cyan-300 text-cyan-100"
-                      : "border-zinc-700 text-zinc-300"
-                  )}
-                >
-                  <span>{formatPrimitive(value)}</span>
-                  {markers.map((marker) => (
-                    <span key={marker.label} className="mt-1 block text-[9px] uppercase tracking-wide text-amber-300">
-                      {marker.label}
-                    </span>
-                  ))}
-                </li>
-              );
-            })}
-          </ol>
-        </VisualPanel>
-      );
-    }
-    case "entries":
-      return (
-        <VisualPanel label={visual.label}>
-          <dl className="grid gap-1.5">
-            {visual.entries.map((entry, index) => (
-              <div
-                key={`${formatPrimitive(entry.key)}-${index}`}
-                className={cn(
-                  "grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-l-2 bg-zinc-900/70 px-3 py-2 font-mono text-xs",
-                  visual.activeIndex === index
-                    ? "border-rose-300 text-rose-100"
-                    : "border-zinc-700 text-zinc-400"
-                )}
-              >
-                <dt className="min-w-0 break-words">{formatPrimitive(entry.key)}</dt>
-                <dd className="text-zinc-200">{formatPrimitive(entry.value)}</dd>
-              </div>
-            ))}
-          </dl>
-        </VisualPanel>
-      );
-  }
-}
-
-function VisualPanel({ label, children }: { readonly label: string; readonly children: React.ReactNode }): React.JSX.Element {
-  return <section className="rounded-md border border-zinc-800 bg-zinc-900/35 p-3"><h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">{label}</h3>{children}</section>;
-}
-
-function formatPrimitive(value: GuideTracePrimitive): string {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return String(value);
-  return String(value);
-}
-
-function usePrefersReducedMotion(): boolean {
-  const [reducedMotion, setReducedMotion] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
-  );
-  useEffect(() => {
-    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (media === undefined) return;
-    const update = (): void => setReducedMotion(media.matches);
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, []);
-  return reducedMotion;
 }

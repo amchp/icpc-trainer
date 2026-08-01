@@ -13,5 +13,6 @@ export const resources = {
   dataStructures: "Estructuras de datos",
   bruteForce: "Fuerza bruta",
   binarySearch: "Búsqueda binaria",
+  graphTheory: "Teoría de grafos",
   status: { completed: "Completada", inProgress: "En progreso", available: "Disponible", loading: "Cargando" }
 } as const;

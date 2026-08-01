@@ -48,7 +48,11 @@ describe("ResourcesPage", () => {
     );
     expect(screen.getByRole("link", { name: /Brute Force/ })).toHaveAttribute("href", "/resources/brute-force");
     expect(screen.getByRole("link", { name: /Binary Search/ })).toHaveAttribute("href", "/resources/binary-search");
-    expect(screen.getByText("0 / 6 completed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Graph Theory/ })).toHaveAttribute("href", "/resources/graph-theory");
+    expect(screen.getByText("0 / 7 completed")).toBeInTheDocument();
+    const dataStructures = screen.getByRole("link", { name: /Data Structures/ });
+    const graphTheory = screen.getByRole("link", { name: /Graph Theory/ });
+    expect(dataStructures.compareDocumentPosition(graphTheory) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
   it("shows saved completion state", () => {
@@ -66,7 +70,7 @@ describe("ResourcesPage", () => {
     }));
     render(<ResourcesPage />);
     expect(screen.getAllByText("Completed")).toHaveLength(4);
-    expect(screen.getByText("4 / 6 completed")).toBeInTheDocument();
+    expect(screen.getByText("4 / 7 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -78,7 +82,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 6 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 7 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -91,5 +95,6 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Data Structures/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Brute Force/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Binary Search/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Graph Theory/ })).toBeInTheDocument();
   });
 });

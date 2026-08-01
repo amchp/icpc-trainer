@@ -6,6 +6,7 @@ import "../src/i18n/i18n.js";
 import { BinarySearchPage } from "../src/BinarySearchPage.js";
 import { BruteForcePage } from "../src/BruteForcePage.js";
 import { DataStructuresPage } from "../src/DataStructuresPage.js";
+import { GraphTheoryPage } from "../src/GraphTheoryPage.js";
 import { ResourcesPage } from "../src/ResourcesPage.js";
 import { TimeComplexityPage } from "../src/TimeComplexityPage.js";
 
@@ -15,7 +16,8 @@ const pages = {
   timeComplexity: TimeComplexityPage,
   dataStructures: DataStructuresPage,
   bruteForce: BruteForcePage,
-  binarySearch: BinarySearchPage
+  binarySearch: BinarySearchPage,
+  graphTheory: GraphTheoryPage
 } as const;
 
 const key = new URLSearchParams(window.location.search).get("page") ?? "resources";

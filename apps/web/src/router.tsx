@@ -11,6 +11,7 @@ import { ContestsRoute } from "./ContestsRoute.js";
 import { DataStructuresRoute } from "./DataStructuresRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
+import { GraphTheoryRoute } from "./GraphTheoryRoute.js";
 import { IntroductionRoute } from "./IntroductionRoute.js";
 import { LeaderboardRoute } from "./LeaderboardRoute.js";
 import { PlaygroundRoute } from "./PlaygroundRoute.js";
@@ -138,6 +139,12 @@ const binarySearchRoute = createRoute({
   component: BinarySearchRoute
 });
 
+const graphTheoryRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.graphTheory,
+  component: GraphTheoryRoute
+});
+
 const introductionRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: appPaths.introduction,
@@ -199,6 +206,7 @@ const routeTree = rootRoute.addChildren([
     resourcesRoute,
     binarySearchRoute,
     bruteForceRoute,
+    graphTheoryRoute,
     introductionRoute,
     programmingFundamentalsRoute,
     timeComplexityRoute,

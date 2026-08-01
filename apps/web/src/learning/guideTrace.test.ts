@@ -55,6 +55,55 @@ describe("guideTrace", () => {
     expect(Object.isFrozen(result.frames[0]?.visuals)).toBe(true);
   });
 
+  it("validates, clones, and freezes grid and graph snapshots", () => {
+    const rows = [[{ text: ".", tone: "active" as const }, { text: "#", tone: "wall" as const }]];
+    const nodes = [{ id: "1", label: "1", x: 20, y: 50, tone: "active" as const }];
+    const edges: { from: string; to: string; weight?: number; tone: "tree" }[] = [];
+    const trace = defineGuideTrace({
+      code: "line",
+      language: "cpp",
+      label: "Grid and graph",
+      inputs: {},
+      build: (_inputs, recorder) => {
+        recorder.frame({
+          line: 1,
+          narration: "Ready",
+          visuals: [
+            { kind: "grid", label: "Grid", rows, cursor: { row: 0, column: 0 } },
+            { kind: "graph", label: "Graph", directed: true, nodes, edges }
+          ]
+        });
+        rows[0]![0]!.text = "changed";
+        nodes[0]!.label = "changed";
+        edges.push({ from: "1", to: "1", weight: 2, tone: "tree" });
+      }
+    });
+
+    const result = runGuideTrace(trace, {});
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.frames[0]?.visuals?.[0]).toMatchObject({ rows: [[{ text: "." }, { text: "#" }]] });
+    expect(result.frames[0]?.visuals?.[1]).toMatchObject({ nodes: [{ label: "1" }], edges: [] });
+    expect(Object.isFrozen(result.frames[0]?.visuals?.[0])).toBe(true);
+    expect(Object.isFrozen(result.frames[0]?.visuals?.[1])).toBe(true);
+  });
+
+  it.each([
+    ["ragged grid", { kind: "grid", label: "Grid", rows: [[{ text: ".", tone: "unvisited" }], []] }, /ragged grid/],
+    ["out-of-range cursor", { kind: "grid", label: "Grid", rows: [[{ text: ".", tone: "unvisited" }]], cursor: { row: 1, column: 0 } }, /out-of-range grid cursor/],
+    ["duplicate node", { kind: "graph", label: "Graph", directed: false, nodes: [{ id: "1", label: "1", x: 20, y: 20, tone: "idle" }, { id: "1", label: "again", x: 80, y: 80, tone: "idle" }], edges: [] }, /duplicate graph node id/],
+    ["unknown endpoint", { kind: "graph", label: "Graph", directed: true, nodes: [{ id: "1", label: "1", x: 20, y: 20, tone: "idle" }], edges: [{ from: "1", to: "2", tone: "idle" }] }, /unknown node/]
+  ] as const)("rejects a %s visual", (_name, visual, reason) => {
+    const trace = defineGuideTrace({
+      code: "line",
+      language: "cpp",
+      label: "Invalid visual",
+      inputs: {},
+      build: (_inputs, recorder) => recorder.frame({ line: 1, narration: "Ready", visuals: [visual] })
+    });
+    expect(runGuideTrace(trace, {})).toEqual({ valid: false, reason: expect.stringMatching(reason) });
+  });
+
   it.each([
     ["no frames", { code: "line", inputs: {}, build: () => undefined }, /no frames/],
     ["line bounds", { code: "line", inputs: {}, build: (_inputs: object, recorder: { frame: (frame: { line: number; narration: string }) => void }) => recorder.frame({ line: 2, narration: "Bad" }) }, /expected 1–1/],
