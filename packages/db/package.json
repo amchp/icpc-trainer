@@ -22,13 +22,13 @@
     "@icpc-trainer/shared": "workspace:*",
     "@libsql/client": "^0.17.4",
     "drizzle-orm": "0.45.2",
-    "effect": "3.21.4"
+    "effect": "3.22.1"
   },
   "devDependencies": {
     "@icpc-trainer/tsconfig": "workspace:*",
-    "@types/node": "26.0.0",
+    "@types/node": "26.1.2",
     "drizzle-kit": "0.31.10",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
   }
 }
