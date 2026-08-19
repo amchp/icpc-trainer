@@ -17,8 +17,9 @@ export function ResourcesPage(): React.JSX.Element {
   const bruteForce = guideStatus(LEARNING_GUIDE_IDS.BruteForce);
   const binarySearch = guideStatus(LEARNING_GUIDE_IDS.BinarySearch);
   const greedy = guideStatus(LEARNING_GUIDE_IDS.Greedy);
+  const dynamicProgramming = guideStatus(LEARNING_GUIDE_IDS.DynamicProgramming);
   const graphTheory = guideStatus(LEARNING_GUIDE_IDS.GraphTheory);
-  const guides = [introduction, fundamentals, timeComplexity, dataStructures, greedy, bruteForce, binarySearch, graphTheory];
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, greedy, bruteForce, binarySearch, dynamicProgramming, graphTheory];
   const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     progressQuery.isLoading
@@ -132,6 +133,16 @@ export function ResourcesPage(): React.JSX.Element {
                 title={t("graphTheory")}
                 status={statusLabel(graphTheory)}
                 completed={graphTheory === LEARNING_PROGRESS_STATUSES.Completed}
+              />
+            </div>
+            <div className="xl:pt-5">
+              <RoadmapNode
+                to={appPaths.dynamicProgramming}
+                step="05"
+                accent="violet"
+                title={t("dynamicProgramming")}
+                status={statusLabel(dynamicProgramming)}
+                completed={dynamicProgramming === LEARNING_PROGRESS_STATUSES.Completed}
               />
             </div>
           </div>

@@ -17,5 +17,6 @@ export default defineConfig({
     ]
   },
   plugins: [react(), tailwindcss()],
+  optimizeDeps: { entries: [".roadmap-preview/index.html"] },
   server: { host: "127.0.0.1", port: 5199, strictPort: true, open: "/.roadmap-preview/index.html" }
 });

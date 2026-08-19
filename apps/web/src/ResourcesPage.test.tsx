@@ -49,8 +49,9 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Greedy/ })).toHaveAttribute("href", "/resources/greedy");
     expect(screen.getByRole("link", { name: /Brute Force/ })).toHaveAttribute("href", "/resources/brute-force");
     expect(screen.getByRole("link", { name: /Binary Search/ })).toHaveAttribute("href", "/resources/binary-search");
+    expect(screen.getByRole("link", { name: /Dynamic Programming/ })).toHaveAttribute("href", "/resources/dynamic-programming");
     expect(screen.getByRole("link", { name: /Graph Theory/ })).toHaveAttribute("href", "/resources/graph-theory");
-    expect(screen.getByText("0 / 8 completed")).toBeInTheDocument();
+    expect(screen.getByText("0 / 9 completed")).toBeInTheDocument();
     const dataStructures = screen.getByRole("link", { name: /Data Structures/ });
     const graphTheory = screen.getByRole("link", { name: /Graph Theory/ });
     const greedy = screen.getByRole("link", { name: /Greedy/ });
@@ -73,7 +74,7 @@ describe("ResourcesPage", () => {
     }));
     render(<ResourcesPage />);
     expect(screen.getAllByText("Completed")).toHaveLength(4);
-    expect(screen.getByText("4 / 8 completed")).toBeInTheDocument();
+    expect(screen.getByText("4 / 9 completed")).toBeInTheDocument();
   });
 
   it("counts one completed guide independently", () => {
@@ -85,7 +86,7 @@ describe("ResourcesPage", () => {
       updatedAt: "2026-07-16T01:00:00.000Z"
     }];
     render(<ResourcesPage />);
-    expect(screen.getByText("1 / 8 completed")).toBeInTheDocument();
+    expect(screen.getByText("1 / 9 completed")).toBeInTheDocument();
   });
 
   it("keeps the guide available when progress fails", () => {
@@ -99,6 +100,7 @@ describe("ResourcesPage", () => {
     expect(screen.getByRole("link", { name: /Brute Force/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Binary Search/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Greedy/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Dynamic Programming/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Graph Theory/ })).toBeInTheDocument();
   });
 });

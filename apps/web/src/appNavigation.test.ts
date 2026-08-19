@@ -30,6 +30,7 @@ describe("protected navigation", () => {
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.dataStructures);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.bruteForce);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.binarySearch);
+    expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.dynamicProgramming);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.graphTheory);
     expect(items.find(({ to }) => to === appPaths.resources)?.activePaths).toContain(appPaths.greedy);
   });
