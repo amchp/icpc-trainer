@@ -19,10 +19,7 @@ const ROADMAP_ACCENTS = {
 
 export type RoadmapAccent = keyof typeof ROADMAP_ACCENTS;
 
-/**
- * Two fixed lines — step with title, then status — so every card is the same height whatever
- * the guide is called. A long title truncates rather than wrapping into a taller card.
- */
+/** The title wraps when needed so every guide name remains readable at narrow card widths. */
 export function RoadmapNode({
   to,
   step,
@@ -46,30 +43,30 @@ export function RoadmapNode({
     <Link
       to={to}
       className={cn(
-        "group flex w-full flex-col rounded-lg border bg-zinc-900 px-3 py-2 transition-colors motion-reduce:transition-none hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2",
+        "group flex min-h-11 w-full flex-col rounded-lg border bg-zinc-900 px-2.5 py-1.5 transition-colors motion-reduce:transition-none hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2",
         tone.border,
         className
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <span className={cn("shrink-0 font-mono text-[10px] tracking-[0.14em]", completed ? "text-emerald-300/80" : tone.text)}>{step}</span>
-        <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-tight tracking-[-0.01em] text-zinc-50">{title}</h2>
+      <div className="flex items-start gap-2">
+        <span className={cn("shrink-0 font-mono text-[9px] tracking-[0.14em]", completed ? "text-emerald-300/80" : tone.text)}>{step}</span>
+        <h2 className="min-w-0 flex-1 whitespace-normal text-pretty text-xs font-semibold leading-tight tracking-[-0.01em] text-zinc-50">{title}</h2>
         {completed ? (
-          <Check className="size-3.5 shrink-0 text-emerald-300" aria-hidden="true" />
+          <Check className="size-3 shrink-0 text-emerald-300" aria-hidden="true" />
         ) : (
           <ArrowRight
-            className={cn("size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none", tone.text)}
+            className={cn("size-3 shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none", tone.text)}
             aria-hidden="true"
           />
         )}
       </div>
       <p
         className={cn(
-          "mt-1 inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em]",
+          "mt-0.5 inline-flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[0.14em]",
           completed ? "text-emerald-300" : tone.text
         )}
       >
-        <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", completed ? "bg-emerald-400" : tone.dot)} />
+        <span aria-hidden="true" className={cn("size-1 shrink-0 rounded-full", completed ? "bg-emerald-400" : tone.dot)} />
         {status}
       </p>
     </Link>

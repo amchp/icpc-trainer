@@ -19,7 +19,7 @@ export function ResourcesPage(): React.JSX.Element {
   const greedy = guideStatus(LEARNING_GUIDE_IDS.Greedy);
   const dynamicProgramming = guideStatus(LEARNING_GUIDE_IDS.DynamicProgramming);
   const graphTheory = guideStatus(LEARNING_GUIDE_IDS.GraphTheory);
-  const guides = [introduction, fundamentals, timeComplexity, dataStructures, greedy, bruteForce, binarySearch, dynamicProgramming, graphTheory];
+  const guides = [introduction, fundamentals, timeComplexity, dataStructures, greedy, bruteForce, binarySearch, graphTheory, dynamicProgramming];
   const completedCount = guides.filter((status) => status === LEARNING_PROGRESS_STATUSES.Completed).length;
   const statusLabel = (status: LearningProgressStatus | undefined): string =>
     progressQuery.isLoading
@@ -31,7 +31,7 @@ export function ResourcesPage(): React.JSX.Element {
           : t("status.available");
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-7 sm:px-8 sm:py-9">
+    <main className="mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 sm:py-9">
       <header className="max-w-3xl">
         {/* The count rides with the eyebrow so the roadmap itself does not need a header bar. */}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -89,8 +89,8 @@ export function ResourcesPage(): React.JSX.Element {
           </div>
           <RoadmapBranchFan />
 
-          {/* `items-start` keeps every card at its natural height while Graph Theory continues
-              beneath Data Structures without stretching the other step-04 branches. */}
+          {/* `items-start` keeps every card at its natural height while Graph Theory and then
+              Dynamic Programming continue beneath Data Structures. */}
           <div className="mx-auto grid w-full max-w-[17rem] items-start gap-3 sm:max-w-none sm:grid-cols-2 xl:grid-cols-4">
             <RoadmapNode
               to={appPaths.dataStructures}
@@ -134,11 +134,10 @@ export function ResourcesPage(): React.JSX.Element {
                 status={statusLabel(graphTheory)}
                 completed={graphTheory === LEARNING_PROGRESS_STATUSES.Completed}
               />
-            </div>
-            <div className="xl:pt-5">
+              <RoadmapConnector />
               <RoadmapNode
                 to={appPaths.dynamicProgramming}
-                step="05"
+                step="06"
                 accent="violet"
                 title={t("dynamicProgramming")}
                 status={statusLabel(dynamicProgramming)}

@@ -36,6 +36,7 @@ describe("ResourcesPage", () => {
 
   it("renders every available guide as a link", () => {
     render(<ResourcesPage />);
+    expect(document.querySelector("main")).toHaveClass("max-w-7xl");
     expect(screen.getByRole("link", { name: /Introduction/ })).toHaveAttribute("href", "/resources/introduction");
     expect(screen.getByRole("link", { name: /Programming Fundamentals/ })).toHaveAttribute(
       "href",
@@ -54,9 +55,15 @@ describe("ResourcesPage", () => {
     expect(screen.getByText("0 / 9 completed")).toBeInTheDocument();
     const dataStructures = screen.getByRole("link", { name: /Data Structures/ });
     const graphTheory = screen.getByRole("link", { name: /Graph Theory/ });
+    const dynamicProgramming = screen.getByRole("link", { name: /Dynamic Programming/ });
     const greedy = screen.getByRole("link", { name: /Greedy/ });
+    expect(dataStructures).toHaveClass("min-h-11", "py-1.5");
+    expect(screen.getByRole("heading", { name: "Time & Space Complexity" })).toHaveClass("whitespace-normal");
+    expect(screen.getByRole("heading", { name: "Time & Space Complexity" })).not.toHaveClass("truncate");
     expect(dataStructures.compareDocumentPosition(greedy) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(greedy.compareDocumentPosition(graphTheory) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(graphTheory.compareDocumentPosition(dynamicProgramming) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(dynamicProgramming).toHaveTextContent("06");
   });
 
   it("shows saved completion state", () => {
