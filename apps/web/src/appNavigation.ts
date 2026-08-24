@@ -13,6 +13,7 @@ export const appPaths = {
   playground: "/playground",
   binarySearch: "/resources/binary-search",
   bruteForce: "/resources/brute-force",
+  dynamicProgramming: "/resources/dynamic-programming",
   graphTheory: "/resources/graph-theory",
   greedy: "/resources/greedy",
   resources: "/resources",
@@ -31,7 +32,7 @@ export const protectedNavItems = (t: TFunction<"shell">) => [
   { to: appPaths.findProblems, label: t("nav.findProblems"), activePaths: [appPaths.findProblems] },
   { to: appPaths.upsolving, label: t("nav.upsolving"), activePaths: [appPaths.upsolving] },
   { to: appPaths.contestFinder, label: t("nav.contestFinder"), activePaths: [appPaths.contestFinder] },
-  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals, appPaths.timeComplexity, appPaths.dataStructures, appPaths.bruteForce, appPaths.binarySearch, appPaths.graphTheory, appPaths.greedy] },
+  { to: appPaths.resources, label: t("nav.resources"), activePaths: [appPaths.resources, appPaths.introduction, appPaths.programmingFundamentals, appPaths.timeComplexity, appPaths.dataStructures, appPaths.bruteForce, appPaths.binarySearch, appPaths.dynamicProgramming, appPaths.graphTheory, appPaths.greedy] },
   { to: appPaths.team, label: t("nav.team"), activePaths: [appPaths.team] },
   { to: appPaths.leaderboard, label: t("nav.leaderboard"), activePaths: [appPaths.leaderboard] }
 ] as const;

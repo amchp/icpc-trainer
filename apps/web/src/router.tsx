@@ -9,6 +9,7 @@ import { ConnectJudgesRoute } from "./ConnectJudgesRoute.js";
 import { ContestFinderRoute } from "./ContestFinderRoute.js";
 import { ContestsRoute } from "./ContestsRoute.js";
 import { DataStructuresRoute } from "./DataStructuresRoute.js";
+import { DynamicProgrammingRoute } from "./DynamicProgrammingRoute.js";
 import { FindProblemsRoute } from "./FindProblemsRoute.js";
 import { FriendsRoute } from "./FriendsRoute.js";
 import { GraphTheoryRoute } from "./GraphTheoryRoute.js";
@@ -164,6 +165,12 @@ const dataStructuresRoute = createRoute({
   component: DataStructuresRoute
 });
 
+const dynamicProgrammingRoute = createRoute({
+  getParentRoute: () => resourcesAppRoute,
+  path: appPaths.dynamicProgramming,
+  component: DynamicProgrammingRoute
+});
+
 const resourcesSubpathRoute = createRoute({
   getParentRoute: () => resourcesAppRoute,
   path: `${appPaths.resources}/$`,
@@ -218,6 +225,7 @@ const routeTree = rootRoute.addChildren([
     introductionRoute,
     programmingFundamentalsRoute,
     timeComplexityRoute,
+    dynamicProgrammingRoute,
     dataStructuresRoute,
     resourcesSubpathRoute
   ]),

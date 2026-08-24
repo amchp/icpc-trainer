@@ -6,6 +6,7 @@ import "../src/i18n/i18n.js";
 import { BinarySearchPage } from "../src/BinarySearchPage.js";
 import { BruteForcePage } from "../src/BruteForcePage.js";
 import { DataStructuresPage } from "../src/DataStructuresPage.js";
+import { DynamicProgrammingPage } from "../src/DynamicProgrammingPage.js";
 import { GraphTheoryPage } from "../src/GraphTheoryPage.js";
 import { GreedyPage } from "../src/GreedyPage.js";
 import { ResourcesPage } from "../src/ResourcesPage.js";
@@ -17,6 +18,7 @@ const pages = {
   resources: ResourcesPage,
   timeComplexity: TimeComplexityPage,
   dataStructures: DataStructuresPage,
+  dynamicProgramming: DynamicProgrammingPage,
   bruteForce: BruteForcePage,
   binarySearch: BinarySearchPage,
   greedy: GreedyPage,

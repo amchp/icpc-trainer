@@ -46,6 +46,11 @@ describe("router", () => {
     expect(router.state.location.pathname).toBe("/resources/data-structures");
   });
 
+  it("recognizes the stable Dynamic Programming guide URL", async () => {
+    await router.navigate({ to: "/resources/dynamic-programming" });
+    expect(router.state.location.pathname).toBe("/resources/dynamic-programming");
+  });
+
   it("recognizes the stable Graph Theory guide URL", async () => {
     await router.navigate({ to: "/resources/graph-theory" });
     expect(router.state.location.pathname).toBe("/resources/graph-theory");

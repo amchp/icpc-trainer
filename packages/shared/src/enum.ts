@@ -178,6 +178,7 @@ export enum LEARNING_GUIDE_IDS {
   ProgrammingFundamentals = "programming-fundamentals",
   TimeComplexity = "time-complexity",
   DataStructures = "data-structures",
+  DynamicProgramming = "dynamic-programming",
   GraphTheory = "graph-theory",
 }
 

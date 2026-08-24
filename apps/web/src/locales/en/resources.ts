@@ -13,6 +13,7 @@ export const resources = {
   dataStructures: "Data Structures",
   bruteForce: "Brute Force",
   binarySearch: "Binary Search",
+  dynamicProgramming: "Dynamic Programming",
   graphTheory: "Graph Theory",
   greedy: "Greedy",
   greedyDescription: "Justify a local choice rule, then break the ones that only look safe.",
