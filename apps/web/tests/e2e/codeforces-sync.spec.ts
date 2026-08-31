@@ -421,8 +421,6 @@ test("syncs Codeforces data for drew138 and shows matching problem and contest t
   await page.goto("/upsolving");
   await expect(page.getByRole("heading", { name: "Upsolving" })).toBeVisible();
   await page.getByRole("button", { name: "Filter by status" }).click();
-  await page.getByRole("menuitemradio", {
-    name: `All statuses, ${expected.problemCount} ${expected.problemCount === 1 ? "problem" : "problems"}`
-  }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Solved" }).click();
   await expectTableCount(page, expected.problemCount, "problem");
 });

@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type OnChangeFn,
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -12,32 +13,37 @@ import { Card } from "./components/ui.js";
 import { useLocale } from "./i18n/LocaleProvider.js";
 import {
   defaultJudgeSourceFilters,
-  emptyJudgeSourceCounts,
   judgeSourceForLink,
-  type JudgeSourceFilterId
 } from "./JudgeSourceFilter.js";
 import { UpsolvingProblemTableFilters } from "./UpsolvingProblemTableFilters.js";
 import { UpsolvingProblemTableGrid } from "./UpsolvingProblemTableGrid.js";
 import {
   createUpsolvingProblemColumns,
-  statusCountsFor,
-  toSearchableUpsolvingProblemRow,
-  type UpsolvingStatusFilter
+  defaultUpsolvingStatusFilters,
+  toSearchableUpsolvingProblemRow
 } from "./upsolvingProblemTableModel.js";
+import type { UpsolvingFilterState } from "./urlTableFilters.js";
 
 export function UpsolvingProblemTable({
-  rows
+  rows,
+  filters,
+  onFiltersChange
 }: {
   readonly rows: readonly UpsolvingProblemRow[];
+  readonly filters?: UpsolvingFilterState;
+  readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
 }): React.JSX.Element {
   const { t } = useTranslation("upsolving");
   const { locale } = useLocale();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localFilters, setLocalFilters] = useState<UpsolvingFilterState>({
+    searchQuery: "",
+    statusFilters: defaultUpsolvingStatusFilters,
+    judgeSourceFilters: defaultJudgeSourceFilters
+  });
+  const activeFilters = filters ?? localFilters;
+  const setFilters = onFiltersChange ?? setLocalFilters;
+  const { searchQuery, statusFilters, judgeSourceFilters } = activeFilters;
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [statusFilter, setStatusFilter] = useState<UpsolvingStatusFilter>("upsolved");
-  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
-    defaultJudgeSourceFilters
-  );
   const [sorting, setSorting] = useState<SortingState>([
     { id: "rating", desc: false }
   ]);
@@ -45,32 +51,21 @@ export function UpsolvingProblemTable({
     () => rows.map(toSearchableUpsolvingProblemRow),
     [rows]
   );
-  const judgeSourceCounts = useMemo(
-    () =>
-      tableRows.reduce<Record<JudgeSourceFilterId, number>>((counts, row) => {
-        const source = judgeSourceForLink(row.judge, row.problemLink);
-        return {
-          ...counts,
-          [source]: counts[source] + 1
-        };
-      }, emptyJudgeSourceCounts()),
-    [tableRows]
-  );
   const selectedJudgeSources = useMemo(() => new Set(judgeSourceFilters), [judgeSourceFilters]);
+  const selectedStatuses = useMemo(() => new Set(statusFilters), [statusFilters]);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const filteredRows = useMemo(
     () =>
       tableRows.filter((row) => {
         const matchesJudgeSource = selectedJudgeSources.has(judgeSourceForLink(row.judge, row.problemLink));
-        const matchesStatus = statusFilter === "all" || row.status === statusFilter;
+        const matchesStatus = row.status !== "new" && selectedStatuses.has(row.status);
         const matchesSearch =
           normalizedSearchQuery === "" || row.searchText.includes(normalizedSearchQuery);
 
         return matchesJudgeSource && matchesStatus && matchesSearch;
       }),
-    [normalizedSearchQuery, selectedJudgeSources, statusFilter, tableRows]
+    [normalizedSearchQuery, selectedJudgeSources, selectedStatuses, tableRows]
   );
-  const statusCounts = useMemo(() => statusCountsFor(tableRows), [tableRows]);
   const columns = useMemo(() => createUpsolvingProblemColumns(t, locale), [locale, t]);
 
   const table = useReactTable({
@@ -89,14 +84,21 @@ export function UpsolvingProblemTable({
     <Card className="overflow-hidden">
       <UpsolvingProblemTableFilters
         searchQuery={searchQuery}
-        statusFilter={statusFilter}
+        statusFilters={statusFilters}
         judgeSourceFilters={judgeSourceFilters}
-        judgeSourceCounts={judgeSourceCounts}
-        statusCounts={statusCounts}
         visibleCount={visibleRows.length}
-        onSearchQueryChange={setSearchQuery}
-        onStatusFilterChange={setStatusFilter}
-        onJudgeSourceFiltersChange={setJudgeSourceFilters}
+        onSearchQueryChange={(value) => setFilters((current) => ({
+          ...current,
+          searchQuery: value
+        }))}
+        onStatusFilterChange={(value) => setFilters((current) => ({
+          ...current,
+          statusFilters: value
+        }))}
+        onJudgeSourceFiltersChange={(value) => setFilters((current) => ({
+          ...current,
+          judgeSourceFilters: value
+        }))}
       />
 
       {rows.length === 0 ? (

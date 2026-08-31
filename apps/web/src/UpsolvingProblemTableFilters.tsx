@@ -1,33 +1,29 @@
-import type { UpsolvingProblemStatus } from "@icpc-trainer/api";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DropdownContent, DropdownItem, DropdownTrigger, Input, TableCount } from "./components/ui.js";
-import { formatNumber } from "./i18n/format.js";
-import { useLocale } from "./i18n/LocaleProvider.js";
 import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSourceFilter.js";
-import { type UpsolvingStatusFilter } from "./upsolvingProblemTableModel.js";
+import {
+  upsolvingStatusFilterOptions,
+  type UpsolvingStatusFilter
+} from "./upsolvingProblemTableModel.js";
 
 export function UpsolvingProblemTableFilters({
   searchQuery,
-  statusFilter,
+  statusFilters,
   judgeSourceFilters,
-  judgeSourceCounts,
-  statusCounts,
   visibleCount,
   onSearchQueryChange,
   onStatusFilterChange,
   onJudgeSourceFiltersChange
 }: {
   readonly searchQuery: string;
-  readonly statusFilter: UpsolvingStatusFilter;
+  readonly statusFilters: readonly UpsolvingStatusFilter[];
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
-  readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
-  readonly statusCounts: Record<UpsolvingStatusFilter, number>;
   readonly visibleCount: number;
   readonly onSearchQueryChange: (value: string) => void;
-  readonly onStatusFilterChange: (value: UpsolvingStatusFilter) => void;
+  readonly onStatusFilterChange: (value: readonly UpsolvingStatusFilter[]) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
 }): React.JSX.Element {
   const { t } = useTranslation(["upsolving", "findProblems"]);
@@ -47,12 +43,10 @@ export function UpsolvingProblemTableFilters({
       <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end">
         <JudgeSourceFilterDropdown
           selectedSources={judgeSourceFilters}
-          counts={judgeSourceCounts}
           onChange={onJudgeSourceFiltersChange}
         />
         <StatusFilterDropdown
-          value={statusFilter}
-          counts={statusCounts}
+          values={statusFilters}
           onChange={onStatusFilterChange}
         />
         <TableCount count={visibleCount} itemName={t("findProblems:problemCount", { count: 1 })} pluralItemName={t("findProblems:problemCount", { count: 2 })} />
@@ -62,26 +56,36 @@ export function UpsolvingProblemTableFilters({
 }
 
 function StatusFilterDropdown({
-  value,
-  counts,
+  values,
   onChange
 }: {
-  readonly value: UpsolvingStatusFilter;
-  readonly counts: Record<UpsolvingStatusFilter, number>;
-  readonly onChange: (value: UpsolvingStatusFilter) => void;
+  readonly values: readonly UpsolvingStatusFilter[];
+  readonly onChange: (value: readonly UpsolvingStatusFilter[]) => void;
 }): React.JSX.Element {
-  const { t } = useTranslation(["upsolving", "findProblems"]);
-  const { locale } = useLocale();
+  const { t } = useTranslation("upsolving");
   const statusFilterOptions: Array<{ readonly value: UpsolvingStatusFilter; readonly label: string }> = [
-    { value: "all", label: t("upsolving:allStatuses") },
-    { value: "upsolved", label: t("upsolving:status.new") },
-    { value: "attempted", label: t("upsolving:status.attempted") },
-    { value: "solved", label: t("upsolving:status.solved") }
+    { value: "upsolved", label: t("status.new") },
+    { value: "attempted", label: t("status.attempted") },
+    { value: "solved", label: t("status.solved") }
   ];
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const selectedLabel =
-    statusFilterOptions.find((option) => option.value === value)?.label ?? t("upsolving:allStatuses");
+  const selectedSet = new Set(values);
+  const selectedLabels = statusFilterOptions
+    .filter((option) => selectedSet.has(option.value))
+    .map((option) => option.label);
+  const selectedLabel = values.length === statusFilterOptions.length
+    ? t("allStatuses")
+    : selectedLabels.length === 0
+      ? t("noStatuses")
+      : selectedLabels.join(", ");
+
+  const toggleStatus = (status: UpsolvingStatusFilter): void => {
+    const next = selectedSet.has(status)
+      ? values.filter((selected) => selected !== status)
+      : [...values, status];
+    onChange(upsolvingStatusFilterOptions.filter((option) => next.includes(option)));
+  };
 
   useEffect(() => {
     if (!open) {
@@ -114,14 +118,13 @@ function StatusFilterDropdown({
   return (
     <div ref={menuRef} className="relative">
       <DropdownTrigger
-        aria-label={t("upsolving:filterByStatus")}
+        aria-label={t("filterByStatus")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
         <span className="min-w-0 flex-1 text-left">
           <span>{selectedLabel}</span>
-          <span className="ml-2 tabular-nums text-zinc-500">({formatNumber(counts[value], locale)})</span>
         </span>
         <ChevronDown className="size-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
       </DropdownTrigger>
@@ -129,24 +132,20 @@ function StatusFilterDropdown({
       {open && (
         <DropdownContent
           role="menu"
-          aria-label={t("upsolving:statusOptions")}
+          aria-label={t("statusOptions")}
         >
           {statusFilterOptions.map((option) => (
             <DropdownItem
               key={option.value}
-              role="menuitemradio"
-              aria-checked={option.value === value}
-              aria-label={`${option.label}, ${formatNumber(counts[option.value], locale)} ${t("findProblems:problemCount", { count: counts[option.value] })}`}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
+              role="menuitemcheckbox"
+              aria-checked={selectedSet.has(option.value)}
+              aria-label={option.label}
+              onClick={() => toggleStatus(option.value)}
             >
               <span className="w-4 text-blue-300">
-                {option.value === value && <Check className="size-3.5" aria-hidden="true" />}
+                {selectedSet.has(option.value) && <Check className="size-3.5" aria-hidden="true" />}
               </span>
               <span className="flex-1">{option.label}</span>
-              <span className="tabular-nums text-zinc-500">{formatNumber(counts[option.value], locale)}</span>
             </DropdownItem>
           ))}
         </DropdownContent>

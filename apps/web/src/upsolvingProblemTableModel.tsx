@@ -9,7 +9,9 @@ import { formatNumber, formatPercent } from "./i18n/format.js";
 import { cn } from "./lib.js";
 import { i18n } from "./i18n/i18n.js";
 
-export type UpsolvingStatusFilter = "all" | Exclude<UpsolvingProblemStatus, "new">;
+export const upsolvingStatusFilterOptions = ["upsolved", "attempted", "solved"] as const satisfies readonly UpsolvingProblemStatus[];
+export type UpsolvingStatusFilter = typeof upsolvingStatusFilterOptions[number];
+export const defaultUpsolvingStatusFilters: readonly UpsolvingStatusFilter[] = ["upsolved", "attempted"];
 
 export type SearchableUpsolvingProblemRow = UpsolvingProblemRow & {
   readonly displayProblemName: string;
@@ -57,25 +59,6 @@ export const toSearchableUpsolvingProblemRow = (
   displayProblemName: displayProblemName(row),
   searchText: searchableText(row)
 });
-
-export const statusCountsFor = (
-  rows: readonly SearchableUpsolvingProblemRow[]
-): Record<UpsolvingStatusFilter, number> => {
-  const counts: Record<UpsolvingStatusFilter, number> = {
-    all: rows.length,
-    upsolved: 0,
-    attempted: 0,
-    solved: 0
-  };
-
-  for (const row of rows) {
-    if (row.status !== "new") {
-      counts[row.status] += 1;
-    }
-  }
-
-  return counts;
-};
 
 export const createUpsolvingProblemColumns = (
   t: TFunction<"upsolving">,

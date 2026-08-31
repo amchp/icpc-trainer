@@ -1,6 +1,5 @@
 import type { ContestFinderRow } from "@icpc-trainer/api";
 import { Search } from "lucide-react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -15,9 +14,7 @@ import { formatNumber } from "./i18n/format.js";
 import { useLocale } from "./i18n/LocaleProvider.js";
 import { JudgeDisplay } from "./JudgeDisplay.js";
 import {
-  emptyJudgeSourceCounts,
   JudgeSourceFilterDropdown,
-  judgeSourceFor,
   type JudgeSourceFilterId
 } from "./JudgeSourceFilter.js";
 import { VirtualGridTable } from "./VirtualGridTable.js";
@@ -26,7 +23,6 @@ const contestFinderGridTemplateColumns = "minmax(18rem, 1fr) 7rem 8rem";
 
 export function ContestFinderContestTab({
   contests,
-  allContests,
   searchQuery,
   judgeSourceFilters,
   isLoading,
@@ -35,7 +31,6 @@ export function ContestFinderContestTab({
   onJudgeSourceFiltersChange
 }: {
   readonly contests: readonly ContestFinderRow[];
-  readonly allContests: readonly ContestFinderRow[];
   readonly searchQuery: string;
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly isLoading: boolean;
@@ -45,18 +40,6 @@ export function ContestFinderContestTab({
 }): React.JSX.Element {
   const { t } = useTranslation(["contestFinder", "contests"]);
   const { locale } = useLocale();
-  const judgeSourceCounts = useMemo(
-    () =>
-      allContests.reduce<Record<JudgeSourceFilterId, number>>((counts, contest) => {
-        const source = judgeSourceFor(contest);
-        return {
-          ...counts,
-          [source]: counts[source] + 1
-        };
-      }, emptyJudgeSourceCounts()),
-    [allContests]
-  );
-
   return (
     <Card className="overflow-hidden">
       <div className="grid gap-3 border-b border-zinc-800 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -73,7 +56,6 @@ export function ContestFinderContestTab({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <JudgeSourceFilterDropdown
             selectedSources={judgeSourceFilters}
-            counts={judgeSourceCounts}
             onChange={onJudgeSourceFiltersChange}
           />
           <TableCount count={contests.length} itemName={t("contests:contestCount", { count: 1 })} pluralItemName={t("contests:contestCount", { count: 2 })} />

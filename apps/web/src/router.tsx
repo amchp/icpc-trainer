@@ -26,6 +26,12 @@ import { StandaloneLayout } from "./StandaloneLayout.js";
 import { TeamRoute } from "./TeamRoute.js";
 import { TimeComplexityRoute } from "./TimeComplexityRoute.js";
 import { UpsolvingRoute } from "./UpsolvingRoute.js";
+import {
+  validateFindProblemsFilterSearch,
+  validateJudgeFilterSearch,
+  validateLeaderboardFilterSearch,
+  validateUpsolvingFilterSearch
+} from "./urlTableFilters.js";
 
 const rootRoute = createRootRoute({
   component: Outlet
@@ -84,24 +90,28 @@ const playgroundRoute = createRoute({
 const upsolvingRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.upsolving,
+  validateSearch: validateUpsolvingFilterSearch,
   component: UpsolvingRoute
 });
 
 const contestsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.contests,
+  validateSearch: validateJudgeFilterSearch,
   component: ContestsRoute
 });
 
 const findProblemsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.findProblems,
+  validateSearch: validateFindProblemsFilterSearch,
   component: FindProblemsRoute
 });
 
 const contestFinderRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.contestFinder,
+  validateSearch: validateJudgeFilterSearch,
   component: ContestFinderRoute
 });
 
@@ -114,6 +124,7 @@ const friendsRoute = createRoute({
 const leaderboardRoute = createRoute({
   getParentRoute: () => appRoute,
   path: appPaths.leaderboard,
+  validateSearch: validateLeaderboardFilterSearch,
   component: LeaderboardRoute
 });
 

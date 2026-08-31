@@ -22,6 +22,9 @@ const localMidnight = (value: string): Date | undefined => {
   return date;
 };
 
+export const isValidLocalDate = (value: string): boolean =>
+  localMidnight(value) !== undefined;
+
 export type LocalDateRangeResult =
   | { readonly status: "empty" | "incomplete" | "reversed" | "invalid" }
   | { readonly status: "valid"; readonly range: LocalDateRange };
@@ -51,4 +54,3 @@ export const localDateRangeToIso = (
     }
   };
 };
-

@@ -5,6 +5,7 @@ export const upsolving = {
   searchLabel: "Search problems",
   searchPlaceholder: "Search problems, contests, judges",
   allStatuses: "All statuses",
+  noStatuses: "No statuses",
   status: { new: "New", attempted: "Attempted", solved: "Solved" },
   filterByStatus: "Filter by status",
   statusOptions: "Status filter options",

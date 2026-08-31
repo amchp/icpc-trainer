@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type OnChangeFn,
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -14,26 +15,32 @@ import { ContestsTableFilters } from "./ContestsTableFilters.js";
 import { ContestsTableGrid } from "./ContestsTableGrid.js";
 import {
   defaultJudgeSourceFilters,
-  emptyJudgeSourceCounts,
-  judgeSourceFor,
-  type JudgeSourceFilterId
+  judgeSourceFor
 } from "./JudgeSourceFilter.js";
 import {
   createContestColumns,
   toSearchableContestRow
 } from "./contestsTableModel.js";
+import type { JudgeFilterState } from "./urlTableFilters.js";
 
 export function ContestsTable({
-  contests
+  contests,
+  filters,
+  onFiltersChange
 }: {
   readonly contests: readonly UpsolvingContestRow[];
+  readonly filters?: JudgeFilterState;
+  readonly onFiltersChange?: OnChangeFn<JudgeFilterState>;
 }): React.JSX.Element {
   const { t } = useTranslation("contests");
   const { locale } = useLocale();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
-    defaultJudgeSourceFilters
-  );
+  const [localFilters, setLocalFilters] = useState<JudgeFilterState>({
+    searchQuery: "",
+    judgeSourceFilters: defaultJudgeSourceFilters
+  });
+  const activeFilters = filters ?? localFilters;
+  const setFilters = onFiltersChange ?? setLocalFilters;
+  const { searchQuery, judgeSourceFilters } = activeFilters;
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "missingCount", desc: false }
@@ -41,20 +48,6 @@ export function ContestsTable({
   const tableRows = useMemo(
     () => contests.map(toSearchableContestRow),
     [contests]
-  );
-  const judgeSourceCounts = useMemo(
-    () =>
-      tableRows.reduce<Record<JudgeSourceFilterId, number>>(
-        (counts, row) => {
-          const source = judgeSourceFor(row);
-          return {
-          ...counts,
-          [source]: counts[source] + 1
-          };
-        },
-        emptyJudgeSourceCounts()
-      ),
-    [tableRows]
   );
   const selectedJudgeSources = useMemo(() => new Set(judgeSourceFilters), [judgeSourceFilters]);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
@@ -84,10 +77,15 @@ export function ContestsTable({
       <ContestsTableFilters
         searchQuery={searchQuery}
         judgeSourceFilters={judgeSourceFilters}
-        judgeSourceCounts={judgeSourceCounts}
         visibleCount={visibleRows.length}
-        onSearchQueryChange={setSearchQuery}
-        onJudgeSourceFiltersChange={setJudgeSourceFilters}
+        onSearchQueryChange={(value) => setFilters((current) => ({
+          ...current,
+          searchQuery: value
+        }))}
+        onJudgeSourceFiltersChange={(value) => setFilters((current) => ({
+          ...current,
+          judgeSourceFilters: value
+        }))}
       />
 
       {contests.length === 0 ? (

@@ -194,9 +194,9 @@ describe("FindProblemsTable", () => {
     render(<FindProblemsTable overview={overview} />);
 
     let menu = openTagMenu();
-    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /dp, 2 problems/i }));
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "dp" }));
     menu = screen.getByRole("menu", { name: /tag filter options/i });
-    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /graphs, 1 problem/i }));
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "graphs" }));
 
     expect(screen.getByRole("link", { name: "B. Dynamic Math" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "C. Graph Paths" })).toBeInTheDocument();
@@ -210,7 +210,7 @@ describe("FindProblemsTable", () => {
     expect(screen.getByRole("link", { name: "A. Warmup" })).toBeInTheDocument();
 
     const menu = openTagMenu();
-    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /implementation, 1 problem/i }));
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "implementation" }));
 
     expect(screen.getByRole("link", { name: "A. Implementation" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();

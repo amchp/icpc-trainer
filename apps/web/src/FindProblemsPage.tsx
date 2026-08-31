@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -8,8 +9,15 @@ import { FindProblemsTable } from "./FindProblemsTable.js";
 import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
+import type { FindProblemsFilterState } from "./urlTableFilters.js";
 
-export function FindProblemsPage(): React.JSX.Element {
+export function FindProblemsPage({
+  filters,
+  onFiltersChange
+}: {
+  readonly filters?: FindProblemsFilterState;
+  readonly onFiltersChange?: OnChangeFn<FindProblemsFilterState>;
+} = {}): React.JSX.Element {
   const { t } = useTranslation("findProblems");
   const { hasConnectedJudge, status } = useConnectedJudges();
   const query = useQuery({
@@ -54,7 +62,11 @@ export function FindProblemsPage(): React.JSX.Element {
       ) : null}
 
       {query.data ? (
-        <FindProblemsTable overview={query.data} />
+        <FindProblemsTable
+          overview={query.data}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
       ) : null}
     </main>
   );

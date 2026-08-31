@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button, DropdownContent, DropdownItem, DropdownTrigger, Input, Label, TableCount } from "./components/ui.js";
-import { compareText, formatNumber } from "./i18n/format.js";
+import { compareText } from "./i18n/format.js";
 import { useLocale } from "./i18n/LocaleProvider.js";
 
 export interface FindProblemTagOption {
@@ -194,7 +194,7 @@ function TagFilterDropdown({
           <DropdownItem
             role="menuitemcheckbox"
             aria-checked={selectedTags.length === 0}
-            aria-label={t("allTagsLabel", { count: tags.length })}
+            aria-label={t("allTags")}
             onClick={() => onChange([])}
           >
             <span className="w-4 text-blue-300">
@@ -210,7 +210,7 @@ function TagFilterDropdown({
                 key={tag.name}
                 role="menuitemcheckbox"
                 aria-checked={selected}
-                aria-label={`${tag.name}, ${tag.count} ${t("problemCount", { count: tag.count })}`}
+                aria-label={tag.name}
                 onClick={() => {
                   onChange(
                     selected
@@ -223,7 +223,6 @@ function TagFilterDropdown({
                   {selected && <Check className="size-3.5" aria-hidden="true" />}
                 </span>
                 <span className="flex-1">{tag.name}</span>
-                <span className="tabular-nums text-zinc-500">{formatNumber(tag.count, locale)}</span>
               </DropdownItem>
             );
           })}

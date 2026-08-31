@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -9,8 +10,15 @@ import { queryKeys } from "./queryKeys.js";
 import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { trpc } from "./trpc.js";
 import { UpsolvingProblemTable } from "./UpsolvingProblemTable.js";
+import type { UpsolvingFilterState } from "./urlTableFilters.js";
 
-export function UpsolvingPage(): React.JSX.Element {
+export function UpsolvingPage({
+  filters,
+  onFiltersChange
+}: {
+  readonly filters?: UpsolvingFilterState;
+  readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
+} = {}): React.JSX.Element {
   const { t } = useTranslation(["upsolving", "findProblems"]);
   const { hasConnectedJudge, status } = useConnectedJudges();
   const query = useQuery({
@@ -67,7 +75,11 @@ export function UpsolvingPage(): React.JSX.Element {
       {noSyncedData ? (
         <SyncDataPrompt />
       ) : overview ? (
-        <UpsolvingProblemTable rows={overview.rows} />
+        <UpsolvingProblemTable
+          rows={overview.rows}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
       ) : null}
     </main>
   );

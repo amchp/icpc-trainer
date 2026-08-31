@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { Link } from "@tanstack/react-router";
 import { UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -16,22 +17,31 @@ import {
 } from "./contestFinderModel.js";
 import {
   defaultJudgeSourceFilters,
-  judgeSourceFor,
-  type JudgeSourceFilterId
+  judgeSourceFor
 } from "./JudgeSourceFilter.js";
 import { queryKeys } from "./queryKeys.js";
 import { ContestRouteTabs } from "./SectionRouteTabs.js";
 import { trpc } from "./trpc.js";
 import { useFriendSubmissionSync } from "./useFriendSubmissionSync.js";
+import type { JudgeFilterState } from "./urlTableFilters.js";
 
-export function ContestFinderPage(): React.JSX.Element {
+export function ContestFinderPage({
+  filters,
+  onFiltersChange
+}: {
+  readonly filters?: JudgeFilterState;
+  readonly onFiltersChange?: OnChangeFn<JudgeFilterState>;
+} = {}): React.JSX.Element {
   const { t } = useTranslation("contestFinder");
   const { locale } = useLocale();
   const friendSubmissionSync = useFriendSubmissionSync();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [judgeSourceFilters, setJudgeSourceFilters] = useState<readonly JudgeSourceFilterId[]>(
-    defaultJudgeSourceFilters
-  );
+  const [localFilters, setLocalFilters] = useState<JudgeFilterState>({
+    searchQuery: "",
+    judgeSourceFilters: defaultJudgeSourceFilters
+  });
+  const activeFilters = filters ?? localFilters;
+  const setFilters = onFiltersChange ?? setLocalFilters;
+  const { searchQuery, judgeSourceFilters } = activeFilters;
 
   const overviewQuery = useQuery({
     queryKey: queryKeys.contestFinderOverview,
@@ -76,13 +86,18 @@ export function ContestFinderPage(): React.JSX.Element {
 
       <ContestFinderContestTab
         contests={filteredContests}
-        allContests={contests}
         searchQuery={searchQuery}
         judgeSourceFilters={judgeSourceFilters}
         isLoading={overviewQuery.isLoading}
         error={overviewQuery.error}
-        onSearchQueryChange={setSearchQuery}
-        onJudgeSourceFiltersChange={setJudgeSourceFilters}
+        onSearchQueryChange={(value) => setFilters((current) => ({
+          ...current,
+          searchQuery: value
+        }))}
+        onJudgeSourceFiltersChange={(value) => setFilters((current) => ({
+          ...current,
+          judgeSourceFilters: value
+        }))}
       />
     </main>
   );

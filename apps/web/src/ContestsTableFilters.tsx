@@ -7,14 +7,12 @@ import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSour
 export function ContestsTableFilters({
   searchQuery,
   judgeSourceFilters,
-  judgeSourceCounts,
   visibleCount,
   onSearchQueryChange,
   onJudgeSourceFiltersChange
 }: {
   readonly searchQuery: string;
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
-  readonly judgeSourceCounts: Record<JudgeSourceFilterId, number>;
   readonly visibleCount: number;
   readonly onSearchQueryChange: (value: string) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
@@ -36,7 +34,6 @@ export function ContestsTableFilters({
       <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
         <JudgeSourceFilterDropdown
           selectedSources={judgeSourceFilters}
-          counts={judgeSourceCounts}
           onChange={onJudgeSourceFiltersChange}
         />
         <TableCount count={visibleCount} itemName={t("contestCount", { count: 1 })} pluralItemName={t("contestCount", { count: 2 })} />

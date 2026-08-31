@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -10,8 +11,15 @@ import { queryKeys } from "./queryKeys.js";
 import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { ContestRouteTabs } from "./SectionRouteTabs.js";
 import { trpc } from "./trpc.js";
+import type { JudgeFilterState } from "./urlTableFilters.js";
 
-export function ContestsPage(): React.JSX.Element {
+export function ContestsPage({
+  filters,
+  onFiltersChange
+}: {
+  readonly filters?: JudgeFilterState;
+  readonly onFiltersChange?: OnChangeFn<JudgeFilterState>;
+} = {}): React.JSX.Element {
   const { t } = useTranslation(["contests", "findProblems"]);
   const { hasConnectedJudge, status } = useConnectedJudges();
   const query = useQuery({
@@ -65,7 +73,11 @@ export function ContestsPage(): React.JSX.Element {
       {noSyncedData ? (
         <SyncDataPrompt />
       ) : query.data ? (
-        <ContestsTable contests={query.data.contests} />
+        <ContestsTable
+          contests={query.data.contests}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
       ) : null}
     </main>
   );

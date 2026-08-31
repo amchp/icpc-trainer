@@ -68,7 +68,7 @@ const sourceRows: UpsolvingProblemRow[] = [
 
 const selectAllStatuses = (): void => {
   fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-  fireEvent.click(screen.getByRole("menuitemradio", { name: /all statuses/i }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Solved" }));
 };
 
 describe("UpsolvingProblemTable", () => {
@@ -79,16 +79,16 @@ describe("UpsolvingProblemTable", () => {
   it("renders rows through TanStack Table sorted by rating", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
-    expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("New(1)");
-    expect(screen.getByLabelText("1 problem")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("New, Attempted");
+    expect(screen.getByLabelText("2 problems")).toBeInTheDocument();
     const bodyRows = screen.getAllByRole("row").slice(1);
-    expect(bodyRows).toHaveLength(1);
+    expect(bodyRows).toHaveLength(2);
     expect(within(bodyRows[0]!).getAllByRole("cell")[0]).toHaveTextContent("1");
-    expect(within(bodyRows[0]!).getAllByRole("cell")[6]).toHaveTextContent("2");
-    expect(within(bodyRows[0]!).getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
+    expect(within(bodyRows[0]!).getAllByRole("cell")[6]).toHaveTextContent("1");
+    expect(within(bodyRows[0]!).getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
+    expect(within(bodyRows[1]!).getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
-    expect(screen.getAllByText("Regional Practice")).toHaveLength(1);
+    expect(screen.getAllByText("Regional Practice")).toHaveLength(2);
     expect(screen.queryByText("100A")).not.toBeInTheDocument();
     expect(screen.queryByText("Submissions")).not.toBeInTheDocument();
   });
@@ -124,20 +124,21 @@ describe("UpsolvingProblemTable", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
     fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /new, 1 problem/i }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Attempted" }));
 
     expect(screen.getByRole("link", { name: "B. Binary Search" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
   });
 
-  it("filters by status", () => {
+  it("filters by multiple selected statuses without showing option counts", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
     fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
     const menu = screen.getByRole("menu", { name: /status filter options/i });
-    expect(within(menu).getByRole("menuitemradio", { name: /attempted, 1 problem/i })).toBeInTheDocument();
-    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /attempted, 1 problem/i }));
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Attempted" })).toBeChecked();
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "New" })).toBeChecked();
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "New" }));
 
     expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
@@ -150,9 +151,9 @@ describe("UpsolvingProblemTable", () => {
     selectAllStatuses();
     fireEvent.click(screen.getByRole("button", { name: /filter by judge/i }));
     const menu = screen.getByRole("menu", { name: /judge filter options/i });
-    expect(within(menu).getByRole("menuitemcheckbox", { name: /codeforces contest, 1 item/i })).toBeInTheDocument();
-    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /codeforces gym, 3 items/i }));
-    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /qoj, 1 item/i }));
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Codeforces Contest" })).toBeInTheDocument();
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Codeforces Gym" }));
+    fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "QOJ" }));
 
     expect(screen.getByRole("link", { name: "A. Regular" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();

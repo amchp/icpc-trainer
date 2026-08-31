@@ -1,6 +1,7 @@
 import type { LeaderboardRow, LeaderboardScope } from "@icpc-trainer/api";
 import { JUDGES } from "@icpc-trainer/shared";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,16 +16,28 @@ import { localizedErrorMessage } from "./i18n/localizedMessage.js";
 import { queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
 import { VirtualGridTable } from "./VirtualGridTable.js";
+import type { LeaderboardFilterState } from "./urlTableFilters.js";
 
 const scopes: readonly LeaderboardScope[] = ["all", "team", "friends", "class"];
 
-export function LeaderboardPage(): React.JSX.Element {
+export function LeaderboardPage({
+  filters,
+  onFiltersChange
+}: {
+  readonly filters?: LeaderboardFilterState;
+  readonly onFiltersChange?: OnChangeFn<LeaderboardFilterState>;
+} = {}): React.JSX.Element {
   const { t } = useTranslation("leaderboard");
   const { locale } = useLocale();
-  const [scope, setScope] = useState<LeaderboardScope>("all");
-  const [judge, setJudge] = useState<JUDGES | "all">("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [localFilters, setLocalFilters] = useState<LeaderboardFilterState>({
+    scope: "all",
+    judge: "all",
+    startDate: "",
+    endDate: ""
+  });
+  const activeFilters = filters ?? localFilters;
+  const setFilters = onFiltersChange ?? setLocalFilters;
+  const { scope, judge, startDate, endDate } = activeFilters;
   const [appliedRange, setAppliedRange] = useState<LocalDateRange | undefined>();
   const [classDialogOpen, setClassDialogOpen] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -42,16 +55,16 @@ export function LeaderboardPage(): React.JSX.Element {
     }
   }, [dateResult]);
 
-  const filters = {
+  const queryFilters = {
     scope,
     judge: judge === "all" ? undefined : judge,
     startAt: appliedRange?.startAt,
     endAtExclusive: appliedRange?.endAtExclusive
   };
   const query = useInfiniteQuery({
-    queryKey: queryKeys.leaderboardList(filters),
+    queryKey: queryKeys.leaderboardList(queryFilters),
     queryFn: ({ pageParam }) => trpc.leaderboard.list.query({
-      ...filters,
+      ...queryFilters,
       page: pageParam
     }),
     initialPageParam: 0,
@@ -135,7 +148,10 @@ export function LeaderboardPage(): React.JSX.Element {
                   type="button"
                   variant={scope === value ? "default" : "secondary"}
                   aria-pressed={scope === value}
-                  onClick={() => setScope(value)}
+                  onClick={() => setFilters((current) => ({
+                    ...current,
+                    scope: value
+                  }))}
                 >
                   {t(`scopes.${value}`)}
                 </Button>
@@ -146,7 +162,10 @@ export function LeaderboardPage(): React.JSX.Element {
             <FieldLabel>{t("judgeLabel")}</FieldLabel>
             <Select
               value={judge}
-              onChange={(event) => setJudge(event.target.value as JUDGES | "all")}
+              onChange={(event) => setFilters((current) => ({
+                ...current,
+                judge: event.target.value as JUDGES | "all"
+              }))}
             >
               <option value="all">{t("judges.all")}</option>
               <option value={JUDGES.Codeforces}>{judgeDisplayLabels.codeforces}</option>
@@ -158,20 +177,37 @@ export function LeaderboardPage(): React.JSX.Element {
             <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <Label>
                 <span className="sr-only">{t("dates.from")}</span>
-                <Input type="date" aria-label={t("dates.from")} value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+                <Input
+                  type="date"
+                  aria-label={t("dates.from")}
+                  value={startDate}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    startDate: event.target.value
+                  }))}
+                />
               </Label>
               <Label>
                 <span className="sr-only">{t("dates.through")}</span>
-                <Input type="date" aria-label={t("dates.through")} value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+                <Input
+                  type="date"
+                  aria-label={t("dates.through")}
+                  value={endDate}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    endDate: event.target.value
+                  }))}
+                />
               </Label>
               <Button
                 type="button"
                 variant="ghost"
                 disabled={startDate === "" && endDate === ""}
-                onClick={() => {
-                  setStartDate("");
-                  setEndDate("");
-                }}
+                onClick={() => setFilters((current) => ({
+                  ...current,
+                  startDate: "",
+                  endDate: ""
+                }))}
               >
                 {t("dates.clear")}
               </Button>

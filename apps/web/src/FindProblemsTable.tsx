@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type OnChangeFn,
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -17,6 +18,7 @@ import {
   createFindProblemColumns,
   toSearchableFindProblemRow
 } from "./findProblemsTableModel.js";
+import type { FindProblemsFilterState } from "./urlTableFilters.js";
 
 const defaultMinRating = 800;
 const defaultMaxRating = 2400;
@@ -25,23 +27,28 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(value, max));
 
 export function FindProblemsTable({
-  overview
+  overview,
+  filters,
+  onFiltersChange
 }: {
   readonly overview: FindProblemsOverview;
+  readonly filters?: FindProblemsFilterState;
+  readonly onFiltersChange?: OnChangeFn<FindProblemsFilterState>;
 }): React.JSX.Element {
   const { t } = useTranslation("findProblems");
   const { locale } = useLocale();
   const ratingFloor = overview.ratingRange.min ?? defaultMinRating;
   const ratingCeiling = overview.ratingRange.max ?? defaultMaxRating;
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localFilters, setLocalFilters] = useState<FindProblemsFilterState>({
+    searchQuery: "",
+    selectedTags: [],
+    minRating: defaultMinRating,
+    maxRating: defaultMaxRating
+  });
+  const activeFilters = filters ?? localFilters;
+  const setFilters = onFiltersChange ?? setLocalFilters;
+  const { searchQuery, selectedTags, minRating, maxRating } = activeFilters;
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [selectedTags, setSelectedTags] = useState<readonly string[]>([]);
-  const [minRating, setMinRating] = useState(() =>
-    clamp(defaultMinRating, ratingFloor, ratingCeiling)
-  );
-  const [maxRating, setMaxRating] = useState(() =>
-    clamp(defaultMaxRating, ratingFloor, ratingCeiling)
-  );
   const [sorting, setSorting] = useState<SortingState>([
     { id: "rating", desc: false }
   ]);
@@ -120,10 +127,22 @@ export function FindProblemsTable({
         tags={localizedTags}
         selectedTags={activeSelectedTags}
         visibleCount={visibleRows.length}
-        onSearchQueryChange={setSearchQuery}
-        onMinRatingChange={(value) => setMinRating(clamp(value, ratingFloor, ratingCeiling))}
-        onMaxRatingChange={(value) => setMaxRating(clamp(value, ratingFloor, ratingCeiling))}
-        onSelectedTagsChange={setSelectedTags}
+        onSearchQueryChange={(value) => setFilters((current) => ({
+          ...current,
+          searchQuery: value
+        }))}
+        onMinRatingChange={(value) => setFilters((current) => ({
+          ...current,
+          minRating: clamp(value, ratingFloor, ratingCeiling)
+        }))}
+        onMaxRatingChange={(value) => setFilters((current) => ({
+          ...current,
+          maxRating: clamp(value, ratingFloor, ratingCeiling)
+        }))}
+        onSelectedTagsChange={(value) => setFilters((current) => ({
+          ...current,
+          selectedTags: value
+        }))}
         onRandom={randomProblem}
       />
 

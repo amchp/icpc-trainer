@@ -5,6 +5,7 @@ export const upsolving = {
   searchLabel: "Buscar problemas",
   searchPlaceholder: "Buscar problemas, concursos o jueces",
   allStatuses: "Todos los estados",
+  noStatuses: "Sin estados",
   status: { new: "Nuevo", attempted: "Intentado", solved: "Resuelto" },
   filterByStatus: "Filtrar por estado",
   statusOptions: "Opciones de estado",
