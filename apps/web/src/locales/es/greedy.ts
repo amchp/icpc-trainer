@@ -24,7 +24,7 @@ export const gr\u0065edy = {
     sample: "Ejemplo",
     source: "Abrir problema original",
     problemStage: "Problema",
-    attempt: "Antes de revelar la herramienta, nombra el estado actual, las opciones factibles y la regla local que intentarías justificar.",
+    attempt: "Explica los datos y las condiciones de una respuesta válida. Prueba un ejemplo pequeño antes de revelar la herramienta.",
     attemptStage: "Intento rápido",
     reveal: "Aprender la herramienta",
     hide: "Ocultar la herramienta",
@@ -61,7 +61,7 @@ export const gr\u0065edy = {
     }
   },
   coins: {
-    eyebrow: "Mayor denominación factible",
+    eyebrow: "Pago exacto",
     title: "Da el cambio exacto con la menor cantidad de monedas",
     description: "Debes pagar exactamente la cantidad objetivo. Puedes usar cada denominación tantas veces como sea necesario y tu respuesta debe contener la menor cantidad posible de monedas.",
     constraints: "Las denominaciones son 1, 5, 10, 25 y 50; el objetivo editable va de 1 a 500.",
@@ -117,7 +117,7 @@ export const gr\u0065edy = {
     }
   },
   activities: {
-    eyebrow: "Intervalo que termina primero",
+    eyebrow: "Actividades sin solapamientos",
     title: "Asiste a la mayor cantidad de actividades compatibles",
     description: "Cada actividad ocupa un intervalo desde su inicio hasta su final. Solo puedes asistir a actividades que no se superpongan y debes asistir a la mayor cantidad posible; una puede comenzar justo cuando termina la anterior.",
     constraints: "De una a ocho actividades; extremos enteros de 0 a 1000 y el inicio debe ser menor que el final.",
@@ -184,7 +184,7 @@ export const gr\u0065edy = {
     }
   },
   chat: {
-    eyebrow: "Coincidencia de subsecuencia más temprana",
+    eyebrow: "Letras en orden",
     title: "Encuentra hello sin reordenar el mensaje",
     description: "Dado un mensaje en minúsculas, decide si al borrar algunos caracteres, sin cambiar el orden de los demás, puede quedar exactamente la palabra hello.",
     constraints: "De una a 100 letras inglesas minúsculas.",
@@ -214,7 +214,7 @@ export const gr\u0065edy = {
     }
   },
   alternating: {
-    eyebrow: "Bloques de signo independientes",
+    eyebrow: "Signos alternantes",
     title: "Maximiza la suma de una subsecuencia alternante más larga",
     description: "Elige una subsecuencia cuyos valores vecinos alternen entre positivo y negativo. Primero hazla tan larga como sea posible; entre todas las más largas, conserva la de mayor suma.",
     constraints: "De uno a doce valores enteros distintos de cero; magnitud máxima de 1.000.000.000.",
@@ -243,8 +243,8 @@ export const gr\u0065edy = {
   practice: {
     intro: "Transfiere cada argumento de seguridad al problema exacto para el que fue construido. Estos son los únicos tres problemas externos enseñados aquí.",
     exchange: "Valores mayores y mayoría estricta",
-    earliest: "Coincidencia de subsecuencia más temprana",
-    blocks: "Bloques de signo independientes",
+    earliest: "Letras en orden",
+    blocks: "Signos alternantes",
     links: { twins: "Twins", chat: "Chat Room", alternating: "Alternating Subsequence" }
   },
   finish: {

@@ -23,6 +23,8 @@ import {
   TwinsTool
 } from "./learning/greedy/GreedyInteractions.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
+import { StatementPreview } from "./learning/StatementPreview.js";
+import { getAdvancedStatement } from "./learning/statements/advancedStatements.js";
 import { ProblemFirstChallenge } from "./learning/ProblemFirstChallenge.js";
 import { useToaster } from "./Toaster.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
@@ -30,7 +32,7 @@ import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuid
 const GUIDE_ID = LEARNING_GUIDE_IDS.Greedy;
 
 export function GreedyPage(): React.JSX.Element {
-  const { t } = useTranslation("greedy");
+  const { t, i18n } = useTranslation("greedy");
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -136,7 +138,7 @@ export function GreedyPage(): React.JSX.Element {
           </GuideSection>
 
           <GuideSection id="coins" title={t("sections.coins")} accent="emerald">
-            <ProblemFirstChallenge accent="emerald" {...challengeLabels} eyebrow={t("coins.eyebrow")} title={t("coins.title")} description={t("coins.description")} constraints={t("coins.constraints")} sample={t("coins.sample")} toolTitle={t("coins.toolTitle")} applicationTitle={t("coins.applicationTitle")} application={<><p>{t("coins.applicationText")}</p><CoinChangeLab /></>}>
+            <ProblemFirstChallenge accent="emerald" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "coins")} eyebrow={t("coins.eyebrow")} title={t("coins.title")} description={t("coins.description")} constraints={t("coins.constraints")} sample={t("coins.sample")} toolTitle={t("coins.toolTitle")} applicationTitle={t("coins.applicationTitle")} application={<><p>{t("coins.applicationText")}</p><CoinChangeLab /></>}>
               <p>{t("coins.toolText")}</p>
               <StrategyExample title={t("coins.exampleTitle")} intro={t("coins.exampleIntro")} items={[
                 [t("recognize.recipe.state"), t("coins.example.state")],
@@ -151,7 +153,7 @@ export function GreedyPage(): React.JSX.Element {
 
           <GuideSection id="fails" title={t("sections.fails")} accent="rose">
             <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/70">
-              <div className="p-5 sm:p-7"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300">{t("fails.eyebrow")}</p><h3 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-50">{t("fails.title")}</h3><p className="mt-4 leading-7 text-zinc-300">{t("fails.prompt")}</p></div>
+              <div className="p-5 sm:p-7"><p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300">{t("fails.eyebrow")}</p><h3 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-50">{t("fails.title")}</h3><p className="mt-4 leading-7 text-zinc-300">{t("fails.prompt")}</p><StatementPreview statement={getAdvancedStatement(i18n.language, "fails")} title={t("fails.title")} /></div>
               <div className="border-t border-zinc-800">
                 <button type="button" aria-label={failureRevealed ? t("fails.hide") : t("fails.reveal")} aria-expanded={failureRevealed} aria-controls="greedy-counterexample-panel" className="group flex min-h-14 w-full items-center justify-between gap-4 px-5 py-5 text-left text-sm font-semibold text-zinc-200 transition-colors motion-reduce:transition-none hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:px-7" onClick={() => setFailureRevealed((value) => !value)}>
                   <span className="flex items-center gap-3"><span aria-hidden="true" className="h-4 w-px bg-rose-400" /><span>{failureRevealed ? t("fails.hide") : t("fails.reveal")}</span></span>
@@ -163,7 +165,7 @@ export function GreedyPage(): React.JSX.Element {
           </GuideSection>
 
           <GuideSection id="activities" title={t("sections.activities")} accent="cyan">
-            <ProblemFirstChallenge accent="cyan" {...challengeLabels} eyebrow={t("activities.eyebrow")} title={t("activities.title")} description={t("activities.description")} constraints={t("activities.constraints")} sample={t("activities.sample")} toolTitle={t("activities.toolTitle")} applicationTitle={t("activities.applicationTitle")} application={<><p>{t("activities.applicationText")}</p><ActivitySelectionLab /></>}>
+            <ProblemFirstChallenge accent="cyan" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "activities")} eyebrow={t("activities.eyebrow")} title={t("activities.title")} description={t("activities.description")} constraints={t("activities.constraints")} sample={t("activities.sample")} toolTitle={t("activities.toolTitle")} applicationTitle={t("activities.applicationTitle")} application={<><p>{t("activities.applicationText")}</p><ActivitySelectionLab /></>}>
               <p>{t("activities.toolText")}</p>
               <StrategyExample title={t("activities.exampleTitle")} intro={t("activities.exampleIntro")} items={[
                 [t("recognize.recipe.state"), t("activities.example.state")],
@@ -177,19 +179,19 @@ export function GreedyPage(): React.JSX.Element {
           </GuideSection>
 
           <GuideSection id="twins" title={t("sections.twins")} accent="violet">
-            <ProblemFirstChallenge accent="violet" {...challengeLabels} eyebrow={t("twins.eyebrow")} title={t("twins.title")} description={t("twins.description")} constraints={t("twins.constraints")} sample={t("twins.sample")} sourceUrl="https://codeforces.com/problemset/problem/160/A" toolTitle={t("twins.toolTitle")} applicationTitle={t("twins.applicationTitle")} application={<><p>{t("twins.applicationText")}</p><TwinsLab /></>}>
+            <ProblemFirstChallenge accent="violet" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "twins")} eyebrow={t("twins.eyebrow")} title={t("twins.title")} description={t("twins.description")} constraints={t("twins.constraints")} sample={t("twins.sample")} sourceUrl="https://codeforces.com/problemset/problem/160/A" toolTitle={t("twins.toolTitle")} applicationTitle={t("twins.applicationTitle")} application={<><p>{t("twins.applicationText")}</p><TwinsLab /></>}>
               <p>{t("twins.toolText")}</p><TwinsTool />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="chat" title={t("sections.chat")} accent="rose">
-            <ProblemFirstChallenge accent="rose" {...challengeLabels} eyebrow={t("chat.eyebrow")} title={t("chat.title")} description={t("chat.description")} constraints={t("chat.constraints")} sample={t("chat.sample")} sourceUrl="https://codeforces.com/problemset/problem/58/A" toolTitle={t("chat.toolTitle")} applicationTitle={t("chat.applicationTitle")} application={<><p>{t("chat.applicationText")}</p><ChatRoomLab /></>}>
+            <ProblemFirstChallenge accent="rose" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "chat")} eyebrow={t("chat.eyebrow")} title={t("chat.title")} description={t("chat.description")} constraints={t("chat.constraints")} sample={t("chat.sample")} sourceUrl="https://codeforces.com/problemset/problem/58/A" toolTitle={t("chat.toolTitle")} applicationTitle={t("chat.applicationTitle")} application={<><p>{t("chat.applicationText")}</p><ChatRoomLab /></>}>
               <p>{t("chat.toolText")}</p><ChatRoomTool />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="alternating" title={t("sections.alternating")} accent="orange">
-            <ProblemFirstChallenge accent="orange" {...challengeLabels} eyebrow={t("alternating.eyebrow")} title={t("alternating.title")} description={t("alternating.description")} constraints={t("alternating.constraints")} sample={t("alternating.sample")} sourceUrl="https://codeforces.com/problemset/problem/1343/C" toolTitle={t("alternating.toolTitle")} applicationTitle={t("alternating.applicationTitle")} application={<><p>{t("alternating.applicationText")}</p><AlternatingLab /></>}>
+            <ProblemFirstChallenge accent="orange" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "alternating")} eyebrow={t("alternating.eyebrow")} title={t("alternating.title")} description={t("alternating.description")} constraints={t("alternating.constraints")} sample={t("alternating.sample")} sourceUrl="https://codeforces.com/problemset/problem/1343/C" toolTitle={t("alternating.toolTitle")} applicationTitle={t("alternating.applicationTitle")} application={<><p>{t("alternating.applicationText")}</p><AlternatingLab /></>}>
               <p>{t("alternating.toolText")}</p><AlternatingTool />
             </ProblemFirstChallenge>
           </GuideSection>

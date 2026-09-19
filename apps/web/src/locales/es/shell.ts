@@ -5,6 +5,7 @@ export const shell = {
     contests: "Concursos",
     contestFinder: "Buscar concursos",
     resources: "Recursos",
+    animations: "Animaciones",
     team: "Equipo",
     friends: "Amigos",
     judges: "Jueces",

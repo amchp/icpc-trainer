@@ -10,6 +10,7 @@ import { Button } from "./components/ui.js";
 import "./i18n/registerDynamicProgrammingResources.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { DagDpPlayer, FibonacciDpPlayer, GridDpPlayer, KnapsackDpPlayer, NonAdjacentDpPlayer } from "./learning/dp/DpInteractions.js";
+import { getAdvancedStatement } from "./learning/statements/advancedStatements.js";
 import { ProblemFirstChallenge } from "./learning/ProblemFirstChallenge.js";
 import { useToaster } from "./Toaster.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
@@ -103,7 +104,7 @@ const SOURCE_URLS: Partial<Record<Arc, string>> = {
 const ACCENTS = ["emerald", "cyan", "violet", "rose", "rose"] as const;
 
 export function DynamicProgrammingPage(): React.JSX.Element {
-  const { t } = useTranslation("dynamicProgramming");
+  const { t, i18n } = useTranslation("dynamicProgramming");
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -185,6 +186,7 @@ export function DynamicProgrammingPage(): React.JSX.Element {
               <ProblemFirstChallenge
                 accent={ACCENTS[index]}
                 {...challengeLabels}
+                statement={getAdvancedStatement(i18n.language, arc)}
                 eyebrow={t(`${arc}.eyebrow`)}
                 title={t(`${arc}.title`)}
                 description={t(`${arc}.description`)}

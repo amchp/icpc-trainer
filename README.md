@@ -12,6 +12,8 @@ The repository contains:
 - Drizzle ORM with libSQL/Turso
 - Clerk-owned app users mapped to judge users marked as team users or friends
 
+The **Animations** page (`/animations`) is a searchable library of 44 existing algorithm tools in 31 lesson groups. Sign in with an ICPC Trainer account; connecting a judge is not required. Search in English or Spanish, open related tools together, or use presentation mode while teaching. Shared workspace links open each tool at its starting state after sign-in. Full problem solutions remain in the Learning Guides.
+
 ## Open Source
 
 ICPC Trainer is open source under the [MIT License](LICENSE). Contributions are accepted under the same license; see [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [SECURITY.md](SECURITY.md) for private vulnerability reporting.

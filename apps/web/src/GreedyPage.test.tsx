@@ -48,6 +48,7 @@ describe("GreedyPage", () => {
     expect(screen.getAllByText("00 · Problem", { exact: true })).toHaveLength(5);
     expect(screen.getAllByRole("button", { name: "Learn the tool" })).toHaveLength(5);
     expect(screen.queryByText("02 · Problem connection", { exact: true })).not.toBeInTheDocument();
+    expect(document.querySelectorAll("[data-statement-preview] [data-scenario-player]")).toHaveLength(6);
     const coins = document.getElementById("coins");
     const fails = document.getElementById("fails");
     const activities = document.getElementById("activities");
@@ -62,7 +63,7 @@ describe("GreedyPage", () => {
     expect(screen.queryByLabelText("Five-step greedy recipe")).not.toBeInTheDocument();
     for (const button of screen.getAllByRole("button", { name: "Learn the tool" })) fireEvent.click(button);
     expect(screen.getAllByText("02 · Problem connection", { exact: true })).toHaveLength(5);
-    expect(document.querySelectorAll("[aria-live='polite']")).toHaveLength(5);
+    expect(document.querySelectorAll("[aria-live='polite']:not([data-statement-preview] *)")).toHaveLength(5);
     const coins = screen.getByRole("heading", { name: "Make exact change with as few coins as possible" }).closest("article");
     const activities = screen.getByRole("heading", { name: "Attend the maximum number of compatible activities" }).closest("article");
     if (coins === null || activities === null) throw new Error("Expected the first two challenge articles.");
@@ -75,7 +76,7 @@ describe("GreedyPage", () => {
     expect(screen.getByLabelText("Twins Lab")).toBeInTheDocument();
     expect(screen.getByLabelText("Chat Room Lab")).toBeInTheDocument();
     expect(screen.getByLabelText("Alternating Subsequence Lab")).toBeInTheDocument();
-    expect(document.querySelectorAll("[aria-live='polite']")).toHaveLength(10);
+    expect(document.querySelectorAll("[aria-live='polite']:not([data-statement-preview] *)")).toHaveLength(10);
     expect(document.querySelector("code")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/C\+\+|pseudocode/i);
   });
@@ -102,6 +103,6 @@ describe("GreedyPage", () => {
     expect(screen.getAllByText("00 · Problema", { exact: true })).toHaveLength(5);
     expect(screen.getAllByText("01 · Herramienta", { exact: true })).toHaveLength(5);
     expect(screen.getByText("02 · Conexión con el problema", { exact: true })).toBeInTheDocument();
-    expect(document.querySelector("[aria-live='polite']")).toHaveTextContent(/estado|restante/i);
+    expect(document.querySelector("[aria-live='polite']:not([data-statement-preview] *)")).toHaveTextContent(/estado|restante/i);
   });
 });

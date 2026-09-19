@@ -50,7 +50,7 @@ export const bruteForce = {
     source: "Abrir el problema original del Juez",
     problemStage: "Problema",
     attemptStage: "Tu turno",
-    attempt: "Intenta resolver el reto antes de continuar. Decide cuál podría ser el estado o cuáles serían los candidatos; revela la herramienta general solo después de formar tu primera idea.",
+    attempt: "Explica con tus palabras el resultado solicitado y plantea tu primera idea antes de revelar la herramienta.",
     reveal: "Aprender la herramienta",
     hide: "Ocultar la herramienta",
     toolStage: "Herramienta general",
@@ -60,7 +60,7 @@ export const bruteForce = {
     applicationHide: "Ocultar la conexión con el problema"
   },
   alice: {
-    eyebrow: "Ciclo resuelto 01 · Simula",
+    eyebrow: "Reto 01 · Movimientos repetidos",
     title: "Las aventuras de Alice en «Ajedrez»",
     description: "Alice repite una cadena conocida de movimientos al norte, sur, este y oeste. Decide si alguna vez llega a una coordenada objetivo.",
     constraints: "Hasta 500 casos; 1 ≤ n ≤ 10; coordenadas objetivo 1 ≤ a, b ≤ 10. El patrón se repite.",
@@ -97,10 +97,10 @@ export const bruteForce = {
     complexity: "El límite justificado de 21 pasadas cuesta O(21 · n) por caso, u O(t · 21 · n) para toda la entrada."
   },
   kitchen: {
-    eyebrow: "Ciclo resuelto 02 · Permuta",
+    eyebrow: "Reto 02 · Pesos de platos",
     title: "Kitchen Plates",
     description: "Decide si algún orden de cinco platos etiquetados satisface las cinco restricciones de orden entre pares.",
-    constraints: "Exactamente cinco platos distintos: 5! = 120 órdenes completos.",
+    constraints: "Exactamente cinco platos distintos A–E y cinco comparaciones. Todos los pesos son diferentes.",
     sample: "D>B\nA>D\nE<C\nA>B\nB>C",
     toolTitle: "Permutaciones: genera cada orden posible",
     toolExplanation: "Generar cada orden significa producir cada arreglo que usa todos los elementos exactamente una vez. Con tres elementos distintos, la primera posición tiene 3 opciones, la segunda 2 y la última 1: 3! = 6 órdenes. El código puede recorrer todo ese árbol de decisiones recursivamente o avanzar en orden lexicográfico con next_permutation.",
@@ -139,7 +139,7 @@ export const bruteForce = {
     complexity: "Comprobar cinco comparaciones para cada orden cuesta O(5! · 5), muy dentro del presupuesto."
   },
   sakurako: {
-    eyebrow: "Ciclo resuelto 03 · Decisiones binarias",
+    eyebrow: "Reto 03 · Valores con signos",
     title: "El examen de Sakurako",
     description: "Dados a unos y b doses, decide si se pueden asignar signos para que la suma sea cero.",
     constraints: "0 ≤ a, b < 10. Cada uno de los a + b valores recibe un signo positivo o negativo.",
@@ -178,10 +178,10 @@ export const bruteForce = {
     complexity: "En t casos, reconstruir una suma de n valores para cada máscara cuesta O(t · n · 2ⁿ). Esa expresión es una estimación, no una garantía de aceptación."
   },
   sudoku: {
-    eyebrow: "Ciclo resuelto 04 · Retrocede",
-    title: "Cierre con backtracking en Sudoku",
+    eyebrow: "Reto 04 · Sudoku",
+    title: "Completa el Sudoku",
     description: "Llena las celdas vacías de modo que cada fila, columna y caja de 3×3 siga siendo válida.",
-    constraints: "Dígitos del 1 al 9. Rechaza tableros parciales inválidos antes de profundizar.",
+    constraints: "Un tablero de 9×9 con dígitos del 1 al 9. Los dígitos dados no pueden cambiar.",
     sample: "5 3 · | · · 8\n6 7 2 | 1 · ·",
     toolTitle: "Backtracking: explora solo elecciones que todavía pueden funcionar",
     toolExplanation: "El backtracking construye un candidato una decisión a la vez. Antes de bajar, rechaza elecciones que ya rompen un invariante. Si una rama más profunda falla, deshace el último cambio y prueba la siguiente opción. Es búsqueda exhaustiva con una salida temprana de subárboles imposibles.",

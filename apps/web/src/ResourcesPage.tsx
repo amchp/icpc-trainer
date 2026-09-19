@@ -1,5 +1,7 @@
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES, type LearningProgressStatus } from "@icpc-trainer/shared";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpRight } from "lucide-react";
 
 import { appPaths } from "./appNavigation.js";
 import { RoadmapBranchFan, RoadmapConnector, RoadmapNode } from "./ResourcesRoadmapNode.js";
@@ -7,6 +9,7 @@ import { useLearningProgress } from "./useLearningProgress.js";
 
 export function ResourcesPage(): React.JSX.Element {
   const { t } = useTranslation("resources");
+  const { t: shell } = useTranslation("shell");
   const progressQuery = useLearningProgress();
   const guideStatus = (guideId: LEARNING_GUIDE_IDS): LearningProgressStatus | undefined =>
     progressQuery.data?.find((row) => row.guideId === guideId)?.status;
@@ -41,6 +44,9 @@ export function ResourcesPage(): React.JSX.Element {
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-zinc-100 sm:text-3xl">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-6 text-zinc-400">{t("subtitle")}</p>
+        <Link to={appPaths.animations} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-300 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+          {shell("nav.animations")}<ArrowUpRight className="size-4" aria-hidden="true" />
+        </Link>
       </header>
 
       {progressQuery.isError ? (

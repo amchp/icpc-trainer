@@ -50,7 +50,7 @@ export const bruteForce = {
     source: "Open the original Judge problem",
     problemStage: "Problem",
     attemptStage: "Your turn",
-    attempt: "Try to solve the challenge before continuing. Decide what the state or candidates might be; reveal the general tool only after forming your own first idea.",
+    attempt: "Explain the required result in your own words, then sketch your first idea before revealing the tool.",
     reveal: "Learn the tool",
     hide: "Hide the tool",
     toolStage: "General tool",
@@ -60,7 +60,7 @@ export const bruteForce = {
     applicationHide: "Hide the problem connection"
   },
   alice: {
-    eyebrow: "Worked cycle 01 · Simulate",
+    eyebrow: "Challenge 01 · Repeated moves",
     title: "Alice’s Adventures in “Chess”",
     description: "Alice repeats a known string of north, south, east, and west moves. Decide whether she ever reaches a target coordinate.",
     constraints: "Up to 500 cases; 1 ≤ n ≤ 10; target coordinates 1 ≤ a, b ≤ 10. The movement pattern repeats.",
@@ -97,10 +97,10 @@ export const bruteForce = {
     complexity: "The justified 21-pass guard costs O(21 · n) per case, or O(t · 21 · n) for the complete input."
   },
   kitchen: {
-    eyebrow: "Worked cycle 02 · Permute",
+    eyebrow: "Challenge 02 · Plate weights",
     title: "Kitchen Plates",
     description: "Determine whether any ordering of five labeled plates satisfies all five pairwise ordering constraints.",
-    constraints: "Exactly five distinct plates: 5! = 120 complete orderings.",
+    constraints: "Exactly five distinct plates A–E and five comparisons. All weights are different.",
     sample: "D>B\nA>D\nE<C\nA>B\nB>C",
     toolTitle: "Permutations: generate every possible ordering",
     toolExplanation: "Generating every ordering means producing each arrangement that uses every item exactly once. With three distinct items, the first position has 3 choices, the second has 2, and the last has 1: 3! = 6 orderings. Code can walk that complete decision tree recursively, or advance through lexicographic order with next_permutation.",
@@ -139,7 +139,7 @@ export const bruteForce = {
     complexity: "Checking all five comparisons for every order costs O(5! · 5), easily inside the budget."
   },
   sakurako: {
-    eyebrow: "Worked cycle 03 · Binary decisions",
+    eyebrow: "Challenge 03 · Signed values",
     title: "Sakurako’s Exam",
     description: "Given a ones and b twos, decide whether signs can be assigned so their total is zero.",
     constraints: "0 ≤ a, b < 10. Each of the a + b values receives either a plus or minus sign.",
@@ -178,10 +178,10 @@ export const bruteForce = {
     complexity: "Across t cases, rebuilding an n-value sum for every mask is O(t · n · 2ⁿ). That expression is an estimate, not an acceptance guarantee."
   },
   sudoku: {
-    eyebrow: "Worked cycle 04 · Backtrack",
-    title: "Sudoku backtracking capstone",
+    eyebrow: "Challenge 04 · Sudoku",
+    title: "Complete the Sudoku",
     description: "Fill empty cells so that every row, column, and 3×3 box remains valid.",
-    constraints: "Digits 1 through 9. Reject invalid partial boards before exploring deeper.",
+    constraints: "A 9×9 board with digits 1 through 9. Given digits must stay unchanged.",
     sample: "5 3 · | · · 8\n6 7 2 | 1 · ·",
     toolTitle: "Backtracking: explore only choices that still can work",
     toolExplanation: "Backtracking builds a candidate one decision at a time. Before descending, it rejects choices that already break an invariant. If a deeper branch fails, it undoes the last change and tries the next option. It is exhaustive search with an early exit from impossible subtrees.",

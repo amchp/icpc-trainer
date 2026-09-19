@@ -77,12 +77,12 @@ export const dynamicProgramming = {
     coach: "Si la recurrencia está clara pero el código sigue bloqueado, pregúntale a tu coach. Muéstrale primero tu definición de estado, tu función intentada y la línea exacta donde se rompe tu razonamiento."
   },
   fibonacci: {
-    eyebrow: "La DP útil más pequeña",
+    eyebrow: "Una sucesión definida por una regla",
     title: "Calcula el n-ésimo número de Fibonacci",
     description: "F(0) = 0, F(1) = 1 y cada valor posterior es la suma de los dos anteriores. Devuelve F(n).",
     constraints: "0 ≤ n ≤ 90. La respuesta cabe en un entero con signo de 64 bits.",
     sample: "n = 7\nrespuesta = 13",
-    attempt: "Intenta primero una solución recursiva. Marca las llamadas que crees que hacen exactamente la misma pregunta.",
+    attempt: "Identifica el índice solicitado y comprueba los dos valores iniciales antes de probar un caso pequeño.",
     toolTitle: "La DP comienza al nombrar y recordar estados",
     toolIntro: "Un estado es la identidad completa de una pregunta recursiva. Para hacer DP recursiva, nombra esa identidad, conoce las respuestas base y sus dependencias, recuerda la primera respuesta y reutilízala cuando regrese el mismo estado.",
     state: "dp[i] es el valor F(i).",
@@ -99,12 +99,12 @@ export const dynamicProgramming = {
     pitfall: "El factorial también tiene recurrencia, pero no reutiliza subproblemas superpuestos. Fibonacci hace visible por qué guardamos estados."
   },
   nonAdjacent: {
-    eyebrow: "Una decisión en cada índice",
+    eyebrow: "Sin selecciones vecinas",
     title: "Suma máxima sin elementos adyacentes",
     description: "Elige elementos del arreglo sin escoger dos índices adyacentes. Se permite el conjunto vacío. Maximiza la suma.",
     constraints: "1 ≤ n ≤ 200.000. Los valores pueden ser negativos y caben en un entero con signo de 32 bits.",
     sample: "valores = [4, 1, 1, 9, 1]\nrespuesta = 13  // elige 4 y 9",
-    attempt: "Intenta primero las decisiones de fuerza bruta. Marca qué decisiones pendientes parecen aparecer más de una vez.",
+    attempt: "Prueba un arreglo pequeño. ¿Qué selecciones se permiten y qué pasa si todos los valores son negativos?",
     toolTitle: "Un estado puede ser un índice de un arreglo",
     toolIntro: "Repite la primera idea: preguntas recursivas idénticas deben reutilizar una respuesta. Cuando un subproblema trata de un prefijo, sufijo o posición de un arreglo, un índice puede bastar para identificar su estado; tú todavía debes elegir qué significa.",
     state: "dp[i] es la mejor suma usando solo los primeros i elementos.",
@@ -121,12 +121,12 @@ export const dynamicProgramming = {
     pitfall: "La memoización elimina trabajo repetido, pero una profundidad cercana a 200.000 puede desbordar la pila. El mismo estado y transición pueden evaluarse luego de forma iterativa."
   },
   grid: {
-    eyebrow: "El estado gana una coordenada",
+    eyebrow: "Rutas en un tablero",
     title: "Cuenta caminos en una cuadrícula bloqueada",
     description: "Parte de la esquina superior izquierda y llega a la inferior derecha moviéndote solo a la derecha o abajo. Algunas celdas están bloqueadas. Cuenta los caminos módulo 1.000.000.007.",
     constraints: "1 ≤ n ≤ 1.000. El tablero es n × n; cada celda está abierta (.) o bloqueada (*).",
     sample: "...\n.*.\n...\nrespuesta = 2",
-    attempt: "Intenta un conteo recursivo de caminos. Marca las preguntas recursivas a las que se puede llegar por más de una ruta.",
+    attempt: "Comprueba las direcciones permitidas y las celdas bloqueadas. ¿Qué haría que no hubiera ninguna ruta?",
     toolTitle: "Un estado puede necesitar varias coordenadas",
     toolIntro: "Repite la memoización y amplía la identidad del estado. Un índice no siempre basta: un estado puede ser un par o una tupla de coordenadas. Cada tupla distinta guarda una respuesta, sin importar cómo llegó la recursión.",
     state: "dp[fila][columna] es el número de caminos válidos desde el inicio hasta esa celda.",
@@ -144,12 +144,12 @@ export const dynamicProgramming = {
     solve: "Resolver Grid Paths en CSES"
   },
   knapsack: {
-    eyebrow: "Dos dimensiones codifican una frontera de decisión",
+    eyebrow: "Objetos y un límite de peso",
     title: "Mochila 0/1 con pesos y valores",
     description: "Cada objeto tiene peso positivo y valor. Elige cada objeto como máximo una vez, respeta la capacidad y maximiza el valor total.",
     constraints: "1 ≤ n ≤ 1.000 y 1 ≤ capacidad ≤ 100.000. Cada objeto puede usarse cero o una vez.",
     sample: "capacidad = 4\npesos  = [2, 2, 2]\nvalores = [4, 6, 4]\nrespuesta = 10",
-    attempt: "Escribe primero tus decisiones recursivas. Nota qué información cambia las opciones que seguirán disponibles.",
+    attempt: "Explica el límite de peso y la regla de una sola copia. ¿Qué cantidad debe maximizar tu respuesta?",
     toolTitle: "Un estado guarda solo lo que el futuro todavía necesita",
     toolIntro: "Un estado con varias partes debe contener suficiente información para determinar cada decisión futura, pero ninguna historia que ya no pueda cambiar la respuesta. Es un contrato compacto entre las decisiones terminadas y las que faltan.",
     stateCollision: {
@@ -176,12 +176,12 @@ export const dynamicProgramming = {
     solve: "Resolver Book Shop en CSES"
   },
   dag: {
-    eyebrow: "Las dependencias ya no están en una línea",
+    eyebrow: "Caminos dirigidos",
     title: "Camino más largo en un grafo dirigido acíclico",
     description: "Dado un DAG no ponderado, encuentra el máximo número de aristas en cualquier camino dirigido. El camino puede comenzar y terminar en cualquier nodo.",
     constraints: "1 ≤ n, m ≤ 200.000. Se garantiza que el grafo dirigido es acíclico.",
     sample: "aristas = 1→6, 2→3, 2→6, 3→4, 4→5\nrespuesta = 3  // 2→3→4→5",
-    attempt: "Intenta expresar la respuesta recursivamente sobre el DAG. Marca qué respuestas parciales son pedidas por más de una dependencia.",
+    attempt: "Explica por qué la respuesta cuenta aristas y no nodos. ¿Debe comenzar el camino en el nodo 1?",
     toolTitle: "Los estados son nodos; las transiciones son aristas dirigidas",
     toolIntro: "En su forma más abstracta, una DP es un grafo dirigido acíclico: cada estado es un nodo y cada dependencia o transición es una arista dirigida. El árbol de recursión de abajo aparece al desplegar ese grafo en llamadas.",
     abstraction: {

@@ -27,6 +27,7 @@ import {
   ScheduleProblemAnimation,
   TeamsProblemAnimation
 } from "./learning/graph/GraphTheoryInteractions.js";
+import { getAdvancedStatement } from "./learning/statements/advancedStatements.js";
 import { ProblemFirstChallenge } from "./learning/ProblemFirstChallenge.js";
 import { useToaster } from "./Toaster.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
@@ -34,7 +35,7 @@ import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuid
 const GUIDE_ID = LEARNING_GUIDE_IDS.GraphTheory;
 
 export function GraphTheoryPage(): React.JSX.Element {
-  const { t } = useTranslation("graphTheory");
+  const { t, i18n } = useTranslation("graphTheory");
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -111,31 +112,31 @@ export function GraphTheoryPage(): React.JSX.Element {
         <GuideSidebar sections={sections.map(([id, label]) => ({ id, label }))} activeSection={activeSection} label={t("sidebar.label")} progressLabel={(current, total) => t("sidebar.progress", { current, total })} />
         <div className="min-w-0">
           <GuideSection id="rooms" title={t("sections.rooms")}>
-            <ProblemFirstChallenge accent="emerald" {...challengeLabels} eyebrow={t("rooms.eyebrow")} title={t("rooms.title")} description={t("rooms.description")} constraints={t("rooms.constraints")} sample={t("rooms.sample")} sourceUrl="https://cses.fi/problemset/task/1192" toolTitle={t("rooms.toolTitle")} applicationTitle={t("rooms.applicationTitle")} application={<Application arc="rooms" explanation={t("rooms.explanation")} animation={<RoomsProblemAnimation />} />}>
+            <ProblemFirstChallenge accent="emerald" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "rooms")} eyebrow={t("rooms.eyebrow")} title={t("rooms.title")} description={t("rooms.description")} constraints={t("rooms.constraints")} sample={t("rooms.sample")} sourceUrl="https://cses.fi/problemset/task/1192" toolTitle={t("rooms.toolTitle")} applicationTitle={t("rooms.applicationTitle")} application={<Application arc="rooms" explanation={t("rooms.explanation")} animation={<RoomsProblemAnimation />} />}>
               <ToolFoundation arc="rooms" /><p>{t("rooms.toolText")}</p><ConnectivityConceptPlayer /><GridDfsToolTrace />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="labyrinth" title={t("sections.labyrinth")}>
-            <ProblemFirstChallenge accent="cyan" {...challengeLabels} eyebrow={t("labyrinth.eyebrow")} title={t("labyrinth.title")} description={t("labyrinth.description")} constraints={t("labyrinth.constraints")} sample={t("labyrinth.sample")} sourceUrl="https://cses.fi/problemset/task/1193" toolTitle={t("labyrinth.toolTitle")} applicationTitle={t("labyrinth.applicationTitle")} application={<Application arc="labyrinth" explanation={t("labyrinth.explanation")} animation={<LabyrinthProblemAnimation />} />}>
+            <ProblemFirstChallenge accent="cyan" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "labyrinth")} eyebrow={t("labyrinth.eyebrow")} title={t("labyrinth.title")} description={t("labyrinth.description")} constraints={t("labyrinth.constraints")} sample={t("labyrinth.sample")} sourceUrl="https://cses.fi/problemset/task/1193" toolTitle={t("labyrinth.toolTitle")} applicationTitle={t("labyrinth.applicationTitle")} application={<Application arc="labyrinth" explanation={t("labyrinth.explanation")} animation={<LabyrinthProblemAnimation />} />}>
               <GraphRepresentationPrimer /><ToolFoundation arc="labyrinth" /><p>{t("labyrinth.toolText")}</p><BfsLayerConceptPlayer /><GridBfsToolTrace />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="teams" title={t("sections.teams")}>
-            <ProblemFirstChallenge accent="violet" {...challengeLabels} eyebrow={t("teams.eyebrow")} title={t("teams.title")} description={t("teams.description")} constraints={t("teams.constraints")} sample={t("teams.sample")} sourceUrl="https://cses.fi/problemset/task/1668" toolTitle={t("teams.toolTitle")} applicationTitle={t("teams.applicationTitle")} application={<Application arc="teams" explanation={t("teams.explanation")} animation={<TeamsProblemAnimation />} />}>
+            <ProblemFirstChallenge accent="violet" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "teams")} eyebrow={t("teams.eyebrow")} title={t("teams.title")} description={t("teams.description")} constraints={t("teams.constraints")} sample={t("teams.sample")} sourceUrl="https://cses.fi/problemset/task/1668" toolTitle={t("teams.toolTitle")} applicationTitle={t("teams.applicationTitle")} application={<Application arc="teams" explanation={t("teams.explanation")} animation={<TeamsProblemAnimation />} />}>
               <ToolFoundation arc="teams" /><p>{t("teams.toolText")}</p><BipartiteToolTrace />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="schedule" title={t("sections.schedule")}>
-            <ProblemFirstChallenge accent="emerald" {...challengeLabels} eyebrow={t("schedule.eyebrow")} title={t("schedule.title")} description={t("schedule.description")} constraints={t("schedule.constraints")} sample={t("schedule.sample")} sourceUrl="https://cses.fi/problemset/task/1679" toolTitle={t("schedule.toolTitle")} applicationTitle={t("schedule.applicationTitle")} application={<Application arc="schedule" explanation={t("schedule.explanation")} animation={<ScheduleProblemAnimation />} />}>
+            <ProblemFirstChallenge accent="emerald" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "schedule")} eyebrow={t("schedule.eyebrow")} title={t("schedule.title")} description={t("schedule.description")} constraints={t("schedule.constraints")} sample={t("schedule.sample")} sourceUrl="https://cses.fi/problemset/task/1679" toolTitle={t("schedule.toolTitle")} applicationTitle={t("schedule.applicationTitle")} application={<Application arc="schedule" explanation={t("schedule.explanation")} animation={<ScheduleProblemAnimation />} />}>
               <ToolFoundation arc="schedule" /><p>{t("schedule.toolText")}</p><IndegreeConceptPlayer /><KahnToolTrace />
             </ProblemFirstChallenge>
           </GuideSection>
 
           <GuideSection id="routes" title={t("sections.routes")}>
-            <ProblemFirstChallenge accent="rose" {...challengeLabels} eyebrow={t("routes.eyebrow")} title={t("routes.title")} description={t("routes.description")} constraints={t("routes.constraints")} sample={t("routes.sample")} sourceUrl="https://cses.fi/problemset/task/1671" toolTitle={t("routes.toolTitle")} applicationTitle={t("routes.applicationTitle")} application={<Application arc="routes" explanation={`${t("routes.explanation")} ${t("routes.correction")}`} animation={<RoutesProblemAnimation />} />}>
+            <ProblemFirstChallenge accent="rose" {...challengeLabels} statement={getAdvancedStatement(i18n.language, "routes")} eyebrow={t("routes.eyebrow")} title={t("routes.title")} description={t("routes.description")} constraints={t("routes.constraints")} sample={t("routes.sample")} sourceUrl="https://cses.fi/problemset/task/1671" toolTitle={t("routes.toolTitle")} applicationTitle={t("routes.applicationTitle")} application={<Application arc="routes" explanation={`${t("routes.explanation")} ${t("routes.correction")}`} animation={<RoutesProblemAnimation />} />}>
               <ToolFoundation arc="routes" /><p>{t("routes.toolText")}</p><RelaxationConceptPlayer /><DijkstraToolTrace />
             </ProblemFirstChallenge>
           </GuideSection>

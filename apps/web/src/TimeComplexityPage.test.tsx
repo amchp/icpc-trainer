@@ -49,6 +49,14 @@ describe("TimeComplexityPage", () => {
       expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
     }
     expect(screen.getAllByText(/Learning challenge/)).toHaveLength(6);
+    expect(screen.getAllByLabelText(/^Statement animation:/)).toHaveLength(6);
+    expect(screen.getAllByText("Example input", { exact: true })).toHaveLength(6);
+    expect(screen.getAllByText("Example output", { exact: true })).toHaveLength(6);
+    const fibonacciStatement = within(screen.getByLabelText("Statement animation: Fibonacci Number"));
+    fireEvent.click(fibonacciStatement.getByRole("button", { name: "Next trace step" }));
+    fireEvent.click(fibonacciStatement.getByRole("button", { name: "Next trace step" }));
+    expect(document.querySelector("[aria-label=\"Statement animation: Fibonacci Number\"] [data-example-result]")).toHaveTextContent("8");
+    expect(screen.queryByText("Expand the naive call tree")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Reveal the analysis tool" })).toHaveLength(6);
     expect(screen.queryByRole("heading", { name: "Count operations and bytes until a formula appears" })).not.toBeInTheDocument();
 
@@ -88,7 +96,7 @@ describe("TimeComplexityPage", () => {
     expect(comparison.firstElementChild).not.toHaveClass("xl:grid-cols-3");
     expect(search.getByText("Question 1 of 2")).toBeInTheDocument();
     fireEvent.click(search.getByRole("button", { name: "Evaluating id == query" }));
-    expect(search.getByRole("status")).toHaveTextContent("equality check is the repeated work");
+    expect(search.getByText(/equality check is the repeated work/).closest("[role='status']")).toBeInTheDocument();
     fireEvent.click(search.getByRole("button", { name: "Next question" }));
     expect(search.getByText("Question 2 of 2")).toBeInTheDocument();
   });

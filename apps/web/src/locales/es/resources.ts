@@ -1,4 +1,13 @@
 export const resources = {
+  statement: {
+    input: "Entrada",
+    output: "Salida",
+    exampleInput: "Entrada de ejemplo",
+    exampleOutput: "Salida de ejemplo",
+    animation: "Comprende el enunciado",
+    animationLabel: "Animación del enunciado: {{title}}",
+    animationDescription: "Explora los datos y las reglas. Después de la animación, intenta encontrar tu propia solución."
+  },
   eyebrow: "Ruta de aprendizaje",
   title: "Aprende los fundamentos en orden.",
   subtitle: "Comienza con una introducción a la programación competitiva y luego aprende los conceptos que usarás para construir cada solución.",

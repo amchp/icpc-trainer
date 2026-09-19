@@ -1,10 +1,11 @@
 import { SignIn, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 import { APP_NAME } from "@icpc-trainer/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getFirstUserRedirectUrl } from "./firstUserFlow.js";
+import { appHistory } from "./appHistory.js";
+import { getFirstUserRedirectUrl, isResourcesPath } from "./firstUserFlow.js";
 import { AuthenticatedLocaleSync } from "./i18n/AuthenticatedLocaleSync.js";
 import { LanguageButton } from "./i18n/LanguageButton.js";
 import { clearAuthenticatedQueryCache } from "./queryKeys.js";
@@ -65,16 +66,21 @@ function AuthenticatedProviders({ children }: { readonly children: ReactNode }):
   return <Fragment key={authScope}><AuthenticatedLocaleSync>{children}</AuthenticatedLocaleSync></Fragment>;
 }
 
+const subscribeToLocation = (onChange: () => void): (() => void) => appHistory.subscribe(onChange);
+const locationSnapshot = (): string => appHistory.location.href;
+
 export function AuthGate({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  useSyncExternalStore(subscribeToLocation, locationSnapshot);
   const isResourcesPreview =
     import.meta.env.DEV &&
-    new URLSearchParams(window.location.search).get("preview") === "resources";
+    isResourcesPath(appHistory.location.pathname) &&
+    new URLSearchParams(appHistory.location.search).get("preview") === "resources";
 
   if (isResourcesPreview) {
     return <>{children}</>;
   }
 
-  const firstUserRedirectUrl = getFirstUserRedirectUrl(window.location);
+  const firstUserRedirectUrl = getFirstUserRedirectUrl(appHistory.location);
 
   return (
     <>

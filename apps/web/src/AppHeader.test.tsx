@@ -44,6 +44,7 @@ const primaryLabels = [
   "Upsolving",
   "Contest Finder",
   "Resources",
+  "Animations",
   "Team",
   "Leaderboard"
 ];

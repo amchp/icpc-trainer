@@ -12,6 +12,7 @@ import { GuideCodeBlock } from "./learning/GuideCodeBlock.js";
 import { BooleanExpressionPlayground, LogicalOperatorGuide, TypeExplorer } from "./learning/GuideDemos.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { useProgrammingFundamentalsTraces } from "./learning/GuideTraces.js";
+import { getFoundationStatement } from "./learning/statements/foundationStatements.js";
 import { PracticeQuestionSet } from "./learning/PracticeQuestionSet.js";
 import { getProgrammingFundamentalsSnippets } from "./learning/snippets/programmingFundamentalsSnippets.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
@@ -403,13 +404,13 @@ export function ProgrammingFundamentalsPage(): React.JSX.Element {
 }
 
 function ProgrammingSelfCheck(): React.JSX.Element {
-  const { t } = useTranslation("programmingFundamentals");
+  const { t, i18n } = useTranslation("programmingFundamentals");
   const [answers, setAnswers] = useState<Partial<Record<number, HookAnswer>>>({});
   const tasks = [
     {
       concept: t("hook.tasks.sudoku.concept"),
       title: t("hook.tasks.sudoku.title"),
-      description: t("hook.tasks.sudoku.description"),
+      statement: getFoundationStatement(i18n.resolvedLanguage ?? i18n.language, "sudoku"),
       image: "/learning/fundamentals/sudoku-iteration.webp",
       problem: t("hook.tasks.sudoku.problem"),
       problemUrl: "https://leetcode.com/problems/valid-sudoku/"
@@ -417,7 +418,7 @@ function ProgrammingSelfCheck(): React.JSX.Element {
     {
       concept: t("hook.tasks.password.concept"),
       title: t("hook.tasks.password.title"),
-      description: t("hook.tasks.password.description"),
+      statement: getFoundationStatement(i18n.resolvedLanguage ?? i18n.language, "password"),
       image: "/learning/fundamentals/password-conditionals.webp",
       problem: t("hook.tasks.password.problem"),
       problemUrl: "https://leetcode.com/problems/strong-password-checker-ii/"
@@ -425,7 +426,7 @@ function ProgrammingSelfCheck(): React.JSX.Element {
     {
       concept: t("hook.tasks.folders.concept"),
       title: t("hook.tasks.folders.title"),
-      description: t("hook.tasks.folders.description"),
+      statement: getFoundationStatement(i18n.resolvedLanguage ?? i18n.language, "folders"),
       image: "/learning/fundamentals/folders-recursion.webp",
       problem: t("hook.tasks.folders.problem"),
       problemUrl: "https://leetcode.com/problems/maximum-depth-of-n-ary-tree/"
@@ -475,7 +476,7 @@ function ProgrammingSelfCheck(): React.JSX.Element {
             </div>
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{task.concept}</span>
             <h3 className="mt-2 text-base font-semibold leading-6 text-zinc-100 md:min-h-12">{task.title}</h3>
-            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-400">{task.description}</p>
+            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-400">{task.statement.description}</p>
             <a
               href={task.problemUrl}
               target="_blank"

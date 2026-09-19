@@ -24,7 +24,7 @@ class ObserverStub { observe(): void {} disconnect(): void {} }
 function revealAll(): readonly HTMLElement[] {
   for (const button of screen.getAllByRole("button", { name: "Reveal the DP tool" })) fireEvent.click(button);
   for (const button of screen.getAllByRole("button", { name: "Reveal the guided solution" })) fireEvent.click(button);
-  return [...document.querySelectorAll<HTMLElement>("[data-scenario-player='true']")];
+  return [...document.querySelectorAll<HTMLElement>("[data-scenario-player='true']:not([data-statement-preview] *)")];
 }
 
 describe("DynamicProgrammingPage", () => {
@@ -93,13 +93,13 @@ describe("DynamicProgrammingPage", () => {
         expect(section.querySelector("[data-generic-dp-skeleton]")).toBeNull();
       }
       expect(section.querySelector("[data-dp-code-walkthrough]")).toBeNull();
-      expect(section.querySelector("[data-scenario-player='true']")).toBeNull();
+      expect(section.querySelector("[data-scenario-player='true']:not([data-statement-preview] *)")).toBeNull();
 
       fireEvent.click(within(section).getByRole("button", { name: "Reveal the guided solution" }));
       expect(section.querySelector(`[data-state-transition-lens='${arc}']`)).toBeInTheDocument();
       expect(section.querySelector("[data-dp-code-walkthrough]")).toBeNull();
       expect(section.querySelector("pre.prism-code")).toBeNull();
-      expect(section.querySelector("[data-scenario-player='true']")).toBeInTheDocument();
+      expect(section.querySelector("[data-scenario-player='true']:not([data-statement-preview] *)")).toBeInTheDocument();
       expect(section.querySelector(`[data-implementation-mission='${arc}']`)).toBeInTheDocument();
     }
   });
@@ -173,6 +173,7 @@ describe("DynamicProgrammingPage", () => {
       "Graph · Longest path in a DAG"
     ]);
     expect(screen.getAllByText("00 · Learning Challenge", { exact: true })).toHaveLength(5);
+    expect(document.querySelectorAll("[data-statement-preview] [data-scenario-player]")).toHaveLength(5);
     expect(document.querySelectorAll("[data-state-transition-lens]")).toHaveLength(0);
     const players = revealAll();
     expect(document.querySelectorAll("[data-state-transition-lens]")).toHaveLength(5);
@@ -229,6 +230,7 @@ describe("DynamicProgrammingPage", () => {
     expect(screen.getByRole("heading", { name: "Un estado puede necesitar varias coordenadas" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Un estado guarda solo lo que el futuro todavía necesita" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Los estados son nodos; las transiciones son aristas dirigidas" })).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-statement-preview] [data-scenario-player]")).toHaveLength(5);
     expect(document.querySelectorAll("[data-state-transition-lens]")).toHaveLength(0);
     for (const button of screen.getAllByRole("button", { name: "Revelar la solución guiada" })) fireEvent.click(button);
     expect(document.querySelectorAll("[data-memoization-diagram]")).toHaveLength(4);
@@ -245,7 +247,7 @@ describe("DynamicProgrammingPage", () => {
     expect(screen.getByText("Respuesta incorrecta (WA)")).toBeInTheDocument();
     expect(screen.getByText("i = 3, restante = 4")).toBeInTheDocument();
     expect(screen.getByText("Estado = nodo")).toBeInTheDocument();
-    const players = document.querySelectorAll<HTMLElement>("[data-scenario-player='true']");
+    const players = document.querySelectorAll<HTMLElement>("[data-scenario-player='true']:not([data-statement-preview] *)");
     expect(players).toHaveLength(5);
     for (const player of players) expect(player.querySelectorAll("[data-scenario-preset]")).toHaveLength(2);
   });

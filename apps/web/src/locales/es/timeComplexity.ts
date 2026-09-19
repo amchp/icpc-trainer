@@ -142,7 +142,7 @@ export const timeComplexity = {
       eyebrow: "Lección 5 · Conteo recursivo",
       title: "Número de Fibonacci",
       description: "Devuelve el n-ésimo número de Fibonacci, donde F(0) = 0, F(1) = 1 y cada valor posterior es la suma de los dos anteriores.",
-      constraints: "0 ≤ n ≤ 30. Comienza con la definición recursiva directa y cuenta el trabajo antes de optimizarla.",
+      constraints: "0 ≤ n ≤ 30. La primera posición de la secuencia tiene índice 0.",
       sample: "n = 6\nsalida = 8",
       toolTitle: "Observa cómo una recurrencia se convierte en un árbol exponencial",
       analysis: "Una llamada recursiva puede crear más de un hijo. Para Fibonacci ingenuo, T(n) = T(n − 1) + T(n − 2) + c: los mismos subproblemas se recalculan en un árbol ramificado. Cuenta todas las llamadas para el tiempo, pero solo la ruta activa más larga para el espacio de pila. El árbol crece exponencialmente mientras su profundidad máxima crece linealmente; O(2ⁿ) es una cota superior simple para su tiempo de ejecución.",

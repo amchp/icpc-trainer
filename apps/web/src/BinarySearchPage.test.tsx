@@ -64,6 +64,15 @@ describe("BinarySearchPage", () => {
     const lastPracticeLink = screen.getByRole("link", { name: /Packing Rectangles/ });
     expect(lastPracticeLink.compareDocumentPosition(conditionLab) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(screen.getAllByText("00 · Problem", { exact: true })).toHaveLength(5);
+    expect(screen.getAllByLabelText(/^Statement animation:/)).toHaveLength(5);
+    expect(screen.getAllByText("Example input", { exact: true })).toHaveLength(5);
+    expect(screen.getAllByText("Example output", { exact: true })).toHaveLength(5);
+    expect(screen.queryByLabelText("First-true exclusive-sentinel template")).not.toBeInTheDocument();
+    const firstStatement = within(screen.getByLabelText("Statement animation: Return the first copy of the target"));
+    fireEvent.click(firstStatement.getByRole("button", { name: "Next trace step" }));
+    fireEvent.click(firstStatement.getByRole("button", { name: "Next trace step" }));
+    expect(document.querySelector("[aria-label=\"Statement animation: Return the first copy of the target\"] [data-example-result]")).toHaveTextContent("8");
+    expect(firstStatement.queryByText(/mid|sentinel|condition\(/)).not.toBeInTheDocument();
     const tools = screen.getAllByRole("button", { name: "Learn the tool" });
     expect(tools).toHaveLength(5);
     for (const button of tools) fireEvent.click(button);

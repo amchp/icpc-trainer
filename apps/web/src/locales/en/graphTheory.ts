@@ -12,7 +12,7 @@ export const graphTheory = {
   sections: { rooms: "Counting Rooms", labyrinth: "Labyrinth", teams: "Building Teams", schedule: "Course Schedule", routes: "Shortest Routes I", practice: "Practice and comparison" },
   challenge: {
     constraints: "Constraints", sample: "Example", source: "Open original problem", problemStage: "Problem",
-    attempt: "Before revealing the tool, name the vertices and edges, then choose the state each vertex must remember.", attemptStage: "Quick attempt",
+    attempt: "Restate the input and the required output. Try a small example before revealing the tool.", attemptStage: "Quick attempt",
     reveal: "Learn the tool", hide: "Hide the tool", applicationPrompt: "Now connect the general tool to this problem without reading submission code.",
     applicationReveal: "Show the problem connection", applicationHide: "Hide the problem connection", toolStage: "Tool", applicationStage: "Application"
   },
@@ -59,7 +59,7 @@ export const graphTheory = {
     }
   },
   rooms: {
-    eyebrow: "Grid as an implicit graph", title: "Counting Rooms", description: "Count connected floor regions in a rectangular map. Two floor cells belong to the same room when a path of side-sharing floor cells joins them.",
+    eyebrow: "Rooms on a map", title: "Counting Rooms", description: "Count connected floor regions in a rectangular map. Two floor cells belong to the same room when a path of side-sharing floor cells joins them.",
     constraints: "1 ≤ n, m ≤ 1000; each cell is floor (.) or wall (#).", sample: "5 8\n########\n#..#...#\n####.#.#\n#..#...#\n########\n→ 3",
     toolTitle: "Traverse a graph with depth-first search", toolText: "DFS starts at any source vertex, marks it visited, then follows one unvisited neighbour at a time. Recursion or an explicit stack remembers where to return; the same algorithm works on any adjacency list.",
     foundation: { title: "The reusable graph tool", node: { term: "Node (vertex)", definition: "One object in the model: a person, course, city, state, or cell." }, edge: { term: "Edge", definition: "A relationship that says which nodes are direct neighbours." }, dfs: { term: "Depth-first search", definition: "Follow one branch as far as possible, then backtrack to the next unvisited neighbour." } },
@@ -75,7 +75,7 @@ export const graphTheory = {
     pitfalls: { correctness: "Correctness", correctnessText: "FIFO layers guarantee that first discovery gives minimum edge count; parent links therefore form a shortest path back to A.", complexity: "Complexity", complexityText: "O(nm) time and O(nm) memory.", warning: "Deterministic traces", warningText: "The model, tool, animation, and tests all use down, up, right, left. Other neighbour orders may produce another shortest path, and any shortest path is accepted." }
   },
   teams: {
-    eyebrow: "Adjacency lists and two colours", title: "Building Teams", description: "Assign every student to one of two teams so that no friendship has both endpoints on the same team.",
+    eyebrow: "Friends on different teams", title: "Building Teams", description: "Assign every student to one of two teams so that no friendship has both endpoints on the same team.",
     constraints: "1 ≤ n, m ≤ 100000; friendships are undirected; the graph may be disconnected.", sample: "5 3\n1 2\n1 3\n4 5\n→ 1 2 2 1 2",
     toolTitle: "Test a graph with two-colouring", toolText: "Start an uncoloured component with either colour. DFS or BFS gives every newly discovered neighbour the opposite colour; restart at every still-uncoloured node so disconnected components and isolated nodes are included.",
     foundation: { title: "The reusable two-colouring test", bipartite: { term: "Bipartite graph", definition: "Its nodes can be split into two groups so every edge crosses from one group to the other." }, twoColour: { term: "Two-colouring", definition: "Give every neighbour the opposite of the current node's colour while traversing the graph." }, conflict: { term: "Conflict edge", definition: "An edge whose endpoints already have the same colour proves that no valid two-colouring exists." } },

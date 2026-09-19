@@ -15,6 +15,7 @@ export const waitForVisibleHeading = async (
 
 export const clearConnectedJudgesIfPresent = async (page: Page): Promise<void> => {
   await page.goto("/judges");
+  await page.getByRole("combobox", { name: /^(Choose language|Elegir idioma)$/ }).selectOption("en");
 
   if (!(await waitForVisibleHeading(page, "Judges", 10_000))) {
     await expect(page.getByRole("heading", { name: "Connect Judges" })).toBeVisible();

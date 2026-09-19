@@ -2,6 +2,11 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@t
 
 import { AccountRoute } from "./AccountRoute.js";
 import { appPaths } from "./appNavigation.js";
+import { appHistory } from "./appHistory.js";
+import { AnimationLayout } from "./animations/AnimationLayout.js";
+import { AnimationLibraryRoute } from "./animations/AnimationLibraryPage.js";
+import { AnimationWorkspaceRoute } from "./animations/AnimationWorkspacePage.js";
+import { validateAnimationSearch } from "./animations/search.js";
 import { BinarySearchRoute } from "./BinarySearchRoute.js";
 import { BruteForceRoute } from "./BruteForceRoute.js";
 import { ConnectJudgeProviderRoute } from "./ConnectJudgeProviderRoute.js";
@@ -47,6 +52,26 @@ const resourcesAppRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "resources-app",
   component: ResourcesLayout
+});
+
+const animationsAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "animations-app",
+  component: AnimationLayout
+});
+
+const animationLibraryRoute = createRoute({
+  getParentRoute: () => animationsAppRoute,
+  path: appPaths.animations,
+  validateSearch: validateAnimationSearch,
+  component: AnimationLibraryRoute
+});
+
+const animationWorkspaceRoute = createRoute({
+  getParentRoute: () => animationsAppRoute,
+  path: "/animations/$groupId",
+  validateSearch: validateAnimationSearch,
+  component: AnimationWorkspaceRoute
 });
 
 const standaloneRoute = createRoute({
@@ -215,6 +240,7 @@ const accountRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
+  animationsAppRoute.addChildren([animationLibraryRoute, animationWorkspaceRoute]),
   appRoute.addChildren([
     indexRoute,
     accountRoute,
@@ -248,7 +274,7 @@ const routeTree = rootRoute.addChildren([
   ])
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({ routeTree, history: appHistory });
 
 declare module "@tanstack/react-router" {
   interface Register {

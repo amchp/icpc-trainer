@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { router } from "./router.js";
 
 describe("router", () => {
+  it("routes animation workspaces outside the judge-connection layout and preserves search", async () => {
+    await router.navigate({ to: "/animations/$groupId", params: { groupId: "permutations" }, search: { q: "recursive", topic: "brute-force" } });
+    expect(router.state.location.pathname).toBe("/animations/permutations");
+    expect(router.state.location.search).toEqual({ q: "recursive", topic: "brute-force" });
+    expect(router.state.matches.map(({ routeId }) => routeId)).not.toContain("/app");
+    expect(router.state.matches.at(-1)?.routeId).toBe("/animations-app/animations/$groupId");
+  });
+
+  it("recognizes unknown animation IDs for the workspace not-found view", async () => {
+    await router.navigate({ to: "/animations/$groupId", params: { groupId: "not-an-animation" } });
+    expect(router.state.matches.at(-1)?.routeId).toBe("/animations-app/animations/$groupId");
+  });
   it("redirects the index route to Find Problems", async () => {
     await router.navigate({ to: "/" });
 

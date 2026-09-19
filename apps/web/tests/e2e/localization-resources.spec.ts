@@ -93,9 +93,9 @@ test("solves, compares, localizes, and resets the problem-first Time & Space Com
   await runtimeEstimator.getByLabel("Constant c").fill("8");
   await expect(runtimeEstimator.getByText("1.6 s", { exact: true })).toBeVisible();
   await expect(stock.getByRole("heading", { name: "Estimate memory for the same three candidates" })).toBeVisible();
-  await expect(stock.getByText("Input memory").locator("..")).toContainText("40,000 B");
-  await expect(stock.getByText("Auxiliary memory").locator("..")).toContainText("40,004 B");
-  await expect(stock.getByText("Total modeled memory").locator("..")).toContainText("80,004 B");
+  await expect(stock.getByText("Input memory", { exact: true }).locator("..")).toContainText("40,000 B");
+  await expect(stock.getByText("Auxiliary memory", { exact: true }).locator("..")).toContainText("40,004 B");
+  await expect(stock.getByText("Total modeled memory", { exact: true }).locator("..")).toContainText("80,004 B");
   await stock.getByRole("button", { name: "Run local O(n) comparison" }).click();
   await expect(stock.getByRole("heading", { name: "Direct scan" })).toBeVisible();
   await expect(stock.getByText(/Device-specific result/)).toBeVisible();
@@ -122,6 +122,7 @@ test("solves, compares, localizes, and resets the problem-first Time & Space Com
 
   await page.setViewportSize({ width: 320, height: 700 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("combobox", { name: "Choose language" }).selectOption("es");
   await expect(page.getByRole("heading", { name: "Complejidad temporal y espacial" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Marcar guía como completada" })).toBeVisible();
@@ -218,7 +219,7 @@ test("completes the bilingual Data Structures journey at its stable direct route
   await expect(page.getByRole("button", { name: /Learn the tool/ })).toHaveCount(7);
   const numericSection = page.locator("#numeric");
   await expect(numericSection).not.toContainText("so their product can reach 10¹⁸");
-  await expect(numericSection.getByRole("img", { name: "3 rows by 4 columns: 12 painted cells" })).toBeVisible();
+  await expect(numericSection.getByRole("figure", { name: "3 rows × 4 columns", exact: true })).toBeVisible();
   await expect(numericSection.getByText("The same expression passes a small test and fails at scale")).not.toBeVisible();
   const numericDisclosure = numericSection.getByRole("button", { name: /Learn the tool/ });
   await numericDisclosure.click();
@@ -336,11 +337,11 @@ test("completes the bilingual Data Structures journey at its stable direct route
   await expect(stackSection).toContainText("only opening symbols that still need a partner");
   await stackSection.getByRole("textbox", { name: "Bracket sequence" }).fill("([)]");
   await stackSection.getByRole("button", { name: "Next step" }).click();
-  await expect(stackSection).toContainText("Push ( because it still needs a closing partner.");
+  await expect(stackSection).toContainText("Push ( onto the stack because it opens a new pair.");
 
   const queueSection = page.locator("#queue");
   await expect(queueSection).toContainText("How many requests are still recent?");
-  await expect(queueSection).toContainText("ping(1), ping(100), ping(3001), ping(3002)");
+  await expect(queueSection).toContainText(/ping\(1\)\s+ping\(100\)\s+ping\(3001\)\s+ping\(3002\)/);
   await expect(queueSection.getByRole("link", { name: "Official LeetCode 933" })).toHaveAttribute("href", "https://leetcode.com/problems/number-of-recent-calls/");
   await queueSection.getByRole("button", { name: /Learn the tool/ }).click();
   const queueSimulator = queueSection.getByRole("region", { name: "Interactive queue simulator" });
@@ -394,11 +395,11 @@ test("completes the bilingual Data Structures journey at its stable direct route
 
   const rangeSection = page.locator("#ranges");
   await expect(rangeSection).toContainText("How can a stack return its minimum in O(1)?");
-  await expect(rangeSection).toContainText("push, pop, top, and getMin");
-  await expect(rangeSection).toContainText("at most 30,000 calls");
-  await expect(rangeSection).toContainText("Answers: 2, 2, 5");
+  await expect(rangeSection).toContainText("push(x), pop(), top(), and getMin()");
+  await expect(rangeSection).toContainText("at most 30,000 method calls");
+  await expect(rangeSection).toContainText(/Example output2\s+2\s+5/);
   await expect(rangeSection.getByRole("link", { name: "Official LeetCode 155" })).toHaveAttribute("href", "https://leetcode.com/problems/min-stack/");
-  const rangeDisclosure = rangeSection.getByRole("button", { name: /Learn the tool/ });
+  const rangeDisclosure = rangeSection.getByRole("button", { name: /Learn the tool|Hide the tool lesson/ });
   await expect(rangeDisclosure).toHaveAttribute("aria-expanded", "false");
   await rangeDisclosure.click();
   await expect(rangeDisclosure).toHaveAttribute("aria-expanded", "true");
@@ -445,7 +446,7 @@ test("completes the bilingual Data Structures journey at its stable direct route
   await page.goto("/resources");
   const dataStructuresCard = page.getByRole("link", { name: /Estructuras de datos/ });
   await expect(dataStructuresCard.getByText("Completada", { exact: true })).toBeVisible();
-  await expect(page.getByText(/\/ 5 completadas$/)).toBeVisible();
+  await expect(page.getByText(/\/ 9 completadas$/)).toBeVisible();
 
   await page.setViewportSize({ width: 320, height: 700 });
   await dataStructuresCard.click();

@@ -21,13 +21,14 @@ import {
 } from "./learning/BinarySearchInteractions.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { ProblemFirstChallenge } from "./learning/ProblemFirstChallenge.js";
+import { getCoreStatement } from "./learning/statements/coreStatements.js";
 import { useToaster } from "./Toaster.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
 
 const GUIDE_ID = LEARNING_GUIDE_IDS.BinarySearch;
 
 export function BinarySearchPage(): React.JSX.Element {
-  const { t } = useTranslation("binarySearch");
+  const { t, i18n } = useTranslation("binarySearch");
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -156,6 +157,7 @@ export function BinarySearchPage(): React.JSX.Element {
               eyebrow={t("first.eyebrow")}
               title={t("first.title")}
               description={t("first.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "first")}
               constraints={t("first.constraints")}
               sample={t("first.sample")}
               sourceUrl="https://leetcode.com/problems/binary-search/"
@@ -175,6 +177,7 @@ export function BinarySearchPage(): React.JSX.Element {
               eyebrow={t("closest.eyebrow")}
               title={t("closest.title")}
               description={t("closest.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "closest")}
               constraints={t("closest.constraints")}
               sample={t("closest.sample")}
               toolTitle={t("closest.toolTitle")}
@@ -193,6 +196,7 @@ export function BinarySearchPage(): React.JSX.Element {
               eyebrow={t("numeric.eyebrow")}
               title={t("numeric.title")}
               description={t("numeric.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "numeric")}
               constraints={t("numeric.constraints")}
               sample={t("numeric.sample")}
               toolTitle={t("numeric.toolTitle")}
@@ -211,6 +215,7 @@ export function BinarySearchPage(): React.JSX.Element {
               eyebrow={t("bad.eyebrow")}
               title={t("bad.title")}
               description={t("bad.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "bad")}
               constraints={t("bad.constraints")}
               sample={t("bad.sample")}
               sourceUrl="https://leetcode.com/problems/first-bad-version/"
@@ -230,6 +235,7 @@ export function BinarySearchPage(): React.JSX.Element {
               eyebrow={t("magic.eyebrow")}
               title={t("magic.title")}
               description={t("magic.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "magic")}
               constraints={t("magic.constraints")}
               sample={t("magic.sample")}
               sourceUrl="https://codeforces.com/problemset/problem/670/D2"

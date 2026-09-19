@@ -56,6 +56,8 @@ describe("GraphTheoryPage", () => {
     expect(screen.getByRole("heading", { name: "Model relationships. Traverse with purpose." })).toBeInTheDocument();
     expect(screen.getAllByText("00 · Problem", { exact: true })).toHaveLength(5);
     expect(screen.getAllByRole("button", { name: "Learn the tool" })).toHaveLength(5);
+    expect(document.querySelectorAll("[data-statement-preview] [data-scenario-player]")).toHaveLength(5);
+    expect(screen.queryByLabelText("Counting Rooms scenarios")).not.toBeInTheDocument();
     const problemPlayers = revealGuide();
     expect(document.querySelectorAll("[data-scenario-player='true']").length).toBeGreaterThanOrEqual(10);
     for (const player of problemPlayers) {

@@ -12,7 +12,7 @@ export const graphTheory = {
   sections: { rooms: "Counting Rooms", labyrinth: "Labyrinth", teams: "Building Teams", schedule: "Course Schedule", routes: "Shortest Routes I", practice: "Práctica y comparación" },
   challenge: {
     constraints: "Restricciones", sample: "Ejemplo", source: "Abrir problema original", problemStage: "Problema",
-    attempt: "Antes de revelar la herramienta, identifica los vértices y las aristas, y decide qué estado debe recordar cada vértice.", attemptStage: "Intento rápido",
+    attempt: "Explica la entrada y la salida pedida. Prueba un ejemplo pequeño antes de revelar la herramienta.", attemptStage: "Intento rápido",
     reveal: "Aprender la herramienta", hide: "Ocultar la herramienta", applicationPrompt: "Ahora conecta la herramienta general con este problema sin leer código de envío.",
     applicationReveal: "Mostrar la conexión con el problema", applicationHide: "Ocultar la conexión con el problema", toolStage: "Herramienta", applicationStage: "Aplicación"
   },
@@ -59,7 +59,7 @@ export const graphTheory = {
     }
   },
   rooms: {
-    eyebrow: "Cuadrícula como grafo implícito", title: "Counting Rooms", description: "Cuenta las regiones conectadas de suelo en un mapa rectangular. Dos celdas pertenecen a la misma habitación si un camino de celdas de suelo que comparten lado las une.",
+    eyebrow: "Habitaciones en un mapa", title: "Counting Rooms", description: "Cuenta las regiones conectadas de suelo en un mapa rectangular. Dos celdas pertenecen a la misma habitación si un camino de celdas de suelo que comparten lado las une.",
     constraints: "1 ≤ n, m ≤ 1000; cada celda es suelo (.) o pared (#).", sample: "5 8\n########\n#..#...#\n####.#.#\n#..#...#\n########\n→ 3",
     toolTitle: "Recorre un grafo con búsqueda en profundidad", toolText: "DFS comienza en cualquier vértice origen, lo marca como visitado y sigue un vecino no visitado a la vez. La recursión o una pila explícita recuerda dónde regresar; el mismo algoritmo funciona con cualquier lista de adyacencia.",
     foundation: { title: "La herramienta reutilizable", node: { term: "Nodo (vértice)", definition: "Un objeto del modelo: persona, curso, ciudad, estado o celda." }, edge: { term: "Arista", definition: "Una relación que indica qué nodos son vecinos directos." }, dfs: { term: "Búsqueda en profundidad", definition: "Sigue una rama hasta el final y luego retrocede al siguiente vecino no visitado." } },
@@ -75,7 +75,7 @@ export const graphTheory = {
     pitfalls: { correctness: "Corrección", correctnessText: "Las capas FIFO garantizan que el primer descubrimiento tiene el menor número de aristas; los padres forman un camino mínimo hasta A.", complexity: "Complejidad", complexityText: "O(nm) en tiempo y O(nm) en memoria.", warning: "Trazas deterministas", warningText: "El modelo, la herramienta, la animación y las pruebas usan abajo, arriba, derecha, izquierda. Otros órdenes pueden producir otro camino mínimo, y cualquiera se acepta." }
   },
   teams: {
-    eyebrow: "Listas de adyacencia y dos colores", title: "Building Teams", description: "Asigna cada estudiante a uno de dos equipos para que ninguna amistad tenga ambos extremos en el mismo equipo.",
+    eyebrow: "Amigos en equipos distintos", title: "Building Teams", description: "Asigna cada estudiante a uno de dos equipos para que ninguna amistad tenga ambos extremos en el mismo equipo.",
     constraints: "1 ≤ n, m ≤ 100000; las amistades no son dirigidas; el grafo puede estar desconectado.", sample: "5 3\n1 2\n1 3\n4 5\n→ 1 2 2 1 2",
     toolTitle: "Prueba un grafo con bicoloreo", toolText: "Inicia un componente sin color con cualquiera de los dos colores. DFS o BFS da el color opuesto a cada vecino recién descubierto; reinicia en cada nodo aún sin color para incluir componentes desconectados y nodos aislados.",
     foundation: { title: "La prueba reutilizable de bicoloreo", bipartite: { term: "Grafo bipartito", definition: "Sus nodos se pueden separar en dos grupos de modo que cada arista cruce de un grupo al otro." }, twoColour: { term: "Bicoloreo", definition: "Da a cada vecino el color opuesto al del nodo actual mientras recorres el grafo." }, conflict: { term: "Arista en conflicto", definition: "Una arista cuyos extremos ya tienen el mismo color demuestra que no existe un bicoloreo válido." } },

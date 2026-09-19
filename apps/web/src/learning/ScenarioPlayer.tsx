@@ -23,6 +23,7 @@ export interface ScenarioPlayerProps {
   readonly presets: readonly ScenarioPreset[];
   readonly intervalMs?: number;
   readonly accent?: "emerald" | "cyan" | "violet" | "amber" | "rose";
+  readonly renderFrame?: (frame: ScenarioFrame, index: number, presetId: string) => React.ReactNode;
 }
 
 const accentClasses = {
@@ -33,7 +34,7 @@ const accentClasses = {
   rose: { tab: "border-rose-300 text-rose-100", counter: "text-rose-300", play: "bg-rose-500 focus-visible:ring-rose-300" }
 } as const;
 
-export function ScenarioPlayer({ label, presets, intervalMs = 1400, accent = "emerald" }: ScenarioPlayerProps): React.JSX.Element {
+export function ScenarioPlayer({ label, presets, intervalMs = 1400, accent = "emerald", renderFrame }: ScenarioPlayerProps): React.JSX.Element {
   const { t } = useTranslation("programmingFundamentals");
   const [selectedId, setSelectedId] = useState(() => presets[0]?.id ?? "");
   const [frameIndex, setFrameIndex] = useState(0);
@@ -139,7 +140,7 @@ export function ScenarioPlayer({ label, presets, intervalMs = 1400, accent = "em
             </div>
             {reducedMotion ? <p id={reducedMotionId} className="text-xs leading-5 text-zinc-500">{t("trace.reducedMotion")}</p> : null}
             <p className="border-l-2 border-zinc-600 pl-3 leading-6 text-zinc-200" role="status" aria-live="polite">{frame.narration}</p>
-            {graphWithSidebar ? (
+            {renderFrame ? renderFrame(frame, frameIndex, selectedPreset.id) : graphWithSidebar ? (
               <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,.65fr)] lg:items-start">
                 <TraceVisual visual={frame.visuals[0]!} />
                 <div className="grid min-w-0 gap-4">

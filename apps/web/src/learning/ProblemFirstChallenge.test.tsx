@@ -1,7 +1,21 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ProblemFirstChallenge } from "./ProblemFirstChallenge.js";
+import type { StatementDefinition } from "./StatementPreview.js";
+
+const statement: StatementDefinition = {
+  description: "Find whether the requested value occurs in the list.",
+  input: "A list of integers and a target value.",
+  output: "YES if the target occurs; otherwise NO.",
+  exampleInput: "values = [4, 8, 2]; target = 8",
+  exampleOutput: "YES",
+  frames: [
+    { narration: "These are the given values.", visuals: [{ kind: "vector", label: "Values", values: [4, 8, 2] }] },
+    { narration: "The target is the value you are asked about.", visuals: [{ kind: "entries", label: "Request", entries: [{ key: "target", value: 8 }] }] },
+    { narration: "Your answer must be YES or NO.", visuals: [{ kind: "output", label: "Answer format", lines: ["YES / NO"] }] }
+  ]
+};
 
 const props = {
   eyebrow: "Worked cycle",
@@ -32,6 +46,8 @@ describe("problem-first interactions", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("reveals the general tool and application in separate focused stages, then resets on remount", async () => {
@@ -67,5 +83,38 @@ describe("problem-first interactions", () => {
     render(<ProblemFirstChallenge {...originalChallengeProps}><p>Technique body</p></ProblemFirstChallenge>);
 
     expect(screen.queryByRole("link", { name: "Open problem" })).not.toBeInTheDocument();
+  });
+
+  it("explains input and output before the reveal, and never reveals a solution while playing", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    render(<ProblemFirstChallenge {...props} statement={statement}><p>Technique body</p></ProblemFirstChallenge>);
+    expect(screen.getByText(statement.description)).toBeInTheDocument();
+    expect(screen.queryByText(props.description)).not.toBeInTheDocument();
+    expect(screen.getByText("Input")).toBeInTheDocument();
+    expect(screen.getByText("Output")).toBeInTheDocument();
+    expect(screen.getByText("Example input")).toBeInTheDocument();
+    expect(screen.getByText("Example output")).toBeInTheDocument();
+    const player = screen.getByRole("region", { name: "Statement animation: Tiny challenge" });
+    fireEvent.click(within(player).getByRole("button", { name: "Play" }));
+    act(() => vi.advanceTimersByTime(2200));
+    expect(player).toHaveTextContent(statement.frames[1]!.narration);
+    act(() => vi.advanceTimersByTime(2200));
+    expect(player).toHaveTextContent(statement.frames[2]!.narration);
+    expect(screen.getByRole("button", { name: "Show the tool" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Technique body")).not.toBeInTheDocument();
+    expect(screen.queryByText("Application body")).not.toBeInTheDocument();
+    fireEvent.click(within(player).getByRole("button", { name: "Reset trace" }));
+    expect(player).toHaveTextContent(statement.frames[0]!.narration);
+  });
+
+  it("allows manual statement stepping with reduced motion", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    render(<ProblemFirstChallenge {...props} statement={statement}><p>Technique body</p></ProblemFirstChallenge>);
+    const player = screen.getByRole("region", { name: "Statement animation: Tiny challenge" });
+    expect(within(player).getByRole("button", { name: "Play" })).toBeDisabled();
+    fireEvent.click(within(player).getByRole("button", { name: "Next trace step" }));
+    expect(player).toHaveTextContent(statement.frames[1]!.narration);
+    expect(screen.queryByText("Technique body")).not.toBeInTheDocument();
   });
 });

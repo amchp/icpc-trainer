@@ -142,7 +142,7 @@ export const timeComplexity = {
       eyebrow: "Lesson 5 · Recursive counting",
       title: "Fibonacci Number",
       description: "Return the nth Fibonacci number, where F(0) = 0, F(1) = 1, and every later value is the sum of the previous two.",
-      constraints: "0 ≤ n ≤ 30. Start with the direct recursive definition, then count the work before optimizing it.",
+      constraints: "0 ≤ n ≤ 30. The first sequence position has index 0.",
       sample: "n = 6\noutput = 8",
       toolTitle: "Watch one recurrence grow into an exponential call tree",
       analysis: "A recursive call can create more than one child. For naive Fibonacci, T(n) = T(n − 1) + T(n − 2) + c: the same subproblems are recomputed across a branching tree. Count every call for time, but only the longest simultaneously active path for stack space. The tree grows exponentially while its maximum depth grows linearly; O(2ⁿ) is a simple upper bound for its running time.",

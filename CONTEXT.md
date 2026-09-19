@@ -112,9 +112,19 @@ _Avoid_: Resource link, lesson
 An in-app lesson for an available **Learning Topic**.
 _Avoid_: External resource, article link, class
 
+**Animation Library**:
+A searchable collection of animated algorithm tools and data-structure simulators for signed-in **App Users** learning or teaching algorithms, excluding problem-solution demonstrations. Related tools taught together in a **Learning Guide** share a search result and **Animation Workspace**.
+_Avoid_: Separate animation website, source-code repository
+
+**Animation Workspace**:
+The destination opened by a signed-in **App User** from an **Animation Library** result, containing one tool or a group of related tools in lesson order, short explanations, and a link to the associated **Learning Guide**.
+_Avoid_: Full lesson, guide section
+
 **Learning Challenge**:
 A teaching scenario inside a **Learning Guide** that asks the learner to reason before its analysis or tools are revealed. A Learning Challenge is not a judge **Problem**.
 _Avoid_: Problem, task
+
+Its statement separates the input, required output, and a small input/output example. Statement animations explain the given data and legal rules and may demonstrate the result for a concrete input, including valid and invalid examples. General algorithms, candidate-search procedures, and winning strategies stay in the solution disclosures. The statement content is available in English and Spanish.
 
 **Problem-First Lesson**:
 A **Learning Guide** lesson flow that presents a **Learning Challenge**, pauses for the learner's attempt, reveals an analysis tool, and then compares or applies solution approaches.

@@ -47,14 +47,25 @@ describe("BruteForcePage", () => {
 
   it("separates general tools from problem applications and shows no problem-solution code", () => {
     render(<BruteForcePage />);
-    const cycleHeadings = screen.getAllByText(/Worked cycle 0[1-4]/).map((node) => node.textContent);
+    const cycleHeadings = screen.getAllByText(/Challenge 0[1-4]/).map((node) => node.textContent);
     expect(cycleHeadings).toEqual([
-      "Worked cycle 01 · Simulate",
-      "Worked cycle 02 · Permute",
-      "Worked cycle 03 · Binary decisions",
-      "Worked cycle 04 · Backtrack"
+      "Challenge 01 · Repeated moves",
+      "Challenge 02 · Plate weights",
+      "Challenge 03 · Signed values",
+      "Challenge 04 · Sudoku"
     ]);
     expect(screen.queryByLabelText("Recursive permutation trace")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText(/^Statement animation:/)).toHaveLength(4);
+    expect(screen.getAllByText("Example input", { exact: true })).toHaveLength(4);
+    expect(screen.getAllByText("Example output", { exact: true })).toHaveLength(4);
+    const kitchenStatement = within(screen.getByLabelText("Statement animation: Kitchen Plates"));
+    expect(kitchenStatement.getByRole("img", { name: "Plates from lightest to heaviest: E, C, B, D, A" })).toBeInTheDocument();
+    fireEvent.click(kitchenStatement.getByRole("button", { name: "Next trace step" }));
+    expect(kitchenStatement.getByRole("img", { name: "D is heavier; D>B is valid" })).toBeInTheDocument();
+    for (let step = 1; step < 6; step++) fireEvent.click(kitchenStatement.getByRole("button", { name: "Next trace step" }));
+    expect(kitchenStatement.getByText("Example output: ECBDA")).toBeInTheDocument();
+    expect(screen.queryByLabelText("All 120 plate orders")).not.toBeInTheDocument();
+    expect(screen.queryByText(/5! = 120 complete orderings/)).not.toBeInTheDocument();
 
     const revealButtons = screen.getAllByRole("button", { name: "Learn the tool" });
     expect(revealButtons).toHaveLength(4);
@@ -70,7 +81,7 @@ describe("BruteForcePage", () => {
     }
     expect(screen.getByLabelText("Recursive permutation trace")).toHaveTextContent("current.push_back");
     expect(screen.getByLabelText("Recursive permutation trace")).toHaveTextContent("current.pop_back");
-    expect(screen.getByText("Determine whether any ordering of five labeled plates satisfies all five pairwise ordering constraints.")).toBeInTheDocument();
+    expect(screen.getByText("Arrange plates A–E from lightest to heaviest so that all five comparisons are true.")).toBeInTheDocument();
     expect(screen.getByLabelText("Recursive permutation trace").querySelector("[data-trace-wide-visuals]")).toContainElement(
       within(screen.getByLabelText("Recursive permutation trace")).getByRole("tree", { name: "Complete decision tree" })
     );
@@ -116,8 +127,10 @@ describe("BruteForcePage", () => {
     render(<BruteForcePage />);
     expect(screen.getByRole("heading", { name: "Genera. Comprueba. Retrocede." })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Genera permutaciones" })).toBeInTheDocument();
-    expect(screen.getByText("Decide si algún orden de cinco platos etiquetados satisface las cinco restricciones de orden entre pares.")).toBeInTheDocument();
+    expect(screen.getByText("Ordena los platos A–E del más liviano al más pesado para cumplir las cinco comparaciones.")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Aprender la herramienta" })).toHaveLength(4);
+    expect(screen.getAllByText("Entrada de ejemplo", { exact: true })).toHaveLength(4);
+    expect(screen.getAllByLabelText(/^Animación del enunciado:/)).toHaveLength(4);
     fireEvent.click(screen.getAllByRole("button", { name: "Aprender la herramienta" })[1]!);
     const permutationTrace = screen.getByLabelText("Traza de permutaciones recursivas");
     fireEvent.click(within(permutationTrace).getByRole("button", { name: "Paso siguiente de la traza" }));

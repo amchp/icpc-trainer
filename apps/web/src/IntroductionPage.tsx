@@ -9,6 +9,8 @@ import { appPaths } from "./appNavigation.js";
 import { Button } from "./components/ui.js";
 import { cn } from "./lib.js";
 import { GuideCodeBlock } from "./learning/GuideCodeBlock.js";
+import { StatementPreview } from "./learning/StatementPreview.js";
+import { getFoundationStatement } from "./learning/statements/foundationStatements.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { ChompGame } from "./learning/games/ChompGame.js";
 import { PlateGame } from "./learning/games/PlateGame.js";
@@ -30,7 +32,8 @@ int main() {
 }`;
 
 export function IntroductionPage(): React.JSX.Element {
-  const { t } = useTranslation("introduction");
+  const { t, i18n } = useTranslation("introduction");
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -115,34 +118,7 @@ export function IntroductionPage(): React.JSX.Element {
                 <p className="mt-3 text-sm leading-7 text-blue-200">{t("mentalModel.limitsGuide")}</p>
               </header>
 
-              <section className="mt-8" aria-labelledby="watermelon-statement-title">
-                <h4 id="watermelon-statement-title" className="font-semibold text-zinc-100">{t("mentalModel.statementTitle")}</h4>
-                <p className="mt-3 text-sm leading-7 text-zinc-400">{t("mentalModel.statementP1")}</p>
-                <p className="mt-3 text-sm leading-7 text-zinc-400">{t("mentalModel.statementP2")}</p>
-                <p className="mt-3 text-sm leading-7 text-blue-200">{t("mentalModel.statementGuide")}</p>
-              </section>
-
-              <section className="mt-8" aria-labelledby="watermelon-input-title">
-                <h4 id="watermelon-input-title" className="font-semibold text-zinc-100">{t("mentalModel.inputTitle")}</h4>
-                <p className="mt-3 text-sm leading-7 text-zinc-400">{t("mentalModel.inputText")}</p>
-                <p className="mt-3 text-sm leading-7 text-blue-200">{t("mentalModel.inputGuide")}</p>
-              </section>
-
-              <section className="mt-8" aria-labelledby="watermelon-output-title">
-                <h4 id="watermelon-output-title" className="font-semibold text-zinc-100">{t("mentalModel.outputTitle")}</h4>
-                <p className="mt-3 text-sm leading-7 text-zinc-400">{t("mentalModel.outputText")}</p>
-                <p className="mt-3 text-sm leading-7 text-blue-200">{t("mentalModel.outputGuide")}</p>
-              </section>
-
-              <section className="mt-8" aria-labelledby="watermelon-example-title">
-                <h4 id="watermelon-example-title" className="font-semibold text-zinc-100">{t("mentalModel.exampleTitle")}</h4>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <CommandBlock label={t("mentalModel.sampleInputLabel")} command={t("mentalModel.sampleInput")} />
-                  <CommandBlock label={t("mentalModel.sampleOutputLabel")} command={t("mentalModel.sampleOutput")} />
-                </div>
-                <p className="mt-4 text-sm leading-7 text-zinc-400"><strong className="text-zinc-200">{t("mentalModel.noteTitle")}</strong> {t("mentalModel.noteText")}</p>
-                <p className="mt-3 text-sm leading-7 text-blue-200">{t("mentalModel.exampleGuide")}</p>
-              </section>
+              <StatementPreview statement={getFoundationStatement(language, "watermelon")} title={t("mentalModel.problemTitle")} />
             </article>
             <p>{t("mentalModel.p2")}</p>
             <p>{t("mentalModel.p3")}</p>
@@ -180,7 +156,8 @@ export function IntroductionPage(): React.JSX.Element {
           </LessonSection>
 
           <LessonSection id="plate-game" title={t("plateLesson.title")}>
-            <p>{t("plateLesson.intro")}</p><p>{t("plateLesson.p2")}</p><PlateGame />
+            <StatementPreview statement={getFoundationStatement(language, "plate")} title={t("plateLesson.title")} />
+            <PlateGame />
           </LessonSection>
 
           <LessonSection id="languages" title={t("languages.title")}>
@@ -236,7 +213,8 @@ export function IntroductionPage(): React.JSX.Element {
           </LessonSection>
 
           <LessonSection id="stones" title={t("stonesLesson.title")}>
-            <p>{t("stonesLesson.intro")}</p><p>{t("stonesLesson.optimalPlay")}</p><StonesGame />
+            <StatementPreview statement={getFoundationStatement(language, "stones")} title={t("stonesLesson.title")} />
+            <StonesGame />
           </LessonSection>
 
           <LessonSection id="first-submission" title={t("codeforces.title")}>
@@ -301,7 +279,8 @@ export function IntroductionPage(): React.JSX.Element {
           </LessonSection>
 
           <LessonSection id="chomp" title={t("chompLesson.title")}>
-            <p>{t("chompLesson.intro")}</p><p>{t("chompLesson.p2")}</p><p>{t("chompLesson.p3")}</p><ChompGame />
+            <StatementPreview statement={getFoundationStatement(language, "chomp")} title={t("chompLesson.title")} />
+            <ChompGame />
           </LessonSection>
 
           <LessonSection id="next" title={t("future.title")}>

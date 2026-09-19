@@ -53,22 +53,22 @@ describe("DataStructuresPage", () => {
       const challenge = within(section!).getByText("The challenge");
       const thinking = within(section!).getByRole("heading", { name: "Try to solve it before continuing" });
       const toolbox = within(section!).getByRole("button", { name: /Learn the tool/ });
-      expect(within(section!).getByText("What you receive")).toBeInTheDocument();
-      expect(within(section!).getByText("What you must produce")).toBeInTheDocument();
+      expect(within(section!).getByText("Input")).toBeInTheDocument();
+      expect(within(section!).getByText("Output")).toBeInTheDocument();
       expect(within(section!).queryByText("Important constraints")).not.toBeInTheDocument();
-      expect(within(section!).getByText("How the answer is obtained")).toBeInTheDocument();
-      expect(within(section!).queryByRole("list")).not.toBeInTheDocument();
+      expect(within(section!).queryByText("How the answer is obtained")).not.toBeInTheDocument();
+      expect(section!.querySelectorAll("[data-statement-preview]")).toHaveLength(1);
+      expect(within(section!).getByRole("button", { name: "Next trace step" })).toBeEnabled();
       expect(problemCard).toHaveClass("border-zinc-800");
       expect(problemCard?.className).not.toMatch(/border-(cyan|blue|violet|amber|emerald|rose)-400/);
       expect(challenge.compareDocumentPosition(thinking) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(thinking.compareDocumentPosition(toolbox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
     const numeric = problemSections[0]!;
-    const numericInput = within(numeric).getByText("What you receive").closest("div");
-    expect(numericInput).toHaveTextContent("Each can be as large as 10⁹");
+    const numericInput = within(numeric).getByText("Input").closest("div");
+    expect(numericInput).toHaveTextContent("each between 1 and 10⁹");
     expect(numericInput).not.toHaveTextContent("product can reach");
-    const paintedGrid = within(numeric).getByRole("img", { name: "3 rows by 4 columns: 12 painted cells" });
-    expect(paintedGrid.children).toHaveLength(12);
+    expect(within(numeric).getByRole("img", { name: "3 rows × 4 columns" })).toBeInTheDocument();
     const numericThinking = within(numeric).getByRole("heading", { name: "Try to solve it before continuing" });
     const numericToolbox = within(numeric).getByRole("button", { name: /Learn the tool/ });
     const experiment = within(numeric).getByText("The same expression passes a small test and fails at scale");
@@ -76,19 +76,14 @@ describe("DataStructuresPage", () => {
     expect(numericToolbox.compareDocumentPosition(experiment) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(experiment).not.toBeVisible();
     expect(numeric).not.toHaveTextContent("A small grid makes the program look obviously correct");
-    expect(document.getElementById("vector")).toHaveTextContent("100,000 price");
-    expect(document.getElementById("vector")).toHaveTextContent("budgets [1, 6, 9, 10]");
-    expect(document.getElementById("vector")).toHaveTextContent("A budget of 6 can afford prices 3 and 6");
-    expect(document.getElementById("set")).toHaveTextContent("Only lowercase letters are data");
-    expect(document.getElementById("set")).toHaveTextContent("Ignore braces, commas, and spaces");
+    expect(document.getElementById("vector")).toHaveTextContent("1 ≤ n, q ≤ 100,000");
+    expect(document.getElementById("vector")).toHaveTextContent("Equal prices belong to separate shops");
+    expect(document.getElementById("set")).toHaveTextContent("Repeated letters count once");
     expect(document.getElementById("stack")).toHaveTextContent("Is this a valid bracket sequence?");
     expect(document.getElementById("queue")).toHaveTextContent("How many requests are still recent?");
-    expect(document.getElementById("queue")).toHaveTextContent("ping(1), ping(100), ping(3001), ping(3002)");
-    expect(document.getElementById("queue")).toHaveTextContent("At most 10,000 calls");
-    expect(document.getElementById("ranges")).toHaveTextContent("How can a stack return its minimum in O(1)?");
-    expect(document.getElementById("ranges")).toHaveTextContent("push, pop, top, and getMin");
-    expect(document.getElementById("ranges")).toHaveTextContent("at most 30,000 calls");
-    expect(document.getElementById("ranges")).toHaveTextContent("Answers: 2, 2, 5");
+    expect(document.getElementById("queue")).toHaveTextContent("Up to 10,000 calls");
+    expect(document.getElementById("ranges")).toHaveTextContent("at most 30,000 method calls");
+    expect(document.getElementById("ranges")).toHaveTextContent("Queries do not remove values");
     expect(screen.getByRole("link", { name: /Custom structure design/ })).toHaveAttribute("href", "#ranges");
 
     const links = [
@@ -543,8 +538,8 @@ describe("DataStructuresPage", () => {
     expect(document.getElementById("numeric")).toHaveTextContent("Rango como potencia de dos");
     expect(document.getElementById("numeric")).toHaveTextContent("aprox. ±2 × 10⁹");
     expect(document.getElementById("numeric")).toHaveTextContent("de 0 a aprox. 4 × 10⁹");
-    expect(within(document.getElementById("numeric")!).getByRole("img", { name: "3 filas por 4 columnas: 12 celdas pintadas" })).toBeInTheDocument();
-    expect(document.getElementById("set")).toHaveTextContent("Solo las letras minúsculas son datos");
+    expect(within(document.getElementById("numeric")!).getByRole("img", { name: "3 filas × 4 columnas" })).toBeInTheDocument();
+    expect(document.getElementById("set")).toHaveTextContent("Las repetidas cuentan una vez");
     expect(document.getElementById("stack")).toHaveTextContent("¿Es una secuencia válida de paréntesis?");
     expect(document.getElementById("queue")).toHaveTextContent("¿Cuántas solicitudes siguen siendo recientes?");
 
@@ -573,7 +568,7 @@ describe("DataStructuresPage", () => {
     expect(rangesSection).toHaveTextContent("struct Contador");
     expect(rangesSection).toHaveTextContent("Contador visitas");
     expect(document.getElementById("ranges")).toHaveTextContent("¿Cómo puede una pila devolver su mínimo en O(1)?");
-    expect(document.getElementById("ranges")).toHaveTextContent("máximo 30.000 llamadas");
+    expect(document.getElementById("ranges")).toHaveTextContent("hasta 30 000 llamadas");
     expect(screen.getByRole("link", { name: /Diseño de estructuras propias/ })).toHaveAttribute("href", "#ranges");
 
     const mapSection = document.getElementById("map")!;

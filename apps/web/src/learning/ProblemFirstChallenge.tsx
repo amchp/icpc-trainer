@@ -2,6 +2,7 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { cn } from "../lib.js";
+import { StatementPreview, type StatementDefinition } from "./StatementPreview.js";
 
 export interface ProblemFirstChallengeProps {
   readonly accent?: "orange" | "violet" | "cyan" | "emerald" | "rose";
@@ -9,6 +10,8 @@ export interface ProblemFirstChallengeProps {
   readonly problemStageLabel: string;
   readonly title: string;
   readonly description: string;
+  readonly statement?: StatementDefinition;
+  readonly statementAnimation?: React.ReactNode;
   readonly constraintsLabel: string;
   readonly constraints: string;
   readonly sampleLabel: string;
@@ -69,6 +72,8 @@ export function ProblemFirstChallenge({
   problemStageLabel,
   title,
   description,
+  statement,
+  statementAnimation,
   constraintsLabel,
   constraints,
   sampleLabel,
@@ -123,16 +128,16 @@ export function ProblemFirstChallenge({
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">{eyebrow}</p>
         </div>
         <h3 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">{title}</h3>
-        <p className="mt-4 max-w-3xl leading-7 text-zinc-300">{description}</p>
-        <div className="mt-6 grid gap-px overflow-hidden rounded-lg border border-zinc-800 bg-zinc-800 sm:grid-cols-2">
+        {statement ? <StatementPreview statement={statement} title={title} animation={statementAnimation} /> : <p className="mt-4 max-w-3xl leading-7 text-zinc-300">{description}</p>}
+        <div className={cn("mt-6 grid gap-px overflow-hidden rounded-lg border border-zinc-800 bg-zinc-800", !statement && "sm:grid-cols-2")}>
           <div className="min-w-0 bg-zinc-900/90 p-4">
             <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-500">{constraintsLabel}</span>
             <p className="mt-2 text-sm leading-6 text-zinc-300">{constraints}</p>
           </div>
-          <div className="min-w-0 bg-zinc-900/90 p-4">
+          {!statement ? <div className="min-w-0 bg-zinc-900/90 p-4">
             <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-500">{sampleLabel}</span>
             <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-6 text-zinc-300">{sample}</pre>
-          </div>
+          </div> : null}
         </div>
         {sourceUrl !== undefined && sourceLabel !== undefined ? (
           <a

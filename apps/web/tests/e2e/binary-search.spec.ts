@@ -8,7 +8,7 @@ test("uses the bilingual exclusive-sentinel journey with editable code-free appl
 
   const first = page.getByRole("heading", { name: "Return the first copy of the target" }).locator("xpath=ancestor::article");
   await first.getByRole("button", { name: "Learn the tool" }).click();
-  await expect(first.getByText("Generic C++ condition trace")).toBeVisible();
+  await expect(first.getByText("C++ synchronized with this trace")).toBeVisible();
   await first.getByRole("button", { name: "Show the problem connection" }).click();
   const firstLab = first.getByLabel("Trace the first occurrence");
   await firstLab.getByLabel("Sorted values").fill("1, 2, 2, 2, 8");

@@ -14,6 +14,7 @@ describe("protected navigation", () => {
       appPaths.upsolving,
       appPaths.contestFinder,
       appPaths.resources,
+      appPaths.animations,
       appPaths.team,
       appPaths.leaderboard
     ]);
@@ -22,6 +23,7 @@ describe("protected navigation", () => {
       "Upsolving",
       "Contest Finder",
       "Resources",
+      "Animations",
       "Team",
       "Leaderboard"
     ]);

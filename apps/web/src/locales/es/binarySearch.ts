@@ -23,7 +23,7 @@ export const binarySearch = {
     sample: "Ejemplo",
     source: "Abrir problema original",
     problemStage: "Problema",
-    attempt: "Antes de revelar la herramienta, nombra la condición de sí/no y predice qué lado debe conservar una respuesta verdadera.",
+    attempt: "Explica qué significa la entrada y qué debes devolver; después plantea tu primera idea.",
     attemptStage: "Intento rápido",
     reveal: "Aprender la herramienta",
     hide: "Ocultar la herramienta",
@@ -123,7 +123,7 @@ export const binarySearch = {
     moved: "{{bound}} se mueve a {{mid}} porque la condición es {{result}}."
   },
   first: {
-    eyebrow: "Frontera en arreglo ordenado",
+    eyebrow: "Valores ordenados",
     title: "Devuelve la primera copia del objetivo",
     description: "Dado un arreglo ordenado que puede tener repetidos, devuelve el primer índice cuyo valor sea target, o -1 si no existe.",
     constraints: "De 0 a 12 valores en este laboratorio; valores y target son enteros seguros. El problema original de LeetCode usa valores únicos.",
@@ -136,7 +136,7 @@ export const binarySearch = {
     verify: "Verificación final: values[{{index}}] {{comparison}} target."
   },
   closest: {
-    eyebrow: "Dos fronteras vecinas",
+    eyebrow: "Distancia entre valores",
     title: "Encuentra el valor más cercano",
     description: "Encuentra el valor del arreglo ordenado más cercano a x. Si dos valores empatan, elige el menor.",
     constraints: "De 1 a 12 enteros seguros ordenados; se permiten repetidos.",
@@ -151,10 +151,10 @@ export const binarySearch = {
     tie: "Misma distancia: gana el valor menor."
   },
   numeric: {
-    eyebrow: "Dominio continuo ordenado",
+    eyebrow: "Respuesta real",
     title: "Aproxima la raíz cuadrada con double",
     description: "Aproxima sqrt(x) con Búsqueda binaria sobre un intervalo real. La respuesta no es un índice ni una frontera entera: es un double dentro de un intervalo que se hace cada vez más pequeño.",
-    constraints: "x es un double finito entre 0 y 10¹². Epsilon está entre 10⁻¹² y 10⁻¹, o usa entre 1 y 100 iteraciones fijas.",
+    constraints: "0 ≤ x ≤ 10¹². La respuesta puede ser un número decimal.",
     sample: "x = 10.0 → sqrt(x) ≈ 3.16227766017",
     toolTitle: "Haz Búsqueda binaria sobre un intervalo real",
     toolText: "Comienza con left² ≤ x y right² > x. Calcula un punto medio double, conserva la mitad que contiene sqrt(x) y detente por ancho del intervalo o por un número fijo de iteraciones.",
@@ -176,7 +176,7 @@ export const binarySearch = {
     invalidIterations: "Ingresa un entero entre 1 y 100."
   },
   bad: {
-    eyebrow: "API monótona externa",
+    eyebrow: "Historial de versiones",
     title: "Encuentra la primera versión mala",
     description: "Las versiones se numeran de 1 a n. Cuando una versión es mala, todas las posteriores también lo son. Minimiza llamadas a isBadVersion.",
     constraints: "1 ≤ n ≤ 10⁹; existe exactamente una primera versión mala.",
@@ -192,7 +192,7 @@ export const binarySearch = {
     invalidBad: "La primera versión mala debe estar entre 1 y n."
   },
   magic: {
-    eyebrow: "Máxima respuesta factible",
+    eyebrow: "Ingredientes y galletas",
     title: "Magic Powder - 2",
     description: "Cada galleta consume varios ingredientes. El inventario y k gramos de polvo universal deben cubrir cada déficit. Encuentra el máximo de galletas.",
     constraints: "El problema original permite 100.000 ingredientes; este laboratorio legible acepta de 1 a 12. Los valores numéricos conservan los límites originales de 10⁹.",

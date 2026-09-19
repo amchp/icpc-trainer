@@ -37,7 +37,10 @@ describe("ProgrammingFundamentalsPage", () => {
     render(<ProgrammingFundamentalsPage />);
 
     const selfCheck = screen.getByRole("region", { name: "Could you program these today?" });
-    expect(within(selfCheck).getAllByRole("group")).toHaveLength(3);
+    expect(selfCheck.querySelectorAll("fieldset")).toHaveLength(3);
+    expect(selfCheck.querySelectorAll("[data-statement-preview]")).toHaveLength(0);
+    expect(within(selfCheck).queryByText("Example output")).not.toBeInTheDocument();
+    expect(within(selfCheck).queryByRole("button", { name: "Next trace step" })).not.toBeInTheDocument();
     expect(within(selfCheck).getByRole("heading", { name: "Validate a Sudoku board" })).toBeInTheDocument();
     expect(within(selfCheck).getByRole("heading", { name: "Check whether a password is strong" })).toBeInTheDocument();
     expect(within(selfCheck).getByRole("heading", { name: "Find the deepest nested folder" })).toBeInTheDocument();

@@ -24,7 +24,7 @@ export const greedy = {
     sample: "Example",
     source: "Open original problem",
     problemStage: "Problem",
-    attempt: "Before revealing the tool, name the current state, the feasible choices, and the local rule you would try to justify.",
+    attempt: "Restate what is given and what a valid answer must satisfy. Try a small example before revealing the tool.",
     attemptStage: "Quick attempt",
     reveal: "Learn the tool",
     hide: "Hide the tool",
@@ -61,7 +61,7 @@ export const greedy = {
     }
   },
   coins: {
-    eyebrow: "Largest feasible denomination",
+    eyebrow: "Exact payment",
     title: "Make exact change with as few coins as possible",
     description: "You must pay the target exactly. You may use each available denomination as many times as needed, and your answer should contain the fewest coins possible.",
     constraints: "Tool denominations are 1, 5, 10, 25, and 50; the editable target is from 1 through 500.",
@@ -117,7 +117,7 @@ export const greedy = {
     }
   },
   activities: {
-    eyebrow: "Earliest finishing interval",
+    eyebrow: "Non-overlapping activities",
     title: "Attend the maximum number of compatible activities",
     description: "Each activity occupies one interval from its start time to its finish time. You can attend only non-overlapping activities, and the goal is to attend as many as possible; starting exactly when the previous activity ends is allowed.",
     constraints: "One through eight activities; endpoints are whole values from 0 through 1000 and start must be less than finish.",
@@ -184,7 +184,7 @@ export const greedy = {
     }
   },
   chat: {
-    eyebrow: "Earliest subsequence match",
+    eyebrow: "Letters in order",
     title: "Find hello without rearranging the message",
     description: "Given a lowercase message, decide whether deleting some characters—without changing the order of the rest—can leave exactly the word hello.",
     constraints: "One through 100 lowercase English letters.",
@@ -214,7 +214,7 @@ export const greedy = {
     }
   },
   alternating: {
-    eyebrow: "Independent sign blocks",
+    eyebrow: "Alternating signs",
     title: "Maximize the sum of a longest alternating subsequence",
     description: "Choose a subsequence whose neighboring values alternate between positive and negative. First make that subsequence as long as possible; among all longest choices, keep the one with the greatest sum.",
     constraints: "One through twelve nonzero whole values in this Lab; magnitude at most 1,000,000,000.",
@@ -243,8 +243,8 @@ export const greedy = {
   practice: {
     intro: "Transfer each safety argument to the exact problem it was built for. These are the only three external practice problems taught here.",
     exchange: "Largest values and strict majority",
-    earliest: "Earliest subsequence match",
-    blocks: "Independent sign blocks",
+    earliest: "Letters in order",
+    blocks: "Alternating signs",
     links: { twins: "Twins", chat: "Chat Room", alternating: "Alternating Subsequence" }
   },
   finish: {

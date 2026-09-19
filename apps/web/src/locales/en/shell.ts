@@ -5,6 +5,7 @@ export const shell = {
     contests: "Contests",
     contestFinder: "Contest Finder",
     resources: "Resources",
+    animations: "Animations",
     team: "Team",
     friends: "Friends",
     judges: "Judges",

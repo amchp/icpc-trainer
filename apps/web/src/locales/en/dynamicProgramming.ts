@@ -77,12 +77,12 @@ export const dynamicProgramming = {
     coach: "If the recurrence is clear but the code is still stuck, ask your coach. Start by showing your state definition, your attempted function, and the exact line where your reasoning breaks."
   },
   fibonacci: {
-    eyebrow: "The smallest useful DP",
+    eyebrow: "A sequence defined by a rule",
     title: "Compute the n-th Fibonacci number",
     description: "F(0) = 0, F(1) = 1, and every later value is the sum of the previous two. Return F(n).",
     constraints: "0 ≤ n ≤ 90. The answer fits in a signed 64-bit integer.",
     sample: "n = 7\nanswer = 13",
-    attempt: "Try a recursive solution first. Mark the calls you believe ask exactly the same question.",
+    attempt: "Identify the requested index and check the two starting values before trying a small case.",
     toolTitle: "DP starts by naming and remembering states",
     toolIntro: "A state is the complete identity of one recursive question. To make recursive DP, name that identity, know the base answers and dependencies, remember the first answer, and reuse it whenever the same state returns.",
     state: "dp[i] is the value F(i).",
@@ -99,12 +99,12 @@ export const dynamicProgramming = {
     pitfall: "Factorial also has a recurrence, but it does not reuse overlapping subproblems. Fibonacci makes the reason for storing states visible."
   },
   nonAdjacent: {
-    eyebrow: "A decision at every index",
+    eyebrow: "No neighboring selections",
     title: "Maximum sum with no adjacent elements",
     description: "Choose any set of array elements so that no two chosen indices are adjacent. The empty set is allowed. Maximize the sum.",
     constraints: "1 ≤ n ≤ 200,000. Values may be negative and fit in a signed 32-bit integer.",
     sample: "values = [4, 1, 1, 9, 1]\nanswer = 13  // choose 4 and 9",
-    attempt: "Try the brute-force choices first. Mark which unfinished decisions seem to appear more than once.",
+    attempt: "Try a small array. Which selections are allowed, and what happens if every value is negative?",
     toolTitle: "A state can be an array index",
     toolIntro: "Repeat the first idea: identical recursive questions should reuse one answer. When a subproblem is about a prefix, suffix, or position in an array, one index can be enough to identify its state; the meaning of that index is still yours to choose.",
     state: "dp[i] is the best sum using only the first i elements.",
@@ -121,12 +121,12 @@ export const dynamicProgramming = {
     pitfall: "Memoization removes repeated work, but a recursion depth near 200,000 may overflow the call stack. The same state and transition can later be evaluated iteratively."
   },
   grid: {
-    eyebrow: "The state gains a coordinate",
+    eyebrow: "Routes on a board",
     title: "Count paths through a blocked grid",
     description: "Start at the top-left cell and reach the bottom-right cell by moving only right or down. Some cells are blocked. Count valid paths modulo 1,000,000,007.",
     constraints: "1 ≤ n ≤ 1,000. The board is n × n; each cell is open (.) or blocked (*).",
     sample: "...\n.*.\n...\nanswer = 2",
-    attempt: "Try a recursive path count. Mark the recursive questions that can be reached through more than one route.",
+    attempt: "Check the allowed directions and blocked cells. What would make the route count zero?",
     toolTitle: "A state can need more than one coordinate",
     toolIntro: "Repeat memoization, then widen the state identity. One index is not always enough: a state may be a pair or tuple of coordinates. Each distinct tuple gets one stored answer, regardless of how recursion reached it.",
     state: "dp[row][column] is the number of valid paths from the start to that cell.",
@@ -144,12 +144,12 @@ export const dynamicProgramming = {
     solve: "Solve Grid Paths on CSES"
   },
   knapsack: {
-    eyebrow: "Two dimensions encode a choice boundary",
+    eyebrow: "Items and a weight limit",
     title: "0/1 knapsack with weights and values",
     description: "Each item has a positive weight and a value. Choose every item at most once, keep total weight within the capacity, and maximize total value.",
     constraints: "1 ≤ n ≤ 1,000 and 1 ≤ capacity ≤ 100,000. Each item may be used zero or one time.",
     sample: "capacity = 4\nweights = [2, 2, 2]\nvalues  = [4, 6, 4]\nanswer = 10",
-    attempt: "Write your recursive choices first. Note which information changes what choices remain possible later.",
+    attempt: "Explain the weight limit and the one-copy rule. What quantity should your answer maximize?",
     toolTitle: "A state stores only what the future still needs",
     toolIntro: "A multi-part state should contain enough information to determine every future choice, but no history that cannot change the answer. Think of it as a compact contract between the completed decisions and the decisions that remain.",
     stateCollision: {
@@ -176,12 +176,12 @@ export const dynamicProgramming = {
     solve: "Solve Book Shop on CSES"
   },
   dag: {
-    eyebrow: "Dependencies no longer sit in a line",
+    eyebrow: "Directed paths",
     title: "Longest path in a directed acyclic graph",
     description: "Given an unweighted DAG, find the maximum number of edges on any directed path. The path may start and end at any nodes.",
     constraints: "1 ≤ n, m ≤ 200,000. The directed graph is guaranteed to be acyclic.",
     sample: "edges = 1→6, 2→3, 2→6, 3→4, 4→5\nanswer = 3  // 2→3→4→5",
-    attempt: "Try to express the answer recursively on the DAG. Mark which partial answers are requested by more than one dependency.",
+    attempt: "Explain why the answer counts edges rather than nodes. Must the path begin at node 1?",
     toolTitle: "States are nodes; transitions are directed edges",
     toolIntro: "At its most abstract, a DP is a directed acyclic graph: each state is a node and each dependency or transition is a directed edge. The recursion tree below is what appears when that graph is unfolded into calls.",
     abstraction: {

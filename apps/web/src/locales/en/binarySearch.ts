@@ -23,7 +23,7 @@ export const binarySearch = {
     sample: "Example",
     source: "Open original problem",
     problemStage: "Problem",
-    attempt: "Before revealing the tool, name the yes/no condition and predict which side a true answer should keep.",
+    attempt: "Explain what the input means and what you must return, then sketch your first idea.",
     attemptStage: "Quick attempt",
     reveal: "Learn the tool",
     hide: "Hide the tool",
@@ -123,7 +123,7 @@ export const binarySearch = {
     moved: "{{bound}} moves to {{mid}} because the condition is {{result}}."
   },
   first: {
-    eyebrow: "Sorted-array boundary",
+    eyebrow: "Sorted values",
     title: "Return the first copy of the target",
     description: "Given a sorted array that may contain duplicates, return the first index whose value equals target, or -1 if target is absent.",
     constraints: "0 to 12 values in this lab; values and target are safe integers. The original LeetCode problem uses unique values.",
@@ -136,7 +136,7 @@ export const binarySearch = {
     verify: "Final verification: values[{{index}}] {{comparison}} target."
   },
   closest: {
-    eyebrow: "Two neighboring boundaries",
+    eyebrow: "Distance between values",
     title: "Find the closest value",
     description: "Find the sorted-array value closest to x. If two values are equally close, choose the smaller one.",
     constraints: "1 to 12 sorted safe integers; duplicates are allowed.",
@@ -151,10 +151,10 @@ export const binarySearch = {
     tie: "Equal distance: the smaller value wins."
   },
   numeric: {
-    eyebrow: "Continuous ordered domain",
+    eyebrow: "Real-valued answer",
     title: "Approximate square root with double",
     description: "Approximate sqrt(x) by Binary Searching a real interval. The answer is not an array index or an integer boundary: it is a double inside an interval that keeps shrinking.",
-    constraints: "x is a finite double from 0 through 10¹². Epsilon is from 10⁻¹² through 10⁻¹, or use 1 through 100 fixed iterations.",
+    constraints: "0 ≤ x ≤ 10¹². The answer may be a decimal number.",
     sample: "x = 10.0 → sqrt(x) ≈ 3.16227766017",
     toolTitle: "Binary Search a real interval",
     toolText: "Start with left² ≤ x and right² > x. Calculate a double midpoint, keep the half containing sqrt(x), and stop by interval width or a fixed iteration count.",
@@ -176,7 +176,7 @@ export const binarySearch = {
     invalidIterations: "Enter an integer from 1 through 100."
   },
   bad: {
-    eyebrow: "External monotone API",
+    eyebrow: "Version history",
     title: "Find the First Bad Version",
     description: "Versions are numbered 1 through n. Once a version is bad, every later version is also bad. Minimize calls to isBadVersion.",
     constraints: "1 ≤ n ≤ 10⁹; exactly one first bad version exists.",
@@ -192,7 +192,7 @@ export const binarySearch = {
     invalidBad: "The first bad version must be from 1 through n."
   },
   magic: {
-    eyebrow: "Maximum feasible answer",
+    eyebrow: "Ingredients and cookies",
     title: "Magic Powder - 2",
     description: "Each cookie consumes several ingredients. Existing stock plus k grams of universal powder must cover every deficit. Find the maximum cookies.",
     constraints: "The original problem allows 100,000 ingredients; this readable lab accepts 1 to 12. Numeric values keep the original 10⁹ limits.",

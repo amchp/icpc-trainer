@@ -15,6 +15,8 @@ import { useBruteForceGuideTraces } from "./learning/BruteForceGuideTraces.js";
 import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { ProblemFirstChallenge } from "./learning/ProblemFirstChallenge.js";
 import { SudokuStrategySimulator } from "./learning/SudokuStrategySimulator.js";
+import { getCoreStatement } from "./learning/statements/coreStatements.js";
+import { AliceStatementAnimation, KitchenStatementAnimation } from "./learning/statements/BruteForceStatementAnimations.js";
 import { useToaster } from "./Toaster.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
 
@@ -22,7 +24,7 @@ const GUIDE_ID = LEARNING_GUIDE_IDS.BruteForce;
 type SectionAccent = "text-orange-300" | "text-cyan-300" | "text-violet-300" | "text-emerald-300";
 
 export function BruteForcePage(): React.JSX.Element {
-  const { t } = useTranslation("bruteForce");
+  const { t, i18n } = useTranslation("bruteForce");
   const { userId } = useAuth();
   const traces = useBruteForceGuideTraces();
   const sections = [
@@ -137,6 +139,8 @@ export function BruteForcePage(): React.JSX.Element {
               eyebrow={t("alice.eyebrow")}
               title={t("alice.title")}
               description={t("alice.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "alice")}
+              statementAnimation={<AliceStatementAnimation />}
               constraints={t("alice.constraints")}
               sample={t("alice.sample")}
               sourceUrl="https://codeforces.com/problemset/problem/2028/A"
@@ -164,6 +168,8 @@ export function BruteForcePage(): React.JSX.Element {
               eyebrow={t("kitchen.eyebrow")}
               title={t("kitchen.title")}
               description={t("kitchen.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "kitchen")}
+              statementAnimation={<KitchenStatementAnimation />}
               constraints={t("kitchen.constraints")}
               sample={t("kitchen.sample")}
               sourceUrl="https://codeforces.com/gym/102219/problem/J"
@@ -196,6 +202,7 @@ export function BruteForcePage(): React.JSX.Element {
               eyebrow={t("sakurako.eyebrow")}
               title={t("sakurako.title")}
               description={t("sakurako.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "sakurako")}
               constraints={t("sakurako.constraints")}
               sample={t("sakurako.sample")}
               sourceUrl="https://codeforces.com/problemset/problem/2008/A"
@@ -226,6 +233,7 @@ export function BruteForcePage(): React.JSX.Element {
               eyebrow={t("sudoku.eyebrow")}
               title={t("sudoku.title")}
               description={t("sudoku.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "sudoku")}
               constraints={t("sudoku.constraints")}
               sample={t("sudoku.sample")}
               sourceUrl="https://leetcode.com/problems/sudoku-solver/"

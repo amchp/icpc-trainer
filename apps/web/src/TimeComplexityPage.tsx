@@ -26,6 +26,7 @@ import { GuideSidebar } from "./learning/GuideSidebar.js";
 import { PracticeQuestionSet, type PracticeQuestion } from "./learning/PracticeQuestionSet.js";
 import { ProblemFirstChallenge, type ProblemFirstChallengeProps } from "./learning/ProblemFirstChallenge.js";
 import { useLearningProgress, useSetLearningProgressStatus, useStartLearningGuide } from "./useLearningProgress.js";
+import { getCoreStatement } from "./learning/statements/coreStatements.js";
 import { useToaster } from "./Toaster.js";
 
 const GUIDE_ID = LEARNING_GUIDE_IDS.TimeComplexity;
@@ -126,7 +127,7 @@ for (int i = 0; i < n; ++i) {
 } as const;
 
 export function TimeComplexityPage(): React.JSX.Element {
-  const { t } = useTranslation("timeComplexity");
+  const { t, i18n } = useTranslation("timeComplexity");
   const { userId } = useAuth();
   const progressQuery = useLearningProgress();
   const startGuide = useStartLearningGuide();
@@ -200,6 +201,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.search.eyebrow")}
               title={t("problemFirst.search.title")}
               description={t("problemFirst.search.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "search")}
               constraints={t("problemFirst.search.constraints")}
               sample={t("problemFirst.search.sample")}
               toolTitle={t("problemFirst.search.toolTitle")}
@@ -226,6 +228,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.duplicates.eyebrow")}
               title={t("problemFirst.duplicates.title")}
               description={t("problemFirst.duplicates.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "duplicates")}
               constraints={t("problemFirst.duplicates.constraints")}
               sample={t("problemFirst.duplicates.sample")}
               sourceUrl="https://leetcode.com/problems/contains-duplicate/"
@@ -255,6 +258,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.stock.eyebrow")}
               title={t("problemFirst.stock.title")}
               description={t("problemFirst.stock.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "stock")}
               constraints={t("problemFirst.stock.constraints")}
               sample={t("problemFirst.stock.sample")}
               sourceUrl="https://leetcode.com/problems/best-time-to-buy-and-sell-stock/"
@@ -286,6 +290,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.zeros.eyebrow")}
               title={t("problemFirst.zeros.title")}
               description={t("problemFirst.zeros.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "zeros")}
               constraints={t("problemFirst.zeros.constraints")}
               sample={t("problemFirst.zeros.sample")}
               sourceUrl="https://leetcode.com/problems/duplicate-zeros/"
@@ -313,6 +318,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.power.eyebrow")}
               title={t("problemFirst.power.title")}
               description={t("problemFirst.power.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "power")}
               constraints={t("problemFirst.power.constraints")}
               sample={t("problemFirst.power.sample")}
               sourceUrl="https://leetcode.com/problems/fibonacci-number/"
@@ -340,6 +346,7 @@ export function TimeComplexityPage(): React.JSX.Element {
               eyebrow={t("problemFirst.capstone.eyebrow")}
               title={t("problemFirst.capstone.title")}
               description={t("problemFirst.capstone.description")}
+              statement={getCoreStatement(i18n.resolvedLanguage ?? i18n.language, "capstone")}
               constraints={t("problemFirst.capstone.constraints")}
               sample={t("problemFirst.capstone.sample")}
               sourceUrl="https://leetcode.com/problems/two-sum/"
