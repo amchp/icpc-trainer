@@ -1,3 +1,4 @@
+import { listInputSchema } from "./listInput.js";
 import type { initTRPC } from "@trpc/server";
 import {
   FRIEND_SUBMISSION_SYNC_EVENT_TYPES,
@@ -101,7 +102,7 @@ export interface FriendSubmissionSyncService {
 
 export const createContestFinderRouter = (t: TrpcInstance) =>
   t.router({
-    overview: t.procedure.query(({ ctx }) => getContestFinderOverview(ctx.database, requireAppUser(ctx.appUser).id)),
+    overview: t.procedure.input(listInputSchema).query(({ ctx, input }) => getContestFinderOverview(ctx.database, requireAppUser(ctx.appUser).id, input?.limit)),
     syncFriendSubmissions: t.procedure.mutation(async ({ ctx }): Promise<{ readonly ok: true }> => {
       if (ctx.judges.startFriendSubmissionSync === undefined) {
         throw new TRPCError({

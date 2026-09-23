@@ -55,7 +55,8 @@ interface SubmissionStatusAccumulator {
 
 export const getUpsolvingOverview = async (
   database: DatabaseService,
-  appUserId: number
+  appUserId: number,
+  limit?: number
 ): Promise<UpsolvingOverview> => {
   const problemRows = await database.db
     .select({
@@ -81,6 +82,7 @@ export const getUpsolvingOverview = async (
     .where(eq(userContestStates.simulated, true))
     .groupBy(problems.id)
     .orderBy(desc(contests.updatedAt), asc(contests.name), asc(problems.rating), asc(problems.judgeId))
+    .limit(limit ?? -1)
     .all();
 
   const submissionStateByProblemId = new Map<number, SubmissionStatusAccumulator>();
@@ -155,9 +157,8 @@ export const getUpsolvingOverview = async (
   }).filter((row) => row.status !== UPSOLVING_PROBLEM_STATUSES.New);
 
   const solvedCountByContestId = new Map<number, number>();
-  for (const row of problemRows) {
-    const submissionState = submissionStateByProblemId.get(row.problemId);
-    if (submissionState?.hasAccepted === true) {
+  for (const row of submissionRows) {
+    if (row.acceptedCount > 0) {
       solvedCountByContestId.set(
         row.contestId,
         (solvedCountByContestId.get(row.contestId) ?? 0) + 1
@@ -189,6 +190,7 @@ export const getUpsolvingOverview = async (
     .where(eq(userContestStates.simulated, true))
     .groupBy(contests.id)
     .orderBy(desc(contests.updatedAt), asc(contests.name))
+    .limit(limit ?? -1)
     .all();
 
   return {

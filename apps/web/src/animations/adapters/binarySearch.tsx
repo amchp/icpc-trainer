@@ -5,7 +5,7 @@ import { AnimationToolSection } from "../AnimationToolSection.js";
 export function BinarySearchComparison(): React.JSX.Element {
   return (
     <AnimationToolSection key="binary-search-comparison" toolId="binary-search-comparison">
-      <MotivationLab />
+      <MotivationLab showCode />
     </AnimationToolSection>
   );
 }

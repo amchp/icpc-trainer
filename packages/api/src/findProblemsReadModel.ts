@@ -30,9 +30,25 @@ export interface FindProblemsOverview {
 
 export const getFindProblemsOverview = async (
   database: DatabaseService,
-  appUserId: number
+  appUserId: number,
+  limit?: number
 ): Promise<FindProblemsOverview> => {
-  const problemRows = await database.db
+  const eligibility = and(
+    eq(problems.judge, JUDGES.Codeforces),
+    notExists(
+      database.db
+        .select({ id: submissions.id })
+        .from(submissions)
+        .innerJoin(appUserJudgeUsers, eq(appUserJudgeUsers.userId, submissions.userId))
+        .where(and(
+          eq(submissions.problemId, problems.id),
+          eq(appUserJudgeUsers.appUserId, appUserId),
+          eq(appUserJudgeUsers.role, USER_TYPES.Team),
+          eq(submissions.status, SUBMISSION_STATUSES.AC)
+        ))
+    )
+  );
+  const problemRowsPromise = database.db
     .select({
       problemId: problems.id,
       contestName: contests.name,
@@ -47,25 +63,12 @@ export const getFindProblemsOverview = async (
     .from(problems)
     .innerJoin(contests, eq(contests.id, problems.contestId))
     .leftJoin(problemTags, eq(problemTags.problemId, problems.id))
-    .where(and(
-      eq(problems.judge, JUDGES.Codeforces),
-      notExists(
-        database.db
-          .select({ id: submissions.id })
-          .from(submissions)
-          .innerJoin(appUserJudgeUsers, eq(appUserJudgeUsers.userId, submissions.userId))
-          .where(and(
-            eq(submissions.problemId, problems.id),
-            eq(appUserJudgeUsers.appUserId, appUserId),
-            eq(appUserJudgeUsers.role, USER_TYPES.Team),
-            eq(submissions.status, SUBMISSION_STATUSES.AC)
-          ))
-      )
-    ))
+    .where(eligibility)
     .orderBy(asc(problems.rating), asc(contests.name), asc(problems.judgeId), asc(problemTags.tag))
+    .limit(limit ?? -1)
     .all();
 
-  const friendSolvedRows = await database.db
+  const friendSolvedRowsPromise = database.db
     .select({
       problemId: submissions.problemId,
       friendSolvedCount: countDistinct(submissions.userId)
@@ -82,6 +85,7 @@ export const getFindProblemsOverview = async (
     ))
     .groupBy(submissions.problemId)
     .all();
+  const [problemRows, friendSolvedRows] = await Promise.all([problemRowsPromise, friendSolvedRowsPromise]);
   const friendSolvedCountByProblemId = new Map(
     friendSolvedRows.map((row) => [row.problemId, row.friendSolvedCount])
   );

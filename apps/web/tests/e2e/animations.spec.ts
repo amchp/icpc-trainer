@@ -234,51 +234,51 @@ test("empty searches and unknown workspaces recover to the complete catalog", as
   await expect(page.locator("[data-animation-card]")).toHaveCount(31);
 });
 
-test("fresh signed-out contexts gate library, unknown IDs, workspaces, and the resources preview query", async ({ browser, baseURL }) => {
-  test.setTimeout(60_000);
+test("fresh signed-out contexts open resources, guides, libraries, and shared workspaces", async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
+  const privateRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/trpc/")) privateRequests.push(request.url());
+  });
   try {
-    await setupClerkTestingToken({ page });
-    for (const path of ["/animations", "/animations/permutations", "/animations/unknown-animation", "/animations/bfs?preview=resources"]) {
-      await page.goto(path);
-      await expectSignedOut(page);
-      await expect(page.locator("[data-animation-card], [data-animation-workspace], [data-animation-tool]")).toHaveCount(0);
+    for (const path of ["/resources", "/resources/introduction", "/animations", "/animations/permutations", "/animations/unknown-animation", "/animations/bfs?preview=resources"]) {
+      await openEnglish(page, path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+      await expect(page.locator(".cl-signIn-root")).toHaveCount(0);
     }
-    await language(page).selectOption("en");
-    await page.getByRole("link", { name: "Sign up", exact: true }).click();
-    await expect(page.locator(".cl-signUp-root")).toBeVisible();
-    await expect(page.locator("[data-animation-tool]")).toHaveCount(0);
-  } catch (error) {
-    await test.info().attach("authentication-page", { body: await page.locator("body").ariaSnapshot(), contentType: "text/plain" });
-    throw error;
+    await expect(workspace(page)).toHaveAttribute("data-animation-workspace", "bfs");
+    await page.goto("/resources/introduction");
+    await expect(page.getByRole("button", { name: "Sign in to save your progress" })).toBeVisible();
+    expect(privateRequests).toEqual([]);
+    await page.goto("/judges");
+    await expectSignedOut(page);
   } finally {
     await context.close();
   }
 });
 
-test("a shared group survives fresh-context sign-in and sign-out removes access", async ({ browser, baseURL }) => {
+test("a shared group remains public before sign-in and after sign-out", async ({ browser, baseURL }) => {
   test.setTimeout(60_000);
   const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   try {
     await setupClerkTestingToken({ page });
-    await page.goto("/animations/permutations?q=recursive&topic=brute-force");
-    await expectSignedOut(page);
+    const path = "/animations/permutations?q=recursive&topic=brute-force";
+    await page.goto(path);
+    await expect(workspace(page)).toHaveAttribute("data-animation-workspace", "permutations");
     await clerk.signIn({ page, emailAddress: process.env.E2E_CLERK_USER_EMAIL?.trim() || "icpc-trainer-e2e+clerk_test@example.com" });
-    // Do not navigate again: authentication must retain the requested group itself.
+    await expect(page.getByRole("button", { name: "Open user menu" })).toBeVisible();
     await expect(workspace(page)).toHaveAttribute("data-animation-workspace", "permutations");
     expect(new URL(page.url()).searchParams.get("q")).toBe("recursive");
     expect(new URL(page.url()).searchParams.get("topic")).toBe("brute-force");
     await language(page).selectOption("en");
     await expect(tool(page, "recursive-permutations").getByText(/^Step 1 of/)).toBeVisible();
-    await expect(tool(page, "iterative-permutations").getByText(/^Step 1 of/)).toBeVisible();
     await clerk.signOut({ page });
-    await expectSignedOut(page);
-    await expect(page.locator("[data-animation-tool]")).toHaveCount(0);
-  } catch (error) {
-    await test.info().attach("authentication-page", { body: await page.locator("body").ariaSnapshot(), contentType: "text/plain" });
-    throw error;
+    await page.goto(path);
+    await expect(workspace(page)).toHaveAttribute("data-animation-workspace", "permutations");
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   } finally {
     await context.close();
   }

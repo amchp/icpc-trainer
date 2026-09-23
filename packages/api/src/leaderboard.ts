@@ -29,7 +29,8 @@ const listInputSchema = z.object({
   judge: z.nativeEnum(JUDGES).optional(),
   startAt: z.iso.datetime({ offset: true }).optional(),
   endAtExclusive: z.iso.datetime({ offset: true }).optional(),
-  page: z.number().int().nonnegative().default(0)
+  page: z.number().int().nonnegative().optional(),
+  limit: z.number().int().positive().max(50).optional()
 }).superRefine((value, context) => {
   if ((value.startAt === undefined) !== (value.endAtExclusive === undefined)) {
     context.addIssue({
@@ -161,13 +162,15 @@ export const createLeaderboardRouter = (t: TrpcInstance) => t.router({
       judge: input.judge,
       startAt: input.startAt === undefined ? undefined : new Date(input.startAt),
       endAtExclusive: input.endAtExclusive === undefined ? undefined : new Date(input.endAtExclusive),
-      page: input.page
+      page: input.page,
+      limit: input.limit
     });
     return {
       ...result,
-      page: input.page,
-      pageSize: LEADERBOARD_PAGE_SIZE,
-      hasNextPage: (input.page + 1) * LEADERBOARD_PAGE_SIZE < result.totalRows,
+      page: input.page ?? 0,
+      pageSize: input.limit ?? (input.page === undefined ? result.rows.length : LEADERBOARD_PAGE_SIZE),
+      hasNextPage: (input.page !== undefined || input.limit !== undefined) &&
+        ((input.page ?? 0) + 1) * (input.limit ?? LEADERBOARD_PAGE_SIZE) < result.totalRows,
       canManageClass: ctx.canManageClass === true,
       generatedAt: new Date().toISOString()
     };

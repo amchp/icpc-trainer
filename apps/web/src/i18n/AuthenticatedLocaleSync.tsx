@@ -2,7 +2,6 @@ import type { AppLocale } from "@icpc-trainer/shared";
 import { useAuth } from "@clerk/clerk-react";
 import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 
 import { queryKeys } from "../queryKeys.js";
 import { trpc } from "../trpc.js";
@@ -126,7 +125,6 @@ export const updatePersistedLocaleCache = (
 };
 
 export function AuthenticatedLocaleSync({ children }: { readonly children: ReactNode }): React.JSX.Element {
-  const { t } = useTranslation("shell");
   const { userId } = useAuth();
   const { locale, applyAccountLocale } = useLocale();
   const queryClient = useQueryClient();
@@ -134,7 +132,8 @@ export function AuthenticatedLocaleSync({ children }: { readonly children: React
   const activeUserId = useRef<string | null>(null);
   const localeQuery = useQuery({
     queryKey: queryKeys.accountLocale(userId),
-    queryFn: () => trpc.account.locale.query(),
+    // Preferences must not hold table responses behind the same HTTP batch.
+    queryFn: () => trpc.account.locale.query(undefined, { context: { skipBatch: true } }),
     enabled: userId !== null && userId !== undefined,
     staleTime: Infinity
   });
@@ -190,10 +189,6 @@ export function AuthenticatedLocaleSync({ children }: { readonly children: React
       persistence.request(pending);
     }
   }, [locale, persistence, userId]);
-
-  if (localeQuery.isPending) {
-    return <main className="grid min-h-screen place-items-center px-5 py-8 text-zinc-100"><div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-400">{t("loadingAccount")}</div></main>;
-  }
 
   return <>{children}</>;
 }

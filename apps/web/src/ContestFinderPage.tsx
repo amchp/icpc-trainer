@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
+import { ConnectJudgePrompt } from "./ConnectJudgePrompt.js";
+import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import type { OnChangeFn } from "@tanstack/react-table";
 import { Link } from "@tanstack/react-router";
 import { UsersRound } from "lucide-react";
@@ -34,6 +36,7 @@ export function ContestFinderPage({
 } = {}): React.JSX.Element {
   const { t } = useTranslation("contestFinder");
   const { locale } = useLocale();
+  const { hasConnectedJudge, status } = useConnectedJudges();
   const friendSubmissionSync = useFriendSubmissionSync();
   const [localFilters, setLocalFilters] = useState<JudgeFilterState>({
     searchQuery: "",
@@ -43,9 +46,9 @@ export function ContestFinderPage({
   const setFilters = onFiltersChange ?? setLocalFilters;
   const { searchQuery, judgeSourceFilters } = activeFilters;
 
-  const overviewQuery = useQuery({
+  const overviewQuery = useProgressiveQuery({
     queryKey: queryKeys.contestFinderOverview,
-    queryFn: () => trpc.contestFinder.overview.query()
+    queryFn: (input) => trpc.contestFinder.overview.query(input)
   });
   const contests = useMemo(
     () => normalizeContestFinderRows(overviewQuery.data?.contests),
@@ -76,9 +79,11 @@ export function ContestFinderPage({
         </div>
       </section>
 
+      {status === "ready" && !hasConnectedJudge ? <ConnectJudgePrompt feature="contestFinder" className="mb-6" /> : null}
+
       <FriendSubmissionSyncPanel states={friendSubmissionSync.states} />
 
-      {!overviewQuery.isLoading && contests.length === 0 ? (
+      {!overviewQuery.isPartial && !overviewQuery.isError && contests.length === 0 ? (
         <section className="mb-6">
           <ContestFinderSetupPrompt />
         </section>
@@ -89,6 +94,7 @@ export function ContestFinderPage({
         searchQuery={searchQuery}
         judgeSourceFilters={judgeSourceFilters}
         isLoading={overviewQuery.isLoading}
+        loadingState={overviewQuery}
         error={overviewQuery.error}
         onSearchQueryChange={(value) => setFilters((current) => ({
           ...current,

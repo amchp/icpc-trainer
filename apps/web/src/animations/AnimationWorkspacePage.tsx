@@ -10,6 +10,8 @@ import { Button, Input } from "../components/ui.js";
 import { cn } from "../lib.js";
 import { useAnimationPresentation } from "./AnimationLayout.js";
 import { animationGroups, getAnimationGroup } from "./catalog.js";
+import { AnimationLessonIntro } from "./AnimationLessonIntro.js";
+import { lessonExamples } from "./lessonExamples.js";
 import { animationLoaders } from "./loaders.js";
 import { validateAnimationSearch } from "./search.js";
 
@@ -92,6 +94,8 @@ export function AnimationWorkspacePage({ groupId, search }: {
           </div>
         </div>
       </header>
+      <AnimationLessonIntro key={group.id} groupId={group.id} />
+      <p className="mb-6 text-xs font-medium uppercase tracking-widest text-blue-300">02 · {t(lessonExamples[group.id].kind === "problem" ? "lesson.algorithm" : "lesson.explore")}</p>
       <AnimationErrorBoundary key={group.id} fallback={
         <section role="alert" className="rounded-lg border border-zinc-700 p-6">
           <h2 className="text-lg font-semibold">{t("errorTitle")}</h2>

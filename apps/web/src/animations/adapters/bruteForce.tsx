@@ -8,10 +8,10 @@ export function Permutations(): React.JSX.Element {
   return (
     <>
       <AnimationToolSection key="recursive-permutations" toolId="recursive-permutations">
-        <BruteForceGuideCodeBlock trace={traces.recursivePermutation} />
+        <BruteForceGuideCodeBlock visualsBesideCode trace={traces.recursivePermutation} />
       </AnimationToolSection>
       <AnimationToolSection key="iterative-permutations" toolId="iterative-permutations">
-        <BruteForceGuideCodeBlock trace={traces.iterativePermutation} />
+        <BruteForceGuideCodeBlock visualsBesideCode trace={traces.iterativePermutation} />
       </AnimationToolSection>
     </>
   );
@@ -22,10 +22,10 @@ export function Subsets(): React.JSX.Element {
   return (
     <>
       <AnimationToolSection key="recursive-subsets" toolId="recursive-subsets">
-        <BruteForceGuideCodeBlock trace={traces.recursiveSubset} />
+        <BruteForceGuideCodeBlock visualsBesideCode trace={traces.recursiveSubset} />
       </AnimationToolSection>
       <AnimationToolSection key="bitmask-subsets" toolId="bitmask-subsets">
-        <BruteForceGuideCodeBlock trace={traces.bitmaskSubset} />
+        <BruteForceGuideCodeBlock visualsBesideCode trace={traces.bitmaskSubset} />
       </AnimationToolSection>
     </>
   );

@@ -49,6 +49,14 @@ describe("Learning Progress cache scope", () => {
     queryClient.clear();
   });
 
+  it("does not request saved progress for a guest", () => {
+    mocks.userId = null;
+    const { result } = renderHook(() => useLearningProgress(), { wrapper });
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(result.current.data).toBeUndefined();
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
   it("does not expose one Clerk account's cached query to another account", async () => {
     mocks.list.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
     const { result, rerender } = renderHook(() => useLearningProgress(), { wrapper });

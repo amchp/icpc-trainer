@@ -1,6 +1,8 @@
+import { TableLoadState } from "./TableLoadState.js";
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
+import { ConnectJudgePrompt } from "./ConnectJudgePrompt.js";
 import type { TeamRoster } from "@icpc-trainer/api";
 import { JUDGES } from "@icpc-trainer/shared";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,9 +39,9 @@ export function TeamPage(): React.JSX.Element {
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const query = useQuery({
+  const query = useProgressiveQuery({
     queryKey: queryKeys.teamRoster,
-    queryFn: () => trpc.team.roster.query(),
+    queryFn: (input) => trpc.team.roster.query(input),
     enabled: status === "ready" && hasConnectedJudge
   });
   const roster = query.data ?? { users: [], updatedAt: null } satisfies TeamRoster;
@@ -60,11 +62,22 @@ export function TeamPage(): React.JSX.Element {
     ? draftJudge
     : toJudge(judgeOptions[0]?.id ?? JUDGES.Codeforces);
 
-  if (status !== "ready" || !hasConnectedJudge) {
-    return <main className="min-h-screen bg-zinc-950" />;
+  if (status === "loading") {
+    return <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8"><Skeleton className="h-32" /></main>;
+  }
+
+  if (!hasConnectedJudge) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+        <PeopleRouteTabs />
+        <h1 className="mb-6 text-2xl font-semibold tracking-tight">{t("teamTitle")}</h1>
+        <ConnectJudgePrompt feature="team" />
+      </main>
+    );
   }
 
   const addUser = async (): Promise<void> => {
+    if (query.isPartial) return;
     const saved = await rosterMutations.addUser(draftUsername, selectedJudge);
     if (saved) {
       setDraftUsername("");
@@ -73,6 +86,7 @@ export function TeamPage(): React.JSX.Element {
   };
 
   const removeUser = async (username: string, judge: JUDGES): Promise<void> => {
+    if (query.isPartial) return;
     await rosterMutations.removeUser(roster.users, username, judge);
   };
 
@@ -100,7 +114,7 @@ export function TeamPage(): React.JSX.Element {
               value={draftUsername}
               onChange={(event) => setDraftUsername(event.target.value)}
               placeholder="tourist"
-              disabled={query.isLoading || rosterMutations.saving}
+              disabled={query.isPartial || rosterMutations.saving}
             />
           </Label>
           <Label>
@@ -108,7 +122,7 @@ export function TeamPage(): React.JSX.Element {
             <Select
               value={selectedJudge}
               onChange={(event) => setDraftJudge(toJudge(event.target.value as JudgeProvider))}
-              disabled={query.isLoading || rosterMutations.saving}
+              disabled={query.isPartial || rosterMutations.saving}
             >
               {judgeOptions.map((judge) => (
                 <option key={judge.id} value={judge.id}>
@@ -120,7 +134,7 @@ export function TeamPage(): React.JSX.Element {
           <Button
             type="submit"
             className="sm:w-auto"
-            disabled={rosterMutations.saving || draftUsername.trim() === ""}
+            disabled={query.isPartial || rosterMutations.saving || draftUsername.trim() === ""}
           >
             {rosterMutations.saving ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -166,7 +180,7 @@ export function TeamPage(): React.JSX.Element {
                           variant="ghost"
                           className="h-8 text-zinc-400 hover:text-red-300"
                           onClick={() => void removeUser(user.username, user.judge)}
-                          disabled={rosterMutations.saving}
+                          disabled={query.isPartial || rosterMutations.saving}
                           aria-label={t("removeLabel", { username: user.username })}
                         >
                           <X className="size-3.5" aria-hidden="true" />
@@ -178,7 +192,7 @@ export function TeamPage(): React.JSX.Element {
                 </TableBody>
               </Table>
             </>
-          ) : (
+          ) : query.isPartial ? null : (
             <>
               <div className="mb-2 flex justify-end">
                 <TableCount count={roster.users.length} itemName={t("userCount", { count: 1 })} pluralItemName={t("userCount", { count: 2 })} />
@@ -189,6 +203,7 @@ export function TeamPage(): React.JSX.Element {
             </>
           )}
         </div>
+      <TableLoadState query={query} />
     </main>
   );
 }

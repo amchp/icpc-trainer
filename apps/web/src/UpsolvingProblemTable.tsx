@@ -1,3 +1,4 @@
+import { TableLoadState, type TableLoadingState } from "./TableLoadState.js";
 import type { UpsolvingProblemRow } from "@icpc-trainer/api";
 import {
   getCoreRowModel,
@@ -26,10 +27,12 @@ import type { UpsolvingFilterState } from "./urlTableFilters.js";
 
 export function UpsolvingProblemTable({
   rows,
+  loadingState,
   filters,
   onFiltersChange
 }: {
   readonly rows: readonly UpsolvingProblemRow[];
+  readonly loadingState?: TableLoadingState;
   readonly filters?: UpsolvingFilterState;
   readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
 }): React.JSX.Element {
@@ -101,7 +104,7 @@ export function UpsolvingProblemTable({
         }))}
       />
 
-      {rows.length === 0 ? (
+      {loadingState?.isPartial && visibleRows.length === 0 ? null : rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
           {t("empty")}
         </div>
@@ -112,6 +115,7 @@ export function UpsolvingProblemTable({
       ) : (
         <UpsolvingProblemTableGrid table={table} />
       )}
+      {loadingState ? <TableLoadState query={loadingState} /> : null}
     </Card>
   );
 }

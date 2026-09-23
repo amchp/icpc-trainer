@@ -22,7 +22,8 @@ export interface ContestFinderOverview {
 
 export const getContestFinderOverview = async (
   database: DatabaseService,
-  appUserId: number
+  appUserId: number,
+  limit?: number
 ): Promise<ContestFinderOverview> => {
   const attemptedContestIds = new Set<number>();
   const teamContestStateRows = await database.db
@@ -71,6 +72,7 @@ export const getContestFinderOverview = async (
     .where(contestFinderFilter)
     .groupBy(contests.id)
     .orderBy(desc(friendCount), contests.judge, contests.name)
+    .limit(limit ?? -1)
     .all();
 
   const handleRows = await database.db

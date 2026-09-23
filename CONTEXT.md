@@ -101,7 +101,7 @@ The app page where a user browses saved Codeforces **Problems** by difficulty an
 _Avoid_: Problem finder, Codeforces catalog, practice picker
 
 **Learning Roadmap**:
-A visual sequence of recommended **Learning Topics**. Its order guides an **App User** but never locks access to an available **Learning Guide**.
+A visual sequence of recommended **Learning Topics**. Its order guides a learner but never locks access to an available **Learning Guide**.
 _Avoid_: Resource sidebar, prerequisite lock
 
 **Learning Topic**:
@@ -109,15 +109,15 @@ A competitive-programming subject represented by one node in the **Learning Road
 _Avoid_: Resource link, lesson
 
 **Learning Guide**:
-An in-app lesson for an available **Learning Topic**.
+An in-app lesson for an available **Learning Topic**, accessible without signing in or connecting a Judge.
 _Avoid_: External resource, article link, class
 
 **Animation Library**:
-A searchable collection of animated algorithm tools and data-structure simulators for signed-in **App Users** learning or teaching algorithms, excluding problem-solution demonstrations. Related tools taught together in a **Learning Guide** share a search result and **Animation Workspace**.
+A searchable collection of animated algorithm tools and data-structure simulators for anyone learning or teaching algorithms, without requiring sign-in or a connected Judge, excluding problem-solution demonstrations. Related tools taught together in a **Learning Guide** share a search result and **Animation Workspace**.
 _Avoid_: Separate animation website, source-code repository
 
 **Animation Workspace**:
-The destination opened by a signed-in **App User** from an **Animation Library** result, containing one tool or a group of related tools in lesson order, short explanations, and a link to the associated **Learning Guide**.
+The destination opened by a learner from an **Animation Library** result, containing one tool or a group of related tools in lesson order, short explanations, and a link to the associated **Learning Guide**.
 _Avoid_: Full lesson, guide section
 
 **Learning Challenge**:

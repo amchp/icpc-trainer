@@ -1,3 +1,4 @@
+import { LearningProgressAction } from "./LearningProgressAction.js";
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES } from "@icpc-trainer/shared";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "@tanstack/react-router";
@@ -299,10 +300,10 @@ export function IntroductionPage(): React.JSX.Element {
             <h2 id="introduction-finish-title" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50">{t("finish.title")}</h2>
             <p className="mt-4 max-w-2xl leading-7 text-zinc-400">{t("finish.description")}</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Button type="button" disabled={setStatus.isPending} onClick={changeStatus}>
+              <LearningProgressAction><Button type="button" disabled={setStatus.isPending} onClick={changeStatus}>
                 {completed ? <RotateCcw className="size-4" aria-hidden="true" /> : <Check className="size-4" aria-hidden="true" />}
                 {completed ? t("finish.markProgress") : t("finish.markComplete")}
-              </Button>
+              </Button></LearningProgressAction>
               <Link to={appPaths.resources} className="text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white">{t("finish.back")}</Link>
             </div>
           </section>

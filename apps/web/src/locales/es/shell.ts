@@ -19,6 +19,8 @@ export const shell = {
     team: "Equipo",
     friends: "Amigos"
   },
+  signIn: "Iniciar sesión",
+  signInProgress: "Inicia sesión para guardar tu progreso",
   sync: "Sincronizar",
   openNavigation: "Abrir navegación",
   closeNavigation: "Cerrar navegación",

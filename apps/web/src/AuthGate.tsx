@@ -1,11 +1,13 @@
-import { SignIn, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
+import { SignIn, useAuth } from "@clerk/clerk-react";
 import { APP_NAME } from "@icpc-trainer/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
+import { SyncProvider } from "./SyncContext.js";
 import { appHistory } from "./appHistory.js";
-import { getFirstUserRedirectUrl, isResourcesPath } from "./firstUserFlow.js";
+import { getFirstUserRedirectUrl, isAnimationsPath, isResourcesPath } from "./firstUserFlow.js";
 import { AuthenticatedLocaleSync } from "./i18n/AuthenticatedLocaleSync.js";
 import { LanguageButton } from "./i18n/LanguageButton.js";
 import { clearAuthenticatedQueryCache } from "./queryKeys.js";
@@ -63,46 +65,54 @@ function AuthenticatedProviders({ children }: { readonly children: ReactNode }):
     );
   }
 
-  return <Fragment key={authScope}><AuthenticatedLocaleSync>{children}</AuthenticatedLocaleSync></Fragment>;
+  return (
+    <Fragment key={authScope}>
+      <AuthenticatedLocaleSync>
+        <ConnectedJudgesProvider>
+          <SyncProvider>{children}</SyncProvider>
+        </ConnectedJudgesProvider>
+      </AuthenticatedLocaleSync>
+    </Fragment>
+  );
 }
 
 const subscribeToLocation = (onChange: () => void): (() => void) => appHistory.subscribe(onChange);
 const locationSnapshot = (): string => appHistory.location.href;
 
 export function AuthGate({ children }: { readonly children: ReactNode }): React.JSX.Element {
+  const { t } = useTranslation("shell");
   useSyncExternalStore(subscribeToLocation, locationSnapshot);
-  const isResourcesPreview =
-    import.meta.env.DEV &&
-    isResourcesPath(appHistory.location.pathname) &&
-    new URLSearchParams(appHistory.location.search).get("preview") === "resources";
+  const { isSignedIn } = useAuth();
+  const isPublicPage = isResourcesPath(appHistory.location.pathname) || isAnimationsPath(appHistory.location.pathname);
 
-  if (isResourcesPreview) {
+  if (isSignedIn) {
+    return <AuthenticatedProviders>{children}</AuthenticatedProviders>;
+  }
+
+  if (isPublicPage) {
     return <>{children}</>;
   }
 
   const firstUserRedirectUrl = getFirstUserRedirectUrl(appHistory.location);
 
   return (
-    <>
-      <SignedOut>
-        <main className="relative grid min-h-screen place-items-center px-5 py-8 text-zinc-100 sm:px-8">
-          <LanguageButton className="absolute right-5 top-5 sm:right-8 sm:top-8" />
-          <section className="grid w-full max-w-md gap-5">
-            <div className="flex items-center justify-center gap-2">
-              <img src="/icpc_trainer.png" alt="" className="size-9 object-contain" />
-              <span className="text-sm font-semibold text-zinc-100">{APP_NAME}</span>
-            </div>
-            <SignIn
-              routing="hash"
-              signUpForceRedirectUrl={firstUserRedirectUrl}
-              fallbackRedirectUrl={firstUserRedirectUrl}
-            />
-          </section>
-        </main>
-      </SignedOut>
-      <SignedIn>
-        <AuthenticatedProviders>{children}</AuthenticatedProviders>
-      </SignedIn>
-    </>
+    <main className="relative grid min-h-screen place-items-center px-5 py-8 text-zinc-100 sm:px-8">
+      <LanguageButton className="absolute right-5 top-5 sm:right-8 sm:top-8" />
+      <section className="grid w-full max-w-md gap-5">
+        <div className="flex items-center justify-center gap-2">
+          <img src="/icpc_trainer.png" alt="" className="size-9 object-contain" />
+          <span className="text-sm font-semibold text-zinc-100">{APP_NAME}</span>
+        </div>
+        <nav className="flex justify-center gap-5 text-sm text-blue-300">
+          <a href="/resources">{t("nav.resources")}</a>
+          <a href="/animations">{t("nav.animations")}</a>
+        </nav>
+        <SignIn
+          routing="hash"
+          signUpForceRedirectUrl={firstUserRedirectUrl}
+          fallbackRedirectUrl={firstUserRedirectUrl}
+        />
+      </section>
+    </main>
   );
 }

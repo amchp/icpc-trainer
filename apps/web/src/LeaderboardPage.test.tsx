@@ -28,19 +28,9 @@ vi.mock("./trpc.js", () => ({
 import { LeaderboardPage } from "./LeaderboardPage.js";
 
 const originalTimezone = process.env.TZ;
-let intersectionCallback: IntersectionObserverCallback | undefined;
-
-class ObserverStub {
-  constructor(callback: IntersectionObserverCallback) {
-    intersectionCallback = callback;
-  }
-  observe(): void {}
-  disconnect(): void {}
-}
 
 beforeAll(() => {
   process.env.TZ = "America/New_York";
-  vi.stubGlobal("IntersectionObserver", ObserverStub);
 });
 
 afterAll(() => {
@@ -52,7 +42,6 @@ afterAll(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  intersectionCallback = undefined;
 });
 
 const renderPage = (): void => {
@@ -94,7 +83,7 @@ describe("LeaderboardPage", () => {
       judge: undefined,
       startAt: undefined,
       endAtExclusive: undefined,
-      page: 0
+      limit: 50
     }));
     expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
     expect(await screen.findByText("tourist")).toBeInTheDocument();
@@ -110,7 +99,7 @@ describe("LeaderboardPage", () => {
       judge: undefined,
       startAt: "2026-07-01T04:00:00.000Z",
       endAtExclusive: "2026-07-03T04:00:00.000Z",
-      page: 0
+      limit: 50
     }));
 
     fireEvent.click(screen.getByRole("button", { name: "Team" }));
@@ -134,58 +123,37 @@ describe("LeaderboardPage", () => {
       generatedAt: "2026-07-26T00:00:00.000Z"
     });
     renderPage();
-    await waitFor(() => expect(trpcMocks.list).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(trpcMocks.list).toHaveBeenCalledTimes(2));
 
     fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-07-03" } });
     fireEvent.change(screen.getByLabelText("Through"), { target: { value: "2026-07-02" } });
     expect(screen.getByText("The end date cannot be before the start date.")).toBeInTheDocument();
-    expect(trpcMocks.list).toHaveBeenCalledTimes(1);
+    expect(trpcMocks.list).toHaveBeenCalledTimes(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     await waitFor(() => expect(screen.getByLabelText("From")).toHaveValue(""));
     expect(screen.getByText("No synchronized solves are available yet.")).toBeInTheDocument();
   });
 
-  it("loads subsequent 50-row pages when the scroll sentinel becomes visible", async () => {
-    trpcMocks.list.mockImplementation(async (input: { page: number }) => ({
-      rows: input.page === 0
-        ? Array.from({ length: 50 }, (_, index) => ({
-            userId: index + 1,
-            username: index === 0 ? "first-page-user" : `page-one-user-${index}`,
-            judge: "codeforces",
-            solvedCount: 100 - index,
-            rank: index + 1
-          }))
-        : [{
-            userId: 51,
-            username: "second-page-user",
-            judge: "qoj",
-            solvedCount: 1,
-            rank: 51
-          }],
-      totalRows: 51,
-      page: input.page,
-      pageSize: 50,
-      hasNextPage: input.page === 0,
-      canManageClass: false,
-      generatedAt: "2026-07-26T00:00:00.000Z"
+  it("loads 50 rows then the full leaderboard without waiting for scrolling", async () => {
+    let finish!: (value: unknown) => void;
+    const full = new Promise((resolve) => { finish = resolve; });
+    const rows = Array.from({ length: 51 }, (_, index) => ({
+      userId: index + 1, username: `ranked-user-${index + 1}`, judge: "codeforces",
+      solvedCount: 100 - index, rank: index + 1
     }));
+    const result = { rows, totalRows: 51, page: 0, pageSize: 51, hasNextPage: false,
+      canManageClass: false, generatedAt: "2026-07-26T00:00:00.000Z" };
+    trpcMocks.list.mockImplementation((input: { limit?: number }) => input.limit === 50
+      ? Promise.resolve({ ...result, rows: rows.slice(0, 50), pageSize: 50, hasNextPage: true })
+      : full);
     renderPage();
-
-    expect(await screen.findByText("first-page-user")).toBeInTheDocument();
-    expect(screen.getByText("Scroll to load more")).toBeInTheDocument();
-
-    act(() => {
-      intersectionCallback?.(
-        [{ isIntersecting: true } as IntersectionObserverEntry],
-        {} as IntersectionObserver
-      );
-    });
-    await waitFor(() => expect(trpcMocks.list).toHaveBeenCalledWith(expect.objectContaining({
-      page: 1
-    })));
-    expect(await screen.findByText("second-page-user")).toBeInTheDocument();
-    expect(screen.getByText("All ranked Judge Users are loaded.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
+    expect(await screen.findByText("ranked-user-1")).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Loading..." })).toBeInTheDocument();
+    expect(screen.queryByText("ranked-user-51")).not.toBeInTheDocument();
+    await waitFor(() => expect(trpcMocks.list).toHaveBeenCalledTimes(2));
+    await act(async () => finish(result));
+    expect(await screen.findByText("ranked-user-51")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading..." })).not.toBeInTheDocument();
   });
 });

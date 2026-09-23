@@ -19,6 +19,8 @@ export const shell = {
     team: "Team",
     friends: "Friends"
   },
+  signIn: "Sign in",
+  signInProgress: "Sign in to save your progress",
   sync: "Sync",
   openNavigation: "Open navigation",
   closeNavigation: "Close navigation",

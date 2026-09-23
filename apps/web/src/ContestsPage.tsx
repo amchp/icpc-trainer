@@ -1,3 +1,5 @@
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
+import { ConnectJudgePrompt } from "./ConnectJudgePrompt.js";
 import { useQuery } from "@tanstack/react-query";
 import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -22,20 +24,24 @@ export function ContestsPage({
 } = {}): React.JSX.Element {
   const { t } = useTranslation(["contests", "findProblems"]);
   const { hasConnectedJudge, status } = useConnectedJudges();
-  const query = useQuery({
+  const query = useProgressiveQuery({
     queryKey: queryKeys.upsolvingOverview,
-    queryFn: () => trpc.upsolving.overview.query(),
-    enabled: status === "ready" && hasConnectedJudge
+    queryFn: (input) => trpc.upsolving.overview.query(input)
   });
   const dataStatusQuery = useQuery({
     queryKey: queryKeys.accountDataStatus,
-    queryFn: () => trpc.account.dataStatus.query(),
-    enabled: status === "ready" && hasConnectedJudge
+    queryFn: () => trpc.account.dataStatus.query()
   });
   const noSyncedData = dataStatusQuery.data?.hasSyncedContests === false;
 
-  if (status !== "ready" || !hasConnectedJudge) {
-    return <main className="min-h-screen bg-zinc-950" />;
+  if (status === "ready" && !hasConnectedJudge) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+        <ContestRouteTabs />
+        <h1 className="mb-6 text-2xl font-semibold tracking-tight">{t("contests:title")}</h1>
+        <ConnectJudgePrompt feature="contests" />
+      </main>
+    );
   }
 
   return (
@@ -74,6 +80,7 @@ export function ContestsPage({
         <SyncDataPrompt />
       ) : query.data ? (
         <ContestsTable
+          loadingState={query}
           contests={query.data.contests}
           filters={filters}
           onFiltersChange={onFiltersChange}

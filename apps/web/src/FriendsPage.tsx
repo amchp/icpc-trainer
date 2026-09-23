@@ -1,3 +1,5 @@
+import { ConnectJudgePrompt } from "./ConnectJudgePrompt.js";
+import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +11,7 @@ import { PeopleRouteTabs } from "./SectionRouteTabs.js";
 
 export function FriendsPage(): React.JSX.Element {
   const { t } = useTranslation("roster");
+  const { hasConnectedJudge, status } = useConnectedJudges();
   const friendSubmissionSync = useFriendSubmissionSync();
 
   return (
@@ -21,7 +24,7 @@ export function FriendsPage(): React.JSX.Element {
         </div>
         <Button
           type="button"
-          disabled={friendSubmissionSync.syncing}
+          disabled={!hasConnectedJudge || friendSubmissionSync.syncing}
           onClick={() => void friendSubmissionSync.syncFriendSubmissions()}
         >
           {friendSubmissionSync.syncing ? (
@@ -32,6 +35,8 @@ export function FriendsPage(): React.JSX.Element {
           {t("syncFriends")}
         </Button>
       </section>
+
+      {status === "ready" && !hasConnectedJudge ? <ConnectJudgePrompt feature="friends" className="mb-6" /> : null}
 
       <FriendSubmissionSyncPanel states={friendSubmissionSync.states} />
 

@@ -1,10 +1,12 @@
 import { APP_NAME } from "@icpc-trainer/shared";
-import { UserButton } from "@clerk/clerk-react";
+import { UserButton, useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Menu, RefreshCw, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { PublicHeader } from "./PublicHeader.js";
 
 import { appPaths, protectedNavItems } from "./appNavigation.js";
 import { Button } from "./components/ui.js";
@@ -27,6 +29,11 @@ const mobileNavLinkClassName =
   "rounded-md px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100";
 
 export function AppHeader(): React.JSX.Element {
+  const { isSignedIn } = useAuth();
+  return isSignedIn ? <AuthenticatedHeader /> : <PublicHeader />;
+}
+
+function AuthenticatedHeader(): React.JSX.Element {
   const { t } = useTranslation("shell");
   const { connectedJudges } = useConnectedJudges();
   const { startSync, status: syncStatus } = useSync();

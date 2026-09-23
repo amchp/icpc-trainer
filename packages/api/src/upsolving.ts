@@ -1,3 +1,4 @@
+import { listInputSchema } from "./listInput.js";
 import { schema } from "@icpc-trainer/db";
 import { JUDGES, type JudgeProvider } from "@icpc-trainer/shared";
 import { eq } from "drizzle-orm";
@@ -36,7 +37,7 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 
 export const createUpsolvingRouter = (t: TrpcInstance) =>
   t.router({
-    overview: t.procedure.query(({ ctx }) => getUpsolvingOverview(ctx.database, requireAppUser(ctx.appUser).id)),
+    overview: t.procedure.input(listInputSchema).query(({ ctx, input }) => getUpsolvingOverview(ctx.database, requireAppUser(ctx.appUser).id, input?.limit)),
     refetchContest: t.procedure.input(z.object({
       contestId: z.number().int().positive()
     })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {

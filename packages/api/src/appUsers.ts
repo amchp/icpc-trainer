@@ -25,34 +25,47 @@ export const upsertAppUser = async (
   ctx: AppUserContext,
   input: AuthenticatedAppUserInput
 ): Promise<AppUser> => {
-  const now = new Date();
-
-  await ctx.database.db
-    .insert(appUsers)
-    .values({
-      clerkUserId: input.clerkUserId,
-      primaryEmail: input.primaryEmail ?? null,
-      displayName: input.displayName ?? null,
-      imageUrl: input.imageUrl ?? null,
-      createdAt: now,
-      updatedAt: now
-    })
-    .onConflictDoUpdate({
-      target: [appUsers.clerkUserId],
-      set: {
-        primaryEmail: input.primaryEmail ?? null,
-        displayName: input.displayName ?? null,
-        imageUrl: input.imageUrl ?? null,
-        updatedAt: now
-      }
-    })
-    .run();
-
-  const appUser = await ctx.database.db
+  const existing = await ctx.database.db
     .select()
     .from(appUsers)
     .where(eq(appUsers.clerkUserId, input.clerkUserId))
     .get();
+  const profile = {
+    ...(input.primaryEmail !== undefined ? { primaryEmail: input.primaryEmail } : {}),
+    ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+    ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {})
+  };
+
+  if (existing !== undefined && Object.entries(profile).every(
+    ([key, value]) => existing[key as keyof typeof profile] === value
+  )) {
+    return existing;
+  }
+
+  const now = new Date();
+  // RETURNING avoids another read after a profile write. The conflict path also
+  // handles simultaneous first requests without erasing absent profile claims.
+  const appUser = existing === undefined
+    ? await ctx.database.db
+      .insert(appUsers)
+      .values({ clerkUserId: input.clerkUserId, ...profile, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: [appUsers.clerkUserId],
+        set: { ...profile, updatedAt: now }
+      })
+      .returning()
+      .get()
+    : await ctx.database.db
+      .update(appUsers)
+      .set({
+        ...Object.fromEntries(Object.entries(profile).filter(
+          ([key, value]) => existing[key as keyof typeof profile] !== value
+        )),
+        updatedAt: now
+      })
+      .where(eq(appUsers.id, existing.id))
+      .returning()
+      .get();
 
   if (appUser === undefined) {
     throw new Error(`App user ${input.clerkUserId} was not found after upsert.`);

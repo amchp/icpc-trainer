@@ -1,3 +1,4 @@
+import { LearningProgressAction } from "./LearningProgressAction.js";
 import { LEARNING_GUIDE_IDS, LEARNING_PROGRESS_STATUSES } from "@icpc-trainer/shared";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "@tanstack/react-router";
@@ -222,7 +223,7 @@ export function DynamicProgrammingPage(): React.JSX.Element {
             </ol>
             <p className="mt-8 max-w-3xl rounded-lg border-l-2 border-violet-300 bg-violet-300/[0.05] px-5 py-4 text-sm leading-7 text-zinc-300">{t("synthesis.completion")}</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Button type="button" disabled={setStatus.isPending} onClick={changeStatus}>{completed ? <RotateCcw className="size-4" aria-hidden="true" /> : <Check className="size-4" aria-hidden="true" />}{completed ? t("synthesis.markProgress") : t("synthesis.markComplete")}</Button>
+              <LearningProgressAction><Button type="button" disabled={setStatus.isPending} onClick={changeStatus}>{completed ? <RotateCcw className="size-4" aria-hidden="true" /> : <Check className="size-4" aria-hidden="true" />}{completed ? t("synthesis.markProgress") : t("synthesis.markComplete")}</Button></LearningProgressAction>
               <Link to={appPaths.resources} className="text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white">{t("synthesis.back")}</Link>
             </div>
           </section>

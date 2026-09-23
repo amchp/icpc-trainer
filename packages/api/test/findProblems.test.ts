@@ -227,4 +227,112 @@ describe("find problems router", () => {
     ]);
     expect(overview.ratingRange).toEqual({ min: 800, max: 1400 });
   });
+
+  it("limits joined rows directly and fills incomplete tags in the full response", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const otherAppUser = yield* Effect.promise(() => createTestAppUser(database, "other_app_user"));
+      const seededContests = yield* Effect.promise(() => database.db.insert(contests).values(
+        ["Z Contest", "A Contest"].map((name, index) => ({
+          judgeId: `preview-${index}`, judge: JUDGES.Codeforces, name,
+          link: `https://codeforces.com/contest/${index}`, createdAt: timestamp, updatedAt: timestamp
+        }))
+      ).returning().all());
+      const seededProblems = yield* Effect.promise(() => database.db.insert(problems).values(
+        Array.from({ length: 65 }, (_, index) => ({
+          judgeId: `P${String(65 - index).padStart(3, "0")}`, judge: JUDGES.Codeforces,
+          name: `Problem ${index}`, link: `https://codeforces.com/problem/${index}`,
+          contestId: seededContests[index % 2]!.id, solves: 0, solvePercentage: 0,
+          rating: index < 60 ? 800 : 1200, createdAt: timestamp, updatedAt: timestamp
+        }))
+      ).returning().all());
+      yield* Effect.promise(() => database.db.insert(problemTags).values(
+        seededProblems.flatMap((problem) => ["dp", "math", "trees"].map((tag) => ({ problemId: problem.id, tag })))
+      ).run());
+      const judgeUsers = yield* Effect.promise(() => database.db.insert(users).values(
+        ["team", "friend", "foreign-team"].map((username) => ({
+          username, judge: JUDGES.Codeforces, createdAt: timestamp, updatedAt: timestamp
+        }))
+      ).returning().all());
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, judgeUsers[0]!.id, USER_TYPES.Team));
+      yield* Effect.promise(() => attachJudgeUser(database, appUser.id, judgeUsers[1]!.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => attachJudgeUser(database, otherAppUser.id, judgeUsers[2]!.id, USER_TYPES.Team));
+      yield* Effect.promise(() => attachJudgeUser(database, otherAppUser.id, judgeUsers[0]!.id, USER_TYPES.Friend));
+      yield* Effect.promise(() => database.db.insert(submissions).values([
+        { userId: judgeUsers[0]!.id, problemId: seededProblems[1]!.id },
+        { userId: judgeUsers[2]!.id, problemId: seededProblems[3]!.id },
+        { userId: judgeUsers[1]!.id, problemId: seededProblems[3]!.id },
+        { userId: judgeUsers[1]!.id, problemId: seededProblems[3]!.id },
+        { userId: judgeUsers[1]!.id, problemId: seededProblems[64]!.id }
+      ].map((submission, index) => ({
+        ...submission, judgeId: `preview-ac-${index}`, judge: JUDGES.Codeforces,
+        status: SUBMISSION_STATUSES.AC, submittedAt: timestamp, createdAt: timestamp, updatedAt: timestamp
+      }))).run());
+      // App authentication is sufficient: there are no saved Judge Credentials.
+      const caller = appRouter.createCaller({ database, appUser });
+      const preview = yield* Effect.promise(() => caller.findProblems.overview({ limit: 50 }));
+      const full = yield* Effect.promise(() => caller.findProblems.overview());
+      expect(full.rows).toHaveLength(64);
+      expect(preview.rows).toHaveLength(17);
+      expect(preview.rows.slice(0, 16)).toEqual(full.rows.slice(0, 16));
+      expect(preview.rows[16]?.tags).toHaveLength(2);
+      expect(full.rows[16]?.tags).toHaveLength(3);
+      expect(preview.rows.some((row) => row.problemJudgeId === seededProblems[1]!.judgeId)).toBe(false);
+      expect(full.rows.find((row) => row.problemJudgeId === seededProblems[3]!.judgeId)?.friendSolvedCount).toBe(1);
+      expect(preview.ratingRange).toEqual({ min: 800, max: 800 });
+      expect(full.ratingRange).toEqual({ min: 800, max: 1200 });
+    });
+    await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
+  });
+
+  it("accepts a simple limit without filtering out unrated problems", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const timestamp = new Date("2026-01-01T00:00:00.000Z");
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const [contest] = yield* Effect.promise(() => database.db.insert(contests).values({
+        judgeId: "rating-test", judge: JUDGES.Codeforces, name: "Rating Test",
+        link: "https://codeforces.com/contest/1", createdAt: timestamp, updatedAt: timestamp
+      }).returning().all());
+      yield* Effect.promise(() => database.db.insert(problems).values(
+        Array.from({ length: 125 }, (_, index) => ({
+          judgeId: `P${String(index).padStart(3, "0")}`, judge: JUDGES.Codeforces,
+          name: `Problem ${index}`, link: `https://codeforces.com/problem/${index}`,
+          contestId: contest!.id, solves: 0, solvePercentage: 0,
+          rating: index < 60 ? 0 : index < 120 ? 800 : 2800,
+          createdAt: timestamp, updatedAt: timestamp
+        }))
+      ).run());
+      const caller = appRouter.createCaller({ database, appUser });
+      const full = yield* Effect.promise(() => caller.findProblems.overview());
+      const preview = yield* Effect.promise(() => caller.findProblems.overview({ limit: 50 }));
+      expect(full.rows).toHaveLength(125);
+      expect(preview.rows).toHaveLength(50);
+      expect(preview.rows).toEqual(full.rows.slice(0, 50));
+      for (const limit of [0, -1, 51, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+        yield* Effect.promise(() => expect(caller.findProblems.overview({ limit }))
+          .rejects.toMatchObject({ code: "BAD_REQUEST" }));
+      }
+    });
+    await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
+  });
+
+  it("returns an empty preview and requires app authentication", async () => {
+    const program = Effect.gen(function* () {
+      const database = yield* DatabaseServiceTag;
+      yield* database.migrate;
+      const appUser = yield* Effect.promise(() => createTestAppUser(database));
+      const caller = appRouter.createCaller({ database, appUser });
+      const preview = yield* Effect.promise(() => caller.findProblems.overview({ limit: 50 }));
+      expect(preview).toEqual({ rows: [], tags: [], ratingRange: { min: null, max: null } });
+      const anonymous = appRouter.createCaller({ database });
+      yield* Effect.promise(() => expect(anonymous.findProblems.overview({ limit: 50 })).rejects.toMatchObject({ code: "UNAUTHORIZED" }));
+    });
+    await Effect.runPromise(program.pipe(Effect.provide(DatabaseLive({ url: ":memory:" }))));
+  });
+
 });

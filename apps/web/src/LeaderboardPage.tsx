@@ -1,9 +1,10 @@
 import type { LeaderboardRow, LeaderboardScope } from "@icpc-trainer/api";
 import { JUDGES } from "@icpc-trainer/shared";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
+import { TableLoadState } from "./TableLoadState.js";
 import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button, Card, FieldLabel, Input, Label, Select, Skeleton } from "./components/ui.js";
@@ -40,7 +41,6 @@ export function LeaderboardPage({
   const { scope, judge, startDate, endDate } = activeFilters;
   const [appliedRange, setAppliedRange] = useState<LocalDateRange | undefined>();
   const [classDialogOpen, setClassDialogOpen] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const dateResult = useMemo(
     () => localDateRangeToIso(startDate, endDate),
     [endDate, startDate]
@@ -61,46 +61,14 @@ export function LeaderboardPage({
     startAt: appliedRange?.startAt,
     endAtExclusive: appliedRange?.endAtExclusive
   };
-  const query = useInfiniteQuery({
+  const query = useProgressiveQuery({
     queryKey: queryKeys.leaderboardList(queryFilters),
-    queryFn: ({ pageParam }) => trpc.leaderboard.list.query({
-      ...queryFilters,
-      page: pageParam
-    }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.hasNextPage
-      ? lastPage.page + 1
-      : undefined
+    queryFn: (input) => trpc.leaderboard.list.query({ ...queryFilters, ...input })
   });
-  const pages = query.data?.pages ?? [];
-  const firstPage = pages[0];
-  const rows = pages.flatMap((pageResult) => pageResult.rows);
-  const totalRows = firstPage?.totalRows ?? 0;
-  const pageSize = firstPage?.pageSize;
+  const firstPage = query.data;
+  const rows = query.data?.rows ?? [];
+  const totalRows = query.data?.totalRows ?? 0;
 
-  useEffect(() => {
-    const target = loadMoreRef.current;
-    if (
-      target === null ||
-      !query.hasNextPage ||
-      query.isFetchingNextPage ||
-      query.isFetchNextPageError
-    ) {
-      return;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        void query.fetchNextPage();
-      }
-    }, { rootMargin: "400px 0px" });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [
-    query.fetchNextPage,
-    query.hasNextPage,
-    query.isFetchNextPageError,
-    query.isFetchingNextPage
-  ]);
   const guidance = dateResult.status === "incomplete"
     ? t("dates.incomplete")
     : dateResult.status === "reversed"
@@ -234,7 +202,7 @@ export function LeaderboardPage({
         </Card>
       ) : null}
 
-      {!query.isError && !query.isLoading && rows.length === 0 ? (
+      {!query.isError && !query.isPartial && rows.length === 0 ? (
         <Card className="p-8 text-center text-sm text-zinc-500">{emptyMessage}</Card>
       ) : null}
 
@@ -250,7 +218,7 @@ export function LeaderboardPage({
                 <> · {t("updatedAt", { value: formatDateTime(firstPage.generatedAt, locale) })}</>
               ) : null}
             </span>
-            {query.isFetching && !query.isFetchingNextPage ? (
+            {query.isFetching ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> {t("updating")}
               </span>
@@ -266,34 +234,11 @@ export function LeaderboardPage({
             renderCells={renderCells}
             showRowNumbers={false}
           />
-          {query.isFetchNextPageError ? (
-            <div className="flex flex-col items-center gap-2 border-t border-zinc-800 px-4 py-4 text-center">
-              <p className="text-xs text-red-300">{t("infiniteScroll.error")}</p>
-              <Button type="button" variant="secondary" onClick={() => void query.fetchNextPage()}>
-                {t("infiniteScroll.retry")}
-              </Button>
-            </div>
-          ) : query.hasNextPage ? (
-            <div
-              ref={loadMoreRef}
-              className="flex min-h-16 items-center justify-center gap-2 border-t border-zinc-800 px-4 py-4 text-xs text-zinc-500"
-              role="status"
-              aria-live="polite"
-            >
-              {query.isFetchingNextPage ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                  {t("infiniteScroll.loading")}
-                </>
-              ) : t("infiniteScroll.hint")}
-            </div>
-          ) : pageSize !== undefined && rows.length >= pageSize ? (
-            <p className="border-t border-zinc-800 px-4 py-4 text-center text-xs text-zinc-500">
-              {t("infiniteScroll.complete")}
-            </p>
-          ) : null}
+
         </Card>
       ) : null}
+
+      {!(query.isError && rows.length === 0) ? <TableLoadState query={query} /> : null}
 
       <LeaderboardClassDialog open={classDialogOpen} onClose={() => setClassDialogOpen(false)} />
     </main>

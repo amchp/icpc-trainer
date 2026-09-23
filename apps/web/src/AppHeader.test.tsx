@@ -2,7 +2,11 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const auth = vi.hoisted(() => ({ isSignedIn: true }));
+
 vi.mock("@clerk/clerk-react", () => ({
+  useAuth: () => auth,
+  SignInButton: ({ children }: { readonly children: ReactNode }) => children,
   UserButton: () => <button type="button" aria-label="User menu" />
 }));
 
@@ -49,9 +53,19 @@ const primaryLabels = [
   "Leaderboard"
 ];
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); auth.isSignedIn = true; });
 
 describe("AppHeader", () => {
+  it("provides public navigation and sign-in without account controls for guests", () => {
+    auth.isSignedIn = false;
+    render(<AppHeader />);
+    expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
+    expect(screen.getByRole("link", { name: "Animations" })).toHaveAttribute("href", "/animations");
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sync" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "User menu" })).not.toBeInTheDocument();
+  });
+
   it("keeps the desktop navigation and utilities in the original single header row", () => {
     render(<AppHeader />);
 

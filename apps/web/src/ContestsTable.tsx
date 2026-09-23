@@ -1,3 +1,4 @@
+import { TableLoadState, type TableLoadingState } from "./TableLoadState.js";
 import type { UpsolvingContestRow } from "@icpc-trainer/api";
 import {
   getCoreRowModel,
@@ -25,10 +26,12 @@ import type { JudgeFilterState } from "./urlTableFilters.js";
 
 export function ContestsTable({
   contests,
+  loadingState,
   filters,
   onFiltersChange
 }: {
   readonly contests: readonly UpsolvingContestRow[];
+  readonly loadingState?: TableLoadingState;
   readonly filters?: JudgeFilterState;
   readonly onFiltersChange?: OnChangeFn<JudgeFilterState>;
 }): React.JSX.Element {
@@ -88,7 +91,7 @@ export function ContestsTable({
         }))}
       />
 
-      {contests.length === 0 ? (
+      {loadingState?.isPartial && visibleRows.length === 0 ? null : contests.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
           {t("empty")}
         </div>
@@ -99,6 +102,7 @@ export function ContestsTable({
       ) : (
         <ContestsTableGrid table={table} />
       )}
+      {loadingState ? <TableLoadState query={loadingState} /> : null}
     </Card>
   );
 }

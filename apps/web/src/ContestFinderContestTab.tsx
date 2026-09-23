@@ -1,3 +1,4 @@
+import { TableLoadState, type TableLoadingState } from "./TableLoadState.js";
 import type { ContestFinderRow } from "@icpc-trainer/api";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,7 @@ export function ContestFinderContestTab({
   searchQuery,
   judgeSourceFilters,
   isLoading,
+  loadingState,
   error,
   onSearchQueryChange,
   onJudgeSourceFiltersChange
@@ -34,6 +36,7 @@ export function ContestFinderContestTab({
   readonly searchQuery: string;
   readonly judgeSourceFilters: readonly JudgeSourceFilterId[];
   readonly isLoading: boolean;
+  readonly loadingState?: TableLoadingState;
   readonly error: Error | null;
   readonly onSearchQueryChange: (value: string) => void;
   readonly onJudgeSourceFiltersChange: (value: readonly JudgeSourceFilterId[]) => void;
@@ -66,9 +69,9 @@ export function ContestFinderContestTab({
         <div className="p-5">
           <Skeleton className="h-64" />
         </div>
-      ) : error ? (
+      ) : error && !loadingState?.isPartial ? (
         <div className="p-5 text-sm text-red-300">{localizedErrorMessage(error)}</div>
-      ) : contests.length === 0 ? (
+      ) : loadingState?.isPartial && contests.length === 0 ? null : contests.length === 0 ? (
         <div className="p-8 text-sm text-zinc-500">
           {t("contestFinder:empty")}
         </div>
@@ -97,6 +100,7 @@ export function ContestFinderContestTab({
           ]}
         />
       )}
+      {loadingState ? <TableLoadState query={loadingState} /> : null}
     </Card>
   );
 }

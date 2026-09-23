@@ -1,12 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
 import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Card, Skeleton } from "./components/ui.js";
+import { Button, Card, Skeleton } from "./components/ui.js";
 import { localizedErrorMessage } from "./i18n/localizedMessage.js";
 import { FindProblemsTable } from "./FindProblemsTable.js";
-import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { queryKeys } from "./queryKeys.js";
 import { trpc } from "./trpc.js";
 import type { FindProblemsFilterState } from "./urlTableFilters.js";
@@ -19,16 +18,12 @@ export function FindProblemsPage({
   readonly onFiltersChange?: OnChangeFn<FindProblemsFilterState>;
 } = {}): React.JSX.Element {
   const { t } = useTranslation("findProblems");
-  const { hasConnectedJudge, status } = useConnectedJudges();
-  const query = useQuery({
+  const query = useProgressiveQuery({
     queryKey: queryKeys.findProblemsOverview,
-    queryFn: () => trpc.findProblems.overview.query(),
-    enabled: status === "ready" && hasConnectedJudge
+    queryFn: (input) => trpc.findProblems.overview.query(input)
   });
-
-  if (status !== "ready" || !hasConnectedJudge) {
-    return <main className="min-h-screen bg-zinc-950" />;
-  }
+  const overview = query.data;
+  const partial = query.isPartial;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -45,7 +40,7 @@ export function FindProblemsPage({
         ) : null}
       </section>
 
-      {query.isLoading ? (
+      {overview === undefined && !query.isError ? (
         <Card className="p-5">
           <Skeleton className="h-80" />
         </Card>
@@ -57,13 +52,22 @@ export function FindProblemsPage({
           <div>
             <p className="text-sm font-medium text-red-200">{t("loadError")}</p>
             <p className="mt-1 text-sm text-zinc-500">{localizedErrorMessage(query.error)}</p>
+            <Button className="mt-3" variant="secondary" onClick={() => void query.refetch()}>{t("retry")}</Button>
           </div>
         </Card>
       ) : null}
 
-      {query.data ? (
+      {overview && partial ? (
+        <p role="status" className="mb-3 text-sm text-zinc-400">
+          {t(query.isError ? "previewIncomplete" : "loadingRemaining")}
+        </p>
+      ) : null}
+
+      {overview ? (
         <FindProblemsTable
-          overview={query.data}
+          overview={overview}
+          partial={partial}
+          loadingMore={partial && query.isFetching}
           filters={filters}
           onFiltersChange={onFiltersChange}
         />

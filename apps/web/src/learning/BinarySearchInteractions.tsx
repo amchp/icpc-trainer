@@ -146,7 +146,7 @@ function patternTextKey(pattern: ConditionPattern): "falseTrue" | "trueFalse" | 
   }
 }
 
-export function MotivationLab(): React.JSX.Element {
+export function MotivationLab({ showCode = false }: { readonly showCode?: boolean } = {}): React.JSX.Element {
   const { t } = useTranslation("binarySearch");
   const [rawValues, setRawValues] = useState("2, 4, 7, 9, 12, 18, 25");
   const [rawTarget, setRawTarget] = useState("10");
@@ -164,10 +164,12 @@ export function MotivationLab(): React.JSX.Element {
 
   return (
     <LabShell label={t("recognize.binary")}>
-      <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800">
-        <div className="grid min-w-0 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+      <div className={cn("mt-5 min-w-0 overflow-hidden rounded-xl border border-zinc-800", showCode && "grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]")} >
+        {showCode ? <ReadableCode code={t("tool.codeFirstOccurrence")} label={t("tool.codeLabel")} frame={insertionFrame} /> : null}
+        <div className="min-w-0">
+        <div className={cn("grid min-w-0", !showCode && "lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]")}>
           <div className="min-w-0 border-b border-zinc-800 p-4 lg:border-b-0 lg:border-r">
-        <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+        <div className={cn("grid gap-4", !showCode && "sm:grid-cols-[1fr_9rem]")}>
           <label className="grid gap-1.5 text-sm text-zinc-300">
             <span>{t("recognize.valuesLabel")}</span>
             <input aria-label={t("recognize.valuesLabel")} className={fieldClass} value={rawValues} onChange={(event) => setRawValues(event.target.value)} />
@@ -196,6 +198,7 @@ export function MotivationLab(): React.JSX.Element {
             <p className="mt-3 text-xs text-zinc-500">{t("recognize.compare", { linear: linearChecks, binary: insertionTrace.probes })}</p>
           </div>
         ) : null}
+        </div>
       </div>
     </LabShell>
   );

@@ -1,4 +1,15 @@
 export const judges = {
+  skip: "Omitir por ahora",
+  skipDescription: "Puedes conectar un juez más tarde desde Jueces. Explora problemas, recursos y animaciones ahora.",
+  requiredTitle: "Conecta un juez para comenzar",
+  required: {
+    upsolving: "Upsolving usa los envíos de tu equipo para mostrar problemas de concursos simulados. Conecta un juez, agrega usuarios del equipo y sincroniza para llenar esta tabla.",
+    contests: "Esta tabla usa datos de concursos sincronizados desde tus jueces. Conecta un juez y sincroniza los concursos de tu equipo para verlos aquí.",
+    team: "Conecta un juez para agregar usuarios del equipo y sincronizar sus envíos para practicar y hacer upsolving.",
+    contestFinder: "Conecta un juez para sincronizar la participación de tus amigos y encontrar concursos para practicar. Los datos guardados siguen disponibles abajo.",
+    friends: "Conecta un juez para sincronizar los envíos y la participación de tus amigos en concursos. Puedes administrar tus amigos abajo."
+  },
+
   title: "Jueces",
   subtitle: "Conecta o elimina cuentas de jueces",
   connectTitle: "Conectar jueces",

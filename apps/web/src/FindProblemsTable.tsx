@@ -7,6 +7,7 @@ import {
   type SortingState
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Card } from "./components/ui.js";
@@ -28,10 +29,14 @@ const clamp = (value: number, min: number, max: number): number =>
 
 export function FindProblemsTable({
   overview,
+  partial = false,
+  loadingMore = false,
   filters,
   onFiltersChange
 }: {
   readonly overview: FindProblemsOverview;
+  readonly partial?: boolean;
+  readonly loadingMore?: boolean;
   readonly filters?: FindProblemsFilterState;
   readonly onFiltersChange?: OnChangeFn<FindProblemsFilterState>;
 }): React.JSX.Element {
@@ -68,13 +73,13 @@ export function FindProblemsTable({
     [locale, overview.rows]
   );
   const activeSelectedTags = useMemo(
-    () => selectedTags.filter((tag) => availableTagNames.has(tag)),
-    [availableTagNames, selectedTags]
+    () => partial ? selectedTags : selectedTags.filter((tag) => availableTagNames.has(tag)),
+    [availableTagNames, partial, selectedTags]
   );
   const selectedTagSet = useMemo(() => new Set(activeSelectedTags), [activeSelectedTags]);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
-  const displayedMinRating = clamp(minRating, ratingFloor, ratingCeiling);
-  const displayedMaxRating = clamp(maxRating, ratingFloor, ratingCeiling);
+  const displayedMinRating = partial ? minRating : clamp(minRating, ratingFloor, ratingCeiling);
+  const displayedMaxRating = partial ? maxRating : clamp(maxRating, ratingFloor, ratingCeiling);
   const safeMinRating = Math.min(displayedMinRating, displayedMaxRating);
   const safeMaxRating = Math.max(displayedMinRating, displayedMaxRating);
   const filteredRows = useMemo(
@@ -105,7 +110,7 @@ export function FindProblemsTable({
   const visibleRows = table.getRowModel().rows;
 
   const randomProblem = (): void => {
-    if (visibleRows.length === 0) {
+    if (partial || visibleRows.length === 0) {
       return;
     }
 
@@ -118,35 +123,37 @@ export function FindProblemsTable({
 
   return (
     <Card className="overflow-hidden">
-      <FindProblemsTableFilters
-        searchQuery={searchQuery}
-        minRating={displayedMinRating}
-        maxRating={displayedMaxRating}
-        ratingFloor={ratingFloor}
-        ratingCeiling={ratingCeiling}
-        tags={localizedTags}
-        selectedTags={activeSelectedTags}
-        visibleCount={visibleRows.length}
-        onSearchQueryChange={(value) => setFilters((current) => ({
-          ...current,
-          searchQuery: value
-        }))}
-        onMinRatingChange={(value) => setFilters((current) => ({
-          ...current,
-          minRating: clamp(value, ratingFloor, ratingCeiling)
-        }))}
-        onMaxRatingChange={(value) => setFilters((current) => ({
-          ...current,
-          maxRating: clamp(value, ratingFloor, ratingCeiling)
-        }))}
-        onSelectedTagsChange={(value) => setFilters((current) => ({
-          ...current,
-          selectedTags: value
-        }))}
-        onRandom={randomProblem}
-      />
+      <fieldset disabled={partial} aria-busy={partial}>
+        <FindProblemsTableFilters
+          searchQuery={searchQuery}
+          minRating={displayedMinRating}
+          maxRating={displayedMaxRating}
+          ratingFloor={ratingFloor}
+          ratingCeiling={ratingCeiling}
+          tags={localizedTags}
+          selectedTags={activeSelectedTags}
+          visibleCount={visibleRows.length}
+          onSearchQueryChange={(value) => setFilters((current) => ({
+            ...current,
+            searchQuery: value
+          }))}
+          onMinRatingChange={(value) => setFilters((current) => ({
+            ...current,
+            minRating: clamp(value, ratingFloor, ratingCeiling)
+          }))}
+          onMaxRatingChange={(value) => setFilters((current) => ({
+            ...current,
+            maxRating: clamp(value, ratingFloor, ratingCeiling)
+          }))}
+          onSelectedTagsChange={(value) => setFilters((current) => ({
+            ...current,
+            selectedTags: value
+          }))}
+          onRandom={randomProblem}
+        />
+      </fieldset>
 
-      {overview.rows.length === 0 ? (
+      {partial && visibleRows.length === 0 ? null : overview.rows.length === 0 ? (
         <div className="border-t border-zinc-800 px-5 py-12 text-sm text-zinc-500">
           {t("empty")}
         </div>
@@ -157,6 +164,12 @@ export function FindProblemsTable({
       ) : (
         <FindProblemsTableGrid table={table} />
       )}
+      {loadingMore ? (
+        <div role="status" aria-label={t("loading")} className="flex items-center justify-center gap-2 border-t border-zinc-800 px-5 py-6 text-sm text-zinc-400">
+          <Loader2 className="size-4 animate-spin text-blue-300" aria-hidden="true" />
+          {t("loading")}
+        </div>
+      ) : null}
     </Card>
   );
 }

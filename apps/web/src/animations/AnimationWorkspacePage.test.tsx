@@ -34,6 +34,9 @@ describe("animation workspace", () => {
     fireEvent.click(iterative.getByRole("button", { name: "Next trace step" }));
     expect(recursive.getByText(/^Step 3 of/)).toBeInTheDocument();
     expect(iterative.getByText(/^Step 2 of/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show example outcome" }));
+    expect(screen.getByRole("button", { name: "Back to input" })).toHaveAttribute("aria-pressed", "true");
+    expect(recursive.getByRole("tree").closest("[data-trace-layout]")).toHaveAttribute("data-trace-layout", "beside");
     fireEvent.click(screen.getByRole("button", { name: "Present" }));
     expect(screen.getByRole("button", { name: "Exit presentation" })).toHaveFocus();
     expect(screen.queryByRole("link", { name: "Full guide" })).not.toBeInTheDocument();
@@ -42,6 +45,7 @@ describe("animation workspace", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Present" })).toHaveFocus());
     expect(recursive.getByText(/^Step 3 of/)).toBeInTheDocument();
     expect(iterative.getByText(/^Step 2 of/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to input" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("copies only the canonical group URL, excluding filters and fragment state", async () => {

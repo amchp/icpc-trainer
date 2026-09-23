@@ -21,6 +21,8 @@ import { ProtectedLayout } from "./ProtectedLayout.js";
 import { QojConnectJudgeTutorialPage } from "./QojConnectJudgeTutorialPage.js";
 import { QojConnectJudgePage } from "./QojConnectJudgePage.js";
 import { SyncProvider } from "./SyncContext.js";
+import { ContestsPage } from "./ContestsPage.js";
+import { UpsolvingPage } from "./UpsolvingPage.js";
 import { TeamPage } from "./TeamPage.js";
 import { ToasterProvider } from "./Toaster.js";
 import { trpc } from "./trpc.js";
@@ -238,6 +240,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@clerk/clerk-react", () => ({
+  useAuth: () => ({ isSignedIn: true }),
   UserButton: () => <button type="button" aria-label="User account" />
 }));
 
@@ -414,7 +417,7 @@ describe("app shell", () => {
     expect(screen.queryByText("API playground")).not.toBeInTheDocument();
   });
 
-  it("sends first-time users on normal app paths to Connect Judges", async () => {
+  it("allows users without a judge to enter normal app paths", async () => {
     credentialStatusMock.mockResolvedValue({
       codeforces: {
         saved: false
@@ -426,7 +429,24 @@ describe("app shell", () => {
 
     renderWithQuery(<ProtectedLayout />);
 
-    expect(await screen.findByTestId("route-redirect")).toHaveAttribute("data-to", "/connect-judges");
+    expect(await screen.findByTestId("route-outlet")).toBeInTheDocument();
+    expect(screen.queryByTestId("route-redirect")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["Team", TeamPage], ["Contests", ContestsPage], ["Upsolving", UpsolvingPage]
+  ] as const)("explains why %s needs a judge and offers connection", async (title, Page) => {
+    credentialStatusMock.mockResolvedValue({ codeforces: { saved: false }, qoj: { saved: false } });
+    renderWithQuery(<Page />);
+    expect(await screen.findByRole("heading", { name: "Connect a judge to get started" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Connect judge" })).toHaveAttribute("href", "/connect-judges");
+  });
+
+  it("lets users skip judge setup", async () => {
+    credentialStatusMock.mockResolvedValue({ codeforces: { saved: false }, qoj: { saved: false } });
+    renderWithQuery(<ConnectJudgesPage />);
+    expect(await screen.findByRole("link", { name: "Skip for now" })).toHaveAttribute("href", "/find-problems");
   });
 
   it("shows separate judge progress while a sync is running", async () => {
@@ -778,7 +798,8 @@ describe("app shell", () => {
 
     renderWithQuery(<TeamPage />);
 
-    fireEvent.change(await screen.findByLabelText("Handle"), { target: { value: "tourist" } });
+    await waitFor(() => expect(screen.getByLabelText("Handle")).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("Handle"), { target: { value: "tourist" } });
     fireEvent.click(screen.getByRole("button", { name: /add user/i }));
 
     await waitFor(() =>

@@ -121,6 +121,31 @@ describe("Clerk server auth", () => {
     });
   });
 
+  it("preserves stored profile fields when a later JWT omits them and verifies every token", async () => {
+    await withDatabase(async (database) => {
+      const dependencies = {
+        config: { jwtKey: "jwt-key", authorizedParties: [] },
+        database
+      };
+      clerkMocks.verifyToken.mockResolvedValue({
+        sub: "user_profile",
+        email: "person@example.com",
+        name: "Person",
+        picture: "https://example.com/avatar.png"
+      });
+      const first = await appUserFromConnectionParams(dependencies, { token: "first" });
+      expect(first).toBeDefined();
+
+      clerkMocks.verifyToken.mockResolvedValue({ sub: "user_profile" });
+      const repeated = await appUserFromHttpRequest(dependencies, requestWithAuthorization("Bearer next"));
+      expect(repeated).toEqual(first);
+
+      clerkMocks.verifyToken.mockRejectedValue(new Error("expired token"));
+      expect(await appUserFromConnectionParams(dependencies, { token: "first" })).toBeUndefined();
+      expect(clerkMocks.verifyToken).toHaveBeenCalledTimes(3);
+    });
+  });
+
   it("normalizes Clerk API failures during cookie auth", async () => {
     await withDatabase(async (database) => {
       clerkMocks.authenticateRequest.mockResolvedValue({

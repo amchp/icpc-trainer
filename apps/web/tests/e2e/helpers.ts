@@ -25,6 +25,6 @@ export const clearConnectedJudgesIfPresent = async (page: Page): Promise<void> =
   const clearButton = page.getByRole("button", { name: "Clear all connected judges" });
   if (await clearButton.isEnabled()) {
     await clearButton.click();
-    await expect(page.getByRole("heading", { name: "Connect Judges" })).toBeVisible({ timeout: 15_000 });
+    await expect(clearButton).toBeDisabled({ timeout: 15_000 });
   }
 };

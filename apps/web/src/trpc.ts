@@ -3,6 +3,7 @@ import {
   createTRPCClient,
   createWSClient,
   httpBatchLink,
+  httpLink,
   splitLink,
   type TRPCClient,
   type TRPCWebSocketClient,
@@ -79,9 +80,10 @@ export const trpc: TRPCClient<AppRouter> = createTRPCClient<AppRouter>({
       true: wsLink({
         client: wsClientProxy
       }),
-      false: httpBatchLink({
-        url: `${resolveBaseUrl()}/trpc`,
-        headers: authHeaders
+      false: splitLink({
+        condition: (operation) => operation.context.skipBatch === true,
+        true: httpLink({ url: `${resolveBaseUrl()}/trpc`, headers: authHeaders }),
+        false: httpBatchLink({ url: `${resolveBaseUrl()}/trpc`, headers: authHeaders })
       })
     })
   ]

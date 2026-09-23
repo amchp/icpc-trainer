@@ -25,7 +25,8 @@ export interface LeaderboardListInput {
   readonly judge?: JUDGES;
   readonly startAt?: Date;
   readonly endAtExclusive?: Date;
-  readonly page: number;
+  readonly page?: number;
+  readonly limit?: number;
 }
 
 export interface LeaderboardRow {
@@ -148,8 +149,8 @@ export const listLeaderboardRows = async (
         sql`lower(${scores.username})`,
         asc(scores.username)
       )
-      .limit(LEADERBOARD_PAGE_SIZE)
-      .offset(input.page * LEADERBOARD_PAGE_SIZE)
+      .limit(input.limit ?? (input.page === undefined ? -1 : LEADERBOARD_PAGE_SIZE))
+      .offset((input.page ?? 0) * (input.limit ?? LEADERBOARD_PAGE_SIZE))
       .all(),
     database.db
       .select({ value: count() })

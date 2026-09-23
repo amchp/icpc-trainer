@@ -141,7 +141,8 @@ const addRosterLink = async (
 export const getUserRoster = async <Type extends USER_TYPES>(
   database: DatabaseService,
   appUserId: number,
-  type: Type
+  type: Type,
+  limit?: number
 ): Promise<UserRoster<Type>> => {
   const rows = await database.db
     .select({
@@ -153,6 +154,7 @@ export const getUserRoster = async <Type extends USER_TYPES>(
     .innerJoin(users, eq(users.id, appUserJudgeUsers.userId))
     .where(and(eq(appUserJudgeUsers.appUserId, appUserId), eq(appUserJudgeUsers.role, type)))
     .orderBy(users.judge, users.username)
+    .limit(limit ?? -1)
     .all();
 
   const updatedAt = rows.reduce<Date | null>(

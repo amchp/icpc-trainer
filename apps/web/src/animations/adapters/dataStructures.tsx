@@ -1,6 +1,8 @@
 import "../../i18n/i18n.js";
 import { DataStructureSimulator } from "../../learning/DataStructureSimulator.js";
 import { VectorBoundsExplorer } from "../../learning/dataStructures/VectorBoundsExplorer.js";
+import { AnimationCodeReference } from "../AnimationCodeReference.js";
+import { algorithmReferences } from "../algorithmReferences.js";
 import { AnimationToolSection } from "../AnimationToolSection.js";
 
 export function Vectors(): React.JSX.Element {
@@ -10,7 +12,7 @@ export function Vectors(): React.JSX.Element {
         <DataStructureSimulator kind="vector" accent="blue" />
       </AnimationToolSection>
       <AnimationToolSection key="vector-bounds-explorer" toolId="vector-bounds-explorer">
-        <VectorBoundsExplorer />
+        <AnimationCodeReference code={algorithmReferences.bounds}><VectorBoundsExplorer /></AnimationCodeReference>
       </AnimationToolSection>
     </>
   );

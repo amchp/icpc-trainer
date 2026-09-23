@@ -95,6 +95,21 @@ const openTagMenu = (): HTMLElement => {
 };
 
 describe("FindProblemsTable", () => {
+  it("preserves saved rating and tag filters when preview metadata is incomplete", () => {
+    const filters = { searchQuery: "", minRating: 2000, maxRating: 2400, selectedTags: ["graphs"] };
+    const onFiltersChange = vi.fn();
+    const preview = { ...overview, rows: overview.rows.slice(0, 1), tags: [], ratingRange: { min: 800, max: 800 } };
+    const view = render(<FindProblemsTable overview={preview} partial loadingMore filters={filters} onFiltersChange={onFiltersChange} />);
+    expect(screen.queryByRole("link", { name: "A. Warmup" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
+    expect(screen.queryByText("No problems match the current filters.")).not.toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Min rating" })).toHaveValue(2000);
+    expect(onFiltersChange).not.toHaveBeenCalled();
+    view.rerender(<FindProblemsTable overview={overview} filters={filters} onFiltersChange={onFiltersChange} />);
+    expect(screen.getByRole("link", { name: "C. Graph Paths" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Random" })).toBeEnabled();
+  });
+
   beforeEach(() => {
     cleanup();
   });

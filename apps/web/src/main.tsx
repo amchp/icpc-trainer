@@ -9,12 +9,10 @@ import { createRoot } from "react-dom/client";
 
 import "./styles.css";
 import { AuthGate } from "./AuthGate.js";
-import { ConnectedJudgesProvider } from "./ConnectedJudgesContext.js";
 import { env } from "./env.js";
 import "./i18n/i18n.js";
 import { LocaleProvider, useLocale } from "./i18n/LocaleProvider.js";
 import { router } from "./router.js";
-import { SyncProvider } from "./SyncContext.js";
 import { ToasterProvider } from "./Toaster.js";
 
 const queryClient = new QueryClient();
@@ -132,11 +130,7 @@ createRoot(root).render(
         <LocalizedClerkProvider>
           <ToasterProvider>
             <AuthGate>
-              <ConnectedJudgesProvider>
-                <SyncProvider>
-                  <RouterProvider router={router} />
-                </SyncProvider>
-              </ConnectedJudgesProvider>
+              <RouterProvider router={router} />
             </AuthGate>
           </ToasterProvider>
         </LocalizedClerkProvider>

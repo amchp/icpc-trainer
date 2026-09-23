@@ -1,3 +1,4 @@
+import { listInputSchema } from "./listInput.js";
 import { JUDGES, USER_TYPES } from "@icpc-trainer/shared";
 import type { initTRPC } from "@trpc/server";
 import { z } from "zod";
@@ -38,7 +39,7 @@ export type TeamRoster = UserRoster<USER_TYPES.Team>;
 
 export const createTeamRouter = (t: TrpcInstance) =>
   t.router({
-    roster: t.procedure.query(({ ctx }) => getUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team)),
+    roster: t.procedure.input(listInputSchema).query(({ ctx, input }) => getUserRoster(ctx.database, requireAppUser(ctx.appUser).id, USER_TYPES.Team, input?.limit)),
     add: t.procedure.input(addTeamUserInputSchema).mutation(({ ctx, input }) => {
       const appUser = requireAppUser(ctx.appUser);
       return addUserToRoster(ctx.database, appUser.id, USER_TYPES.Team, input, "team user").then((result) => {

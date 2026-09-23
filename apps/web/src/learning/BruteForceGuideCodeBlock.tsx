@@ -20,6 +20,7 @@ export type BruteForceGuideCodeBlockProps<S extends GuideTraceInputSchema = Guid
   | { readonly code: string; readonly language?: Language; readonly copyLabel?: string; readonly trace?: never }
   | {
       readonly trace: GuideTraceDefinition<S>;
+      readonly visualsBesideCode?: boolean;
       readonly copyLabel?: string;
       readonly code?: never;
       readonly language?: never;
@@ -33,7 +34,7 @@ export function BruteForceGuideCodeBlock<const S extends GuideTraceInputSchema =
   if (props.trace === undefined) {
     return <StaticGuideCodeBlock code={props.code} language={props.language} copyLabel={props.copyLabel} />;
   }
-  return <InteractiveGuideCodeBlock trace={props.trace} copyLabel={props.copyLabel} />;
+  return <InteractiveGuideCodeBlock trace={props.trace} copyLabel={props.copyLabel} visualsBesideCode={props.visualsBesideCode} />;
 }
 
 function StaticGuideCodeBlock({
@@ -54,10 +55,12 @@ function StaticGuideCodeBlock({
 
 function InteractiveGuideCodeBlock<S extends GuideTraceInputSchema>({
   trace,
-  copyLabel
+  copyLabel,
+  visualsBesideCode = false
 }: {
   readonly trace: GuideTraceDefinition<S>;
   readonly copyLabel?: string;
+  readonly visualsBesideCode?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("bruteForce");
   const [inputs, setInputs] = useState<GuideTraceInputValues<S>>(() => getGuideTraceDefaultInputs(trace));
@@ -69,8 +72,8 @@ function InteractiveGuideCodeBlock<S extends GuideTraceInputSchema>({
   const frames = result.valid ? result.frames : [];
   const frame = frames[frameIndex];
   const finalFrame = frameIndex >= frames.length - 1;
-  const sidebarVisuals = frame?.visuals?.filter((visual) => visual.kind !== "tree");
-  const wideVisuals = frame?.visuals?.filter((visual) => visual.kind === "tree");
+  const sidebarVisuals = visualsBesideCode ? frame?.visuals : frame?.visuals?.filter((visual) => visual.kind !== "tree");
+  const wideVisuals = visualsBesideCode ? [] : frame?.visuals?.filter((visual) => visual.kind === "tree");
 
   useEffect(() => {
     setInputs(getGuideTraceDefaultInputs(trace));
@@ -120,7 +123,7 @@ function InteractiveGuideCodeBlock<S extends GuideTraceInputSchema>({
       className="my-8 min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-[#0d1117] text-sm"
       aria-label={trace.label}
     >
-      <div className="grid min-w-0 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]">
+      <div data-trace-layout={visualsBesideCode ? "beside" : "default"} className={cn("grid min-w-0", visualsBesideCode ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" : "lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]")}>
         <div className="min-w-0 border-b border-zinc-800 lg:border-b-0 lg:border-r">
           <CodePane code={trace.code} language={trace.language} copyLabel={copyLabel} activeLine={frame.line} />
         </div>

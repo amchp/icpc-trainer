@@ -1,6 +1,7 @@
+import { TableLoadState } from "./TableLoadState.js";
+import { useProgressiveQuery } from "./useProgressiveQuery.js";
 import type { FriendsRoster } from "@icpc-trainer/api";
 import { JUDGES } from "@icpc-trainer/shared";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,9 +34,9 @@ export function FriendsRoster(): React.JSX.Element {
   const [draftUsername, setDraftUsername] = useState("");
   const [draftJudge, setDraftJudge] = useState<JUDGES>(JUDGES.Codeforces);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const query = useQuery({
+  const query = useProgressiveQuery({
     queryKey: queryKeys.friendsRoster,
-    queryFn: () => trpc.friends.roster.query()
+    queryFn: (input) => trpc.friends.roster.query(input)
   });
   const roster = query.data ?? { users: [], updatedAt: null } satisfies FriendsRoster;
   const rosterMutations = useRosterMutations<FriendsRoster>({
@@ -47,6 +48,7 @@ export function FriendsRoster(): React.JSX.Element {
   });
 
   const addUser = async (): Promise<void> => {
+    if (query.isPartial) return;
     const saved = await rosterMutations.addUser(draftUsername, draftJudge);
     if (saved) {
       setDraftUsername("");
@@ -55,6 +57,7 @@ export function FriendsRoster(): React.JSX.Element {
   };
 
   const removeUser = async (username: string, judge: JUDGES): Promise<void> => {
+    if (query.isPartial) return;
     await rosterMutations.removeUser(roster.users, username, judge);
   };
 
@@ -74,7 +77,7 @@ export function FriendsRoster(): React.JSX.Element {
             value={draftUsername}
             onChange={(event) => setDraftUsername(event.target.value)}
             placeholder="tourist"
-            disabled={query.isLoading || rosterMutations.saving}
+            disabled={query.isPartial || rosterMutations.saving}
           />
         </Label>
         <Label>
@@ -82,13 +85,13 @@ export function FriendsRoster(): React.JSX.Element {
           <Select
             value={draftJudge}
             onChange={(event) => setDraftJudge(toJudge(event.target.value as JudgeProvider))}
-            disabled={query.isLoading || rosterMutations.saving}
+            disabled={query.isPartial || rosterMutations.saving}
           >
             <option value={JUDGES.Codeforces}>Codeforces</option>
             <option value={JUDGES.Qoj}>QOJ</option>
           </Select>
         </Label>
-        <Button type="submit" disabled={rosterMutations.saving || draftUsername.trim() === ""}>
+        <Button type="submit" disabled={query.isPartial || rosterMutations.saving || draftUsername.trim() === ""}>
           {rosterMutations.saving ? (
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
           ) : (
@@ -101,7 +104,7 @@ export function FriendsRoster(): React.JSX.Element {
       <div className="mt-6 overflow-hidden">
         {query.isLoading ? (
           <Skeleton className="my-4 h-32" />
-        ) : roster.users.length === 0 ? (
+        ) : query.isPartial && roster.users.length === 0 ? null : roster.users.length === 0 ? (
           <>
             <div className="mb-2 flex justify-end">
               <TableCount count={roster.users.length} itemName={t("friendCount", { count: 1 })} pluralItemName={t("friendCount", { count: 2 })} />
@@ -136,7 +139,7 @@ export function FriendsRoster(): React.JSX.Element {
                         variant="ghost"
                         className="h-8 text-zinc-400 hover:text-red-300"
                         onClick={() => void removeUser(user.username, user.judge)}
-                        disabled={rosterMutations.saving}
+                        disabled={query.isPartial || rosterMutations.saving}
                         aria-label={t("removeLabel", { username: user.username })}
                       >
                         <X className="size-3.5" aria-hidden="true" />
@@ -150,6 +153,7 @@ export function FriendsRoster(): React.JSX.Element {
           </>
         )}
       </div>
+      <TableLoadState query={query} />
     </Card>
   );
 }

@@ -1,4 +1,5 @@
 import type { initTRPC } from "@trpc/server";
+import { listInputSchema } from "./listInput.js";
 
 import { getFindProblemsOverview } from "./findProblemsReadModel.js";
 import type { ApiContext } from "./index.js";
@@ -10,7 +11,8 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 
 export const createFindProblemsRouter = (t: TrpcInstance) =>
   t.router({
-    overview: t.procedure.query(({ ctx }) => getFindProblemsOverview(ctx.database, requireAppUser(ctx.appUser).id))
+    overview: t.procedure.input(listInputSchema).query(({ ctx, input }) =>
+      getFindProblemsOverview(ctx.database, requireAppUser(ctx.appUser).id, input?.limit))
   });
 
 export type { FindProblemRow, FindProblemsOverview } from "./findProblemsReadModel.js";

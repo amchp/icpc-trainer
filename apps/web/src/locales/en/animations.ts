@@ -1,4 +1,23 @@
+import { animationIntroductions } from "./animationIntroductions.js";
+
 export const animations = {
+  introductions: animationIntroductions,
+  lesson: {
+  "problem": "The problem",
+  "concept": "The concept",
+  "exploration": "Operations to explore",
+  "analysis": "The analysis question",
+  "given": "Given",
+  "goal": "Goal",
+  "example": "Illustrated example",
+  "show": "Show example outcome",
+  "hide": "Back to input",
+  "exampleNote": "A small example to explain the task. Each tool below has its own controls and examples.",
+  "algorithm": "Algorithm and walkthrough",
+  "reference": "Reference code",
+  "referenceNote": "Read alongside the animation; this reference does not highlight the current step.",
+  "explore": "Explore the behavior"
+},
   "libraryTitle": "Animation Library",
   "subtitle": "Explore algorithm tools, learn step by step, and present them in class.",
   "searchLabel": "Search animations",

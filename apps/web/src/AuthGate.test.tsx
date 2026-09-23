@@ -14,7 +14,7 @@ vi.mock("@clerk/clerk-react", () => ({
   },
   SignedIn: () => null,
   SignedOut: ({ children }: { readonly children: ReactNode }) => children,
-  useAuth: vi.fn()
+  useAuth: () => ({ isSignedIn: false })
 }));
 
 vi.mock("./trpc", () => ({
@@ -25,53 +25,43 @@ vi.mock("./i18n/LanguageButton.js", () => ({
   LanguageButton: () => null
 }));
 
-describe("AuthGate first-user redirects", () => {
-  it.each(["/animations", "/animations/permutations", "/animations/missing"])("requires an account at %s, even with a preview flag", (path) => {
-    window.history.replaceState({}, "", `${path}?preview=resources`);
-    render(<AuthGate><div>Private tools</div></AuthGate>);
-    expect(screen.queryByText("Private tools")).not.toBeInTheDocument();
-    expect(screen.getByTestId("sign-in")).toBeInTheDocument();
-    expect(signInPropsMock).toHaveBeenCalledWith(expect.objectContaining({
-      signUpForceRedirectUrl: `${path}?preview=resources`, fallbackRedirectUrl: `${path}?preview=resources`
-    }));
-  });
-
-  it("closes the development preview bypass when navigating from a lesson to the library", async () => {
-    window.history.replaceState({}, "", "/resources?preview=resources");
-    render(<AuthGate><div>Preview content</div></AuthGate>);
-    expect(screen.getByText("Preview content")).toBeInTheDocument();
-    await act(async () => { appHistory.push("/animations/permutations?preview=resources"); appHistory.flush(); });
-    expect(screen.queryByText("Preview content")).not.toBeInTheDocument();
-    expect(screen.getByTestId("sign-in")).toBeInTheDocument();
-  });
-  beforeEach(() => {
-    signInPropsMock.mockClear();
-  });
-
+describe("AuthGate public learning access", () => {
+  beforeEach(() => { signInPropsMock.mockClear(); });
   afterEach(() => {
     cleanup();
     window.history.replaceState({}, "", "/");
   });
 
-  it("returns users to an original resources subpath after authentication", () => {
-    window.history.replaceState({}, "", "/resources/graphs?language=es");
-
-    render(<AuthGate><div /></AuthGate>);
-
-    expect(signInPropsMock).toHaveBeenCalledWith(expect.objectContaining({
-      signUpForceRedirectUrl: "/resources/graphs?language=es",
-      fallbackRedirectUrl: "/resources/graphs?language=es"
-    }));
+  it.each([
+    "/resources", "/resources/introduction", "/resources/graphs?language=es",
+    "/animations", "/animations/permutations", "/animations/missing",
+    "/animations/permutations?preview=resources"
+  ])("opens %s without signing in", (path) => {
+    window.history.replaceState({}, "", path);
+    render(<AuthGate><div>Learning content</div></AuthGate>);
+    expect(screen.getByText("Learning content")).toBeInTheDocument();
+    expect(signInPropsMock).not.toHaveBeenCalled();
   });
 
-  it("keeps the normal signup destination for non-resource links", () => {
-    window.history.replaceState({}, "", "/contests?source=invite");
+  it.each(["/", "/judges", "/connect-judges", "/contests?preview=resources", "/resources-old", "/animations-old"])("still protects %s", (path) => {
+    window.history.replaceState({}, "", path);
+    render(<AuthGate><div>Private content</div></AuthGate>);
+    expect(screen.queryByText("Private content")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sign-in")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
+    expect(screen.getByRole("link", { name: "Animations" })).toHaveAttribute("href", "/animations");
+  });
 
-    render(<AuthGate><div /></AuthGate>);
-
-    expect(signInPropsMock).toHaveBeenCalledWith(expect.objectContaining({
-      signUpForceRedirectUrl: "/",
-      fallbackRedirectUrl: "/"
-    }));
+  it("reevaluates access during client-side navigation in both directions", async () => {
+    window.history.replaceState({}, "", "/resources");
+    render(<AuthGate><div>Route content</div></AuthGate>);
+    await act(async () => { appHistory.push("/animations/permutations"); appHistory.flush(); });
+    expect(screen.getByText("Route content")).toBeInTheDocument();
+    await act(async () => { appHistory.push("/judges"); appHistory.flush(); });
+    expect(screen.queryByText("Route content")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sign-in")).toBeInTheDocument();
+    await act(async () => { appHistory.push("/resources/introduction"); appHistory.flush(); });
+    expect(screen.getByText("Route content")).toBeInTheDocument();
+    expect(screen.queryByTestId("sign-in")).not.toBeInTheDocument();
   });
 });
