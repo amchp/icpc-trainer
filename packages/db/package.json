@@ -20,15 +20,15 @@
   },
   "dependencies": {
     "@icpc-trainer/shared": "workspace:*",
-    "@libsql/client": "^0.17.4",
-    "drizzle-orm": "0.45.2",
-    "effect": "3.21.4"
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "0.45.3",
+    "effect": "3.22.2"
   },
   "devDependencies": {
     "@icpc-trainer/tsconfig": "workspace:*",
-    "@types/node": "26.0.0",
-    "drizzle-kit": "0.31.10",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "@types/node": "26.6.2",
+    "drizzle-kit": "0.31.11",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
   }
 }
