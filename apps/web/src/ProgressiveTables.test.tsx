@@ -9,9 +9,9 @@ import { ContestFinderPage } from "./ContestFinderPage.js";
 import { FriendsRoster } from "./FriendsRoster.js";
 import { TeamPage } from "./TeamPage.js";
 
-const api = vi.hoisted(() => ({ upsolving: vi.fn(), contests: vi.fn(), friends: vi.fn(), team: vi.fn(), replace: vi.fn() }));
+const api = vi.hoisted(() => ({ upsolving: vi.fn(), reviewLater: vi.fn(), error: vi.fn(), contests: vi.fn(), friends: vi.fn(), team: vi.fn(), replace: vi.fn() }));
 vi.mock("./trpc.js", () => ({ trpc: {
-  upsolving: { overview: { query: api.upsolving } },
+  upsolving: { overview: { query: api.upsolving }, setReviewLater: { mutate: api.reviewLater } },
   contestFinder: { overview: { query: api.contests } },
   account: { dataStatus: { query: async () => ({ hasSyncedContests: true }) } },
   friends: { roster: { query: api.friends }, add: { mutate: vi.fn() }, replace: { mutate: api.replace } },
@@ -22,7 +22,7 @@ vi.mock("./ConnectedJudgesContext.js", () => ({ useConnectedJudges: () => ({
   status: "ready", hasConnectedJudge: true, connectedJudges: [{ id: "codeforces", label: "Codeforces" }]
 }) }));
 vi.mock("./useFriendSubmissionSync.js", () => ({ useFriendSubmissionSync: () => ({ states: [] }) }));
-vi.mock("./Toaster.js", () => ({ useToaster: () => ({ error: vi.fn() }) }));
+vi.mock("./Toaster.js", () => ({ useToaster: () => ({ error: api.error }) }));
 
 const row = (name: string, id: number) => ({
   id, name, judge: "codeforces", judgeId: String(id), link: `https://codeforces.com/gym/${id}`,
@@ -81,6 +81,34 @@ it("waits for a full roster before allowing removal and preserves unseen friends
   await waitFor(() => expect(api.replace).toHaveBeenCalledWith({
     users: names.slice(1).map((username) => ({ username, judge: "codeforces" }))
   }));
+});
+
+it("saves Review later and refreshes Upsolving from the server", async () => {
+  let saved = false;
+  api.upsolving.mockImplementation(async () => {
+    const overview = result(["Practice"]);
+    return { ...overview, rows: overview.rows.map((row) => ({ ...row, status: saved ? "review_later" : "attempted" })) };
+  });
+  api.reviewLater.mockImplementation(async () => { saved = true; return { ok: true }; });
+  mount(<UpsolvingPage />);
+  const select = await screen.findByRole("combobox", { name: "Change status for Practice" });
+  fireEvent.change(select, { target: { value: "review_later" } });
+  await waitFor(() => expect(api.reviewLater).toHaveBeenCalledWith({ judge: "codeforces", problemJudgeId: "1", reviewLater: true }));
+  await waitFor(() => expect(screen.queryByRole("link", { name: "Practice" })).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Review later" }));
+  expect(screen.getByRole("combobox", { name: "Change status for Practice" })).toHaveValue("review_later");
+});
+
+it("keeps the original status and reports a failed Review later save", async () => {
+  api.upsolving.mockResolvedValue(result(["Practice"]));
+  api.reviewLater.mockRejectedValue(new Error("Save failed"));
+  mount(<UpsolvingPage />);
+  const select = await screen.findByRole("combobox", { name: "Change status for Practice" });
+  fireEvent.change(select, { target: { value: "review_later" } });
+  await waitFor(() => expect(api.error).toHaveBeenCalledWith(expect.objectContaining({ title: "Unable to save problem status." })));
+  expect(screen.getByRole("combobox", { name: "Change status for Practice" })).toHaveValue("automatic");
+  expect(screen.getByRole("link", { name: "Practice" })).toBeInTheDocument();
 });
 
 it("keeps filtered empty results loading until the full response settles", async () => {

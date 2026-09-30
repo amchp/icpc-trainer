@@ -1,6 +1,6 @@
 import type { UpsolvingProblemRow } from "@icpc-trainer/api";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UpsolvingProblemTable } from "./UpsolvingProblemTable.js";
 
@@ -74,6 +74,30 @@ const selectAllStatuses = (): void => {
 describe("UpsolvingProblemTable", () => {
   beforeEach(() => {
     cleanup();
+  });
+
+  it("moves a Problem into Review later, filters the saved queue, and allows returning to submissions", () => {
+    const change = vi.fn();
+    const { rerender } = render(<UpsolvingProblemTable rows={rows} onReviewLaterChange={change} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Change status for C. Attempted" }), {
+      target: { value: "review_later" }
+    });
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), true);
+    const savedRows = rows.map((row) => row.problemJudgeId === "100C" ? { ...row, status: "review_later" as const } : row);
+    rerender(<UpsolvingProblemTable rows={savedRows} onReviewLaterChange={change} />);
+    expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "New" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Attempted" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Review later" }));
+    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();
+    const select = screen.getByRole("combobox", { name: "Change status for C. Attempted" });
+    expect(select).toHaveValue("review_later");
+    fireEvent.change(select, { target: { value: "automatic" } });
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), false);
+    rerender(<UpsolvingProblemTable rows={savedRows} onReviewLaterChange={change} saving />);
+    expect(screen.getByRole("combobox", { name: "Change status for C. Attempted" })).toBeDisabled();
   });
 
   it("renders rows through TanStack Table sorted by rating", () => {

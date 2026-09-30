@@ -88,6 +88,10 @@ _Avoid_: Gym view, contest split
 The app page that ranks **Unsimulated Contests** using **Friend** **Contest Participation**.
 _Avoid_: Gym finder
 
+**Review Later**:
+An App User's manually saved Upsolving Problem status for reading its solution later. It overrides submission-based status until the App User clears it, persists across Judge syncs, and is private to that App User. Clearing it restores the current Team User Submission status.
+_Avoid_: Submission verdict, scheduled reminder
+
 **Leaderboard**:
 The app page that ranks **Judge Users** by their number of **Problem Solves**, either all-time or within a selected date range.
 _Avoid_: Scoreboard, App User ranking

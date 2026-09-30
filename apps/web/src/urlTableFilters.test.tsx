@@ -83,6 +83,12 @@ describe("URL table filters", () => {
   });
 
   it("round-trips every page's filter shape and omits defaults", () => {
+    expect(upsolvingFilterUrlConfig.fromSearch({ status: "review_later" }).statusFilters).toEqual(["review_later"]);
+    expect(upsolvingFilterUrlConfig.toSearch({
+      searchQuery: "",
+      judgeSourceFilters: ["codeforces-contest", "codeforces-gym", "qoj"],
+      statusFilters: ["review_later"]
+    }).status).toBe("review_later");
     expect(upsolvingFilterUrlConfig.fromSearch({
       q: "100A",
       judges: "codeforces-gym,qoj",

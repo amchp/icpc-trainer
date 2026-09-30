@@ -38,6 +38,7 @@ export enum UPSOLVING_PROBLEM_STATUSES {
   Upsolved = "upsolved",
   Attempted = "attempted",
   Solved = "solved",
+  ReviewLater = "review_later",
 }
 
 export type UpsolvingProblemStatus = `${UPSOLVING_PROBLEM_STATUSES}`;

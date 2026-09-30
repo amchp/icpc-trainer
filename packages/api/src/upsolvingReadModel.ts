@@ -9,7 +9,7 @@ import {
 import { and, asc, avg, count, countDistinct, desc, eq, sum } from "drizzle-orm";
 
 const { contests, problems, submissions } = schema;
-const { appUserJudgeUsers, userContestStates } = schema;
+const { appUserJudgeUsers, appUserProblemReviews, userContestStates } = schema;
 
 export type { UpsolvingProblemStatus };
 
@@ -132,10 +132,19 @@ export const getUpsolvingOverview = async (
     friendSolvedRows.map((row) => [row.problemId, row.friendSolvedCount])
   );
 
+  const savedReviews = await database.db
+    .select({ problemId: appUserProblemReviews.problemId })
+    .from(appUserProblemReviews)
+    .where(eq(appUserProblemReviews.appUserId, appUserId))
+    .all();
+  const reviewProblemIds = new Set(savedReviews.map((row) => row.problemId));
+
   const rows = problemRows.map<UpsolvingProblemRow>((row) => {
     const submissionState = submissionStateByProblemId.get(row.problemId);
     const submissionCount = submissionState?.submissionCount ?? 0;
-    const status: UpsolvingProblemStatus = submissionState?.hasAccepted === true
+    const status: UpsolvingProblemStatus = reviewProblemIds.has(row.problemId)
+      ? UPSOLVING_PROBLEM_STATUSES.ReviewLater
+      : submissionState?.hasAccepted === true
       ? UPSOLVING_PROBLEM_STATUSES.Solved
       : submissionCount > 0
         ? UPSOLVING_PROBLEM_STATUSES.Attempted

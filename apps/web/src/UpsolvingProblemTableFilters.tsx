@@ -66,7 +66,8 @@ function StatusFilterDropdown({
   const statusFilterOptions: Array<{ readonly value: UpsolvingStatusFilter; readonly label: string }> = [
     { value: "upsolved", label: t("status.new") },
     { value: "attempted", label: t("status.attempted") },
-    { value: "solved", label: t("status.solved") }
+    { value: "solved", label: t("status.solved") },
+    { value: "review_later", label: t("status.reviewLater") }
   ];
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);

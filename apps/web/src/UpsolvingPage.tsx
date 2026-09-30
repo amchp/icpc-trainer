@@ -1,6 +1,7 @@
 import { useProgressiveQuery } from "./useProgressiveQuery.js";
 import { ConnectJudgePrompt } from "./ConnectJudgePrompt.js";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { judgeFromProvider } from "@icpc-trainer/shared";
 import type { OnChangeFn } from "@tanstack/react-table";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +12,7 @@ import { useConnectedJudges } from "./ConnectedJudgesContext.js";
 import { queryKeys } from "./queryKeys.js";
 import { SyncDataPrompt } from "./SyncDataPrompt.js";
 import { trpc } from "./trpc.js";
+import { useToaster } from "./Toaster.js";
 import { UpsolvingProblemTable } from "./UpsolvingProblemTable.js";
 import type { UpsolvingFilterState } from "./urlTableFilters.js";
 
@@ -22,6 +24,17 @@ export function UpsolvingPage({
   readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
 } = {}): React.JSX.Element {
   const { t } = useTranslation(["upsolving", "findProblems"]);
+  const queryClient = useQueryClient();
+  const toaster = useToaster();
+  const setReviewLater = useMutation({
+    mutationFn: (input: Parameters<typeof trpc.upsolving.setReviewLater.mutate>[0]) =>
+      trpc.upsolving.setReviewLater.mutate(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.upsolvingOverview }),
+    onError: (error) => toaster.error({
+      title: t("upsolving:saveStatusError"),
+      description: localizedErrorMessage(error)
+    })
+  });
   const { hasConnectedJudge, status } = useConnectedJudges();
   const query = useProgressiveQuery({
     queryKey: queryKeys.upsolvingOverview,
@@ -85,6 +98,12 @@ export function UpsolvingPage({
           rows={overview.rows}
           filters={filters}
           onFiltersChange={onFiltersChange}
+          saving={setReviewLater.isPending}
+          onReviewLaterChange={(row, reviewLater) => setReviewLater.mutate({
+            judge: judgeFromProvider(row.judge),
+            problemJudgeId: row.problemJudgeId,
+            reviewLater
+          })}
         />
       ) : null}
     </main>

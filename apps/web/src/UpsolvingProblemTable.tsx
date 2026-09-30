@@ -29,12 +29,16 @@ export function UpsolvingProblemTable({
   rows,
   loadingState,
   filters,
-  onFiltersChange
+  onFiltersChange,
+  onReviewLaterChange,
+  saving = false
 }: {
   readonly rows: readonly UpsolvingProblemRow[];
   readonly loadingState?: TableLoadingState;
   readonly filters?: UpsolvingFilterState;
   readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
+  readonly onReviewLaterChange?: (row: UpsolvingProblemRow, reviewLater: boolean) => void;
+  readonly saving?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("upsolving");
   const { locale } = useLocale();
@@ -69,7 +73,10 @@ export function UpsolvingProblemTable({
       }),
     [normalizedSearchQuery, selectedJudgeSources, selectedStatuses, tableRows]
   );
-  const columns = useMemo(() => createUpsolvingProblemColumns(t, locale), [locale, t]);
+  const columns = useMemo(
+    () => createUpsolvingProblemColumns(t, locale, onReviewLaterChange, saving),
+    [locale, t, onReviewLaterChange, saving]
+  );
 
   const table = useReactTable({
     data: filteredRows,

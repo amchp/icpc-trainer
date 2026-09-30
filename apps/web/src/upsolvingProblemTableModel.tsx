@@ -9,7 +9,7 @@ import { formatNumber, formatPercent } from "./i18n/format.js";
 import { cn } from "./lib.js";
 import { i18n } from "./i18n/i18n.js";
 
-export const upsolvingStatusFilterOptions = ["upsolved", "attempted", "solved"] as const satisfies readonly UpsolvingProblemStatus[];
+export const upsolvingStatusFilterOptions = ["upsolved", "attempted", "solved", "review_later"] as const satisfies readonly UpsolvingProblemStatus[];
 export type UpsolvingStatusFilter = typeof upsolvingStatusFilterOptions[number];
 export const defaultUpsolvingStatusFilters: readonly UpsolvingStatusFilter[] = ["upsolved", "attempted"];
 
@@ -25,6 +25,7 @@ const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
   new: "text-blue-300",
   upsolved: "text-violet-300",
   attempted: "text-amber-300",
+  review_later: "text-sky-300",
   solved: "text-emerald-300"
 };
 
@@ -62,7 +63,9 @@ export const toSearchableUpsolvingProblemRow = (
 
 export const createUpsolvingProblemColumns = (
   t: TFunction<"upsolving">,
-  locale: AppLocale
+  locale: AppLocale,
+  onReviewLaterChange?: (row: UpsolvingProblemRow, reviewLater: boolean) => void,
+  saving = false
 ): Array<ColumnDef<SearchableUpsolvingProblemRow>> => [
   {
     accessorKey: "displayProblemName",
@@ -93,11 +96,27 @@ export const createUpsolvingProblemColumns = (
   {
     accessorKey: "status",
     header: t("columns.status"),
-    cell: ({ row }) => (
-      <span className={cn("text-xs font-medium", statusTextClassNames[row.original.status])}>
-        {row.original.status === "attempted" ? t("status.attempted") : row.original.status === "solved" ? t("status.solved") : t("status.new")}
-      </span>
-    )
+    cell: ({ row }) => {
+      const problem = row.original;
+      const statusLabel = problem.status === "review_later" ? t("status.reviewLater")
+        : problem.status === "attempted" ? t("status.attempted")
+        : problem.status === "solved" ? t("status.solved") : t("status.new");
+      return onReviewLaterChange ? (
+        <select
+          aria-label={t("changeStatus", { problem: problem.displayProblemName })}
+          title={t("reviewLaterHint")}
+          className={cn("w-full min-w-0 rounded border border-zinc-700 bg-zinc-900 px-1 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-50", statusTextClassNames[problem.status])}
+          value={problem.status === "review_later" ? "review_later" : "automatic"}
+          disabled={saving}
+          onChange={(event) => onReviewLaterChange(problem, event.target.value === "review_later")}
+        >
+          <option value="automatic">{problem.status === "review_later" ? t("useSubmissions") : statusLabel}</option>
+          <option value="review_later">{t("status.reviewLater")}</option>
+        </select>
+      ) : (
+        <span className={cn("text-xs font-medium", statusTextClassNames[problem.status])}>{statusLabel}</span>
+      );
+    }
   },
   {
     accessorKey: "rating",

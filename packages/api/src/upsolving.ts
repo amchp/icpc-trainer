@@ -1,7 +1,7 @@
 import { listInputSchema } from "./listInput.js";
 import { schema } from "@icpc-trainer/db";
-import { JUDGES, type JudgeProvider } from "@icpc-trainer/shared";
-import { eq } from "drizzle-orm";
+import { JUDGES, USER_TYPES, type JudgeProvider } from "@icpc-trainer/shared";
+import { and, eq } from "drizzle-orm";
 import type { initTRPC } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import type { ApiContext } from "./index.js";
 import { requireAppUser } from "./appUsers.js";
 import { getUpsolvingOverview } from "./upsolvingReadModel.js";
 
-const { contests } = schema;
+const { contests, problems, appUserProblemReviews, appUserJudgeUsers, userContestStates } = schema;
 
 const linkPath = (link: string): string => {
   try {
@@ -38,6 +38,47 @@ type TrpcInstance = ReturnType<typeof initTRPC.context<ApiContext>>["create"] ex
 export const createUpsolvingRouter = (t: TrpcInstance) =>
   t.router({
     overview: t.procedure.input(listInputSchema).query(({ ctx, input }) => getUpsolvingOverview(ctx.database, requireAppUser(ctx.appUser).id, input?.limit)),
+    setReviewLater: t.procedure.input(z.object({
+      judge: z.nativeEnum(JUDGES),
+      problemJudgeId: z.string().min(1),
+      reviewLater: z.boolean()
+    })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {
+      const appUser = requireAppUser(ctx.appUser);
+      const problem = await ctx.database.db
+        .select({ id: problems.id })
+        .from(problems)
+        .innerJoin(userContestStates, and(
+          eq(userContestStates.contestId, problems.contestId),
+          eq(userContestStates.simulated, true)
+        ))
+        .innerJoin(appUserJudgeUsers, and(
+          eq(appUserJudgeUsers.userId, userContestStates.userId),
+          eq(appUserJudgeUsers.appUserId, appUser.id),
+          eq(appUserJudgeUsers.role, USER_TYPES.Team)
+        ))
+        .where(and(eq(problems.judge, input.judge), eq(problems.judgeId, input.problemJudgeId)))
+        .get();
+
+      if (problem === undefined) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Upsolving problem was not found." });
+      }
+
+      if (input.reviewLater) {
+        const now = new Date();
+        await ctx.database.db.insert(appUserProblemReviews).values({
+          appUserId: appUser.id,
+          problemId: problem.id,
+          createdAt: now,
+          updatedAt: now
+        }).onConflictDoNothing().run();
+      } else {
+        await ctx.database.db.delete(appUserProblemReviews).where(and(
+          eq(appUserProblemReviews.appUserId, appUser.id),
+          eq(appUserProblemReviews.problemId, problem.id)
+        )).run();
+      }
+      return { ok: true };
+    }),
     refetchContest: t.procedure.input(z.object({
       contestId: z.number().int().positive()
     })).mutation(async ({ ctx, input }): Promise<{ readonly ok: true }> => {

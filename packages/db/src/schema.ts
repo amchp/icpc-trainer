@@ -109,6 +109,15 @@ export const problemTags = sqliteTable("problem_tags", {
   index("problem_tags_tag_idx").on(table.tag)
 ]);
 
+// A saved review is owned by the App User, independently of Judge Submissions.
+export const appUserProblemReviews = sqliteTable("app_user_problem_reviews", {
+  appUserId: integer("app_user_id").references(() => appUsers.id).notNull(),
+  problemId: integer("problem_id").references(() => problems.id).notNull(),
+  ...timestamps
+}, (table) => [
+  primaryKey({ columns: [table.appUserId, table.problemId] })
+]);
+
 export const submissions = sqliteTable("submissions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   judgeId: text("judge_id").notNull(),
@@ -175,6 +184,7 @@ export const schema = {
   contests,
   problems,
   problemTags,
+  appUserProblemReviews,
   submissions,
   userContestStates,
   providerCredentials
