@@ -1,4 +1,4 @@
-import { APP_LOCALE_VALUES, JUDGES, LEARNING_PROGRESS_STATUSES, SUBMISSION_STATUSES, USER_TYPES } from "@icpc-trainer/shared";
+import { APP_LOCALE_VALUES, JUDGES, LEARNING_PROGRESS_STATUSES, SUBMISSION_STATUSES, USER_TYPES, UPSOLVING_MANUAL_PROBLEM_STATUSES, UPSOLVING_PROBLEM_STATUSES } from "@icpc-trainer/shared";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
@@ -109,10 +109,11 @@ export const problemTags = sqliteTable("problem_tags", {
   index("problem_tags_tag_idx").on(table.tag)
 ]);
 
-// A saved review is owned by the App User, independently of Judge Submissions.
+// Manual problem status is owned by the App User, independently of Judge Submissions.
 export const appUserProblemReviews = sqliteTable("app_user_problem_reviews", {
   appUserId: integer("app_user_id").references(() => appUsers.id).notNull(),
   problemId: integer("problem_id").references(() => problems.id).notNull(),
+  status: text("status", { enum: [...UPSOLVING_MANUAL_PROBLEM_STATUSES] }).notNull().default(UPSOLVING_PROBLEM_STATUSES.ReviewLater),
   ...timestamps
 }, (table) => [
   primaryKey({ columns: [table.appUserId, table.problemId] })

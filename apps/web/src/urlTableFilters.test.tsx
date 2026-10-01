@@ -83,6 +83,7 @@ describe("URL table filters", () => {
   });
 
   it("round-trips every page's filter shape and omits defaults", () => {
+    expect(upsolvingFilterUrlConfig.fromSearch({ status: "in_progress" }).statusFilters).toEqual(["in_progress"]);
     expect(upsolvingFilterUrlConfig.fromSearch({ status: "review_later" }).statusFilters).toEqual(["review_later"]);
     expect(upsolvingFilterUrlConfig.toSearch({
       searchQuery: "",
@@ -101,7 +102,7 @@ describe("URL table filters", () => {
     expect(upsolvingFilterUrlConfig.toSearch({
       searchQuery: "",
       judgeSourceFilters: ["codeforces-contest", "codeforces-gym", "qoj"],
-      statusFilters: ["upsolved", "attempted"]
+      statusFilters: ["upsolved", "attempted", "review_later", "in_progress"]
     })).toEqual({ q: undefined, judges: undefined, status: undefined });
 
     expect(findProblemsFilterUrlConfig.fromSearch({
@@ -139,7 +140,7 @@ describe("URL table filters", () => {
     expect(upsolvingFilterUrlConfig.fromSearch({ judges: "unknown", status: "new" })).toEqual({
       searchQuery: "",
       judgeSourceFilters: ["codeforces-contest", "codeforces-gym", "qoj"],
-      statusFilters: ["upsolved", "attempted"]
+      statusFilters: ["upsolved", "attempted", "review_later", "in_progress"]
     });
     expect(findProblemsFilterUrlConfig.fromSearch({ minRating: "nope", maxRating: Infinity })).toMatchObject({
       minRating: 800,

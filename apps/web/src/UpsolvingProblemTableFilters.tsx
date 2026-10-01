@@ -6,6 +6,7 @@ import { DropdownContent, DropdownItem, DropdownTrigger, Input, TableCount } fro
 import { JudgeSourceFilterDropdown, type JudgeSourceFilterId } from "./JudgeSourceFilter.js";
 import {
   upsolvingStatusFilterOptions,
+  defaultUpsolvingStatusFilters,
   type UpsolvingStatusFilter
 } from "./upsolvingProblemTableModel.js";
 
@@ -67,7 +68,8 @@ function StatusFilterDropdown({
     { value: "upsolved", label: t("status.new") },
     { value: "attempted", label: t("status.attempted") },
     { value: "solved", label: t("status.solved") },
-    { value: "review_later", label: t("status.reviewLater") }
+    { value: "review_later", label: t("status.reviewLater") },
+    { value: "in_progress", label: t("status.inProgress") }
   ];
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +79,8 @@ function StatusFilterDropdown({
     .map((option) => option.label);
   const selectedLabel = values.length === statusFilterOptions.length
     ? t("allStatuses")
+    : values.length === defaultUpsolvingStatusFilters.length && defaultUpsolvingStatusFilters.every((status) => selectedSet.has(status))
+      ? t("unsolvedStatuses")
     : selectedLabels.length === 0
       ? t("noStatuses")
       : selectedLabels.join(", ");

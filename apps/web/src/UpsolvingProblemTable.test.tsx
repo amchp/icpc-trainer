@@ -76,34 +76,61 @@ describe("UpsolvingProblemTable", () => {
     cleanup();
   });
 
-  it("moves a Problem into Review later, filters the saved queue, and allows returning to submissions", () => {
+  it("replaces the selected action with reset in the same slot and keeps both buttons neutral", () => {
     const change = vi.fn();
-    const { rerender } = render(<UpsolvingProblemTable rows={rows} onReviewLaterChange={change} />);
-    fireEvent.change(screen.getByRole("combobox", { name: "Change status for C. Attempted" }), {
-      target: { value: "review_later" }
+    const { rerender } = render(<UpsolvingProblemTable rows={rows} onStatusChange={change} />);
+    const review = () => screen.getByRole("button", { name: "Review C. Attempted later" });
+    const progress = () => screen.getByRole("button", { name: "Mark C. Attempted as In Progress" });
+    const revert = () => screen.getByRole("button", { name: "Revert C. Attempted to standard status" });
+    const group = () => screen.getByRole("group", { name: "Status actions for C. Attempted" });
+    const labels = () => within(group()).getAllByRole("button").map((button) => button.getAttribute("aria-label"));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Revert C. Attempted to standard status" })).not.toBeInTheDocument();
+    expect(labels()).toEqual(["Review C. Attempted later", "Mark C. Attempted as In Progress"]);
+    fireEvent.click(review());
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), "review_later");
+    const withStatus = (status: "review_later" | "in_progress") => rows.map((row) => row.problemJudgeId === "100C" ? { ...row, status } : row);
+    rerender(<UpsolvingProblemTable rows={withStatus("review_later")} onStatusChange={change} />);
+    expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
+    expect(labels()).toEqual(["Revert C. Attempted to standard status", "Mark C. Attempted as In Progress"]);
+    fireEvent.click(revert());
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), null);
+    fireEvent.click(progress());
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), "in_progress");
+    rerender(<UpsolvingProblemTable rows={withStatus("in_progress")} onStatusChange={change} />);
+    expect(labels()).toEqual(["Review C. Attempted later", "Revert C. Attempted to standard status"]);
+    within(group()).getAllByRole("button").forEach((button) => {
+      expect(button).toHaveClass("text-zinc-500");
+      expect(button.className).not.toMatch(/(?:sky|amber|blue)-/);
     });
-    expect(change).toHaveBeenCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), true);
-    const savedRows = rows.map((row) => row.problemJudgeId === "100C" ? { ...row, status: "review_later" as const } : row);
-    rerender(<UpsolvingProblemTable rows={savedRows} onReviewLaterChange={change} />);
-    expect(screen.queryByRole("link", { name: "C. Attempted" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "New" }));
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Attempted" }));
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Review later" }));
+    fireEvent.click(revert());
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), null);
+    rerender(<UpsolvingProblemTable rows={rows} onStatusChange={change} />);
+    expect(labels()).toEqual(["Review C. Attempted later", "Mark C. Attempted as In Progress"]);
+    rerender(<UpsolvingProblemTable rows={withStatus("in_progress")} onStatusChange={change} saving />);
+    expect(review()).toBeDisabled(); expect(revert()).toBeDisabled();
+  });
+
+  it("keeps solved rows read-only and filters the manual statuses independently", () => {
+    const change = vi.fn();
+    const markedRows = rows.map((row) => row.problemJudgeId === "100C" ? { ...row, status: "in_progress" as const } : row);
+    render(<UpsolvingProblemTable rows={markedRows} onStatusChange={change} />);
+    selectAllStatuses();
+    const solved = screen.getByRole("group", { name: "Status actions for A. Warmup" });
+    within(solved).getAllByRole("button").forEach((button) => expect(button).toBeDisabled());
+    const menu = screen.getByRole("menu", { name: /status filter options/i });
+    for (const name of ["New", "Attempted", "Solved", "Review later"]) {
+      fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name }));
+    }
     expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();
-    const select = screen.getByRole("combobox", { name: "Change status for C. Attempted" });
-    expect(select).toHaveValue("review_later");
-    fireEvent.change(select, { target: { value: "automatic" } });
-    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ problemJudgeId: "100C" }), false);
-    rerender(<UpsolvingProblemTable rows={savedRows} onReviewLaterChange={change} saving />);
-    expect(screen.getByRole("combobox", { name: "Change status for C. Attempted" })).toBeDisabled();
+    expect(within(screen.getByRole("link", { name: "C. Attempted" }).closest('[role="row"]') as HTMLElement).getByText("In Progress")).toBeInTheDocument();
   });
 
   it("renders rows through TanStack Table sorted by rating", () => {
     render(<UpsolvingProblemTable rows={rows} />);
 
-    expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("New, Attempted");
+    expect(screen.getByRole("button", { name: /filter by status/i })).toHaveTextContent("Unsolved");
     expect(screen.getByLabelText("2 problems")).toBeInTheDocument();
     const bodyRows = screen.getAllByRole("row").slice(1);
     expect(bodyRows).toHaveLength(2);

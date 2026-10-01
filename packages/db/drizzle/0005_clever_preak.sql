@@ -1,0 +1,1 @@
+ALTER TABLE `app_user_problem_reviews` ADD `status` text DEFAULT 'review_later' NOT NULL;

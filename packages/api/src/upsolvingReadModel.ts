@@ -133,24 +133,22 @@ export const getUpsolvingOverview = async (
   );
 
   const savedReviews = await database.db
-    .select({ problemId: appUserProblemReviews.problemId })
+    .select({ problemId: appUserProblemReviews.problemId, status: appUserProblemReviews.status })
     .from(appUserProblemReviews)
     .where(eq(appUserProblemReviews.appUserId, appUserId))
     .all();
-  const reviewProblemIds = new Set(savedReviews.map((row) => row.problemId));
+  const manualStatusByProblemId = new Map(savedReviews.map((row) => [row.problemId, row.status]));
 
   const rows = problemRows.map<UpsolvingProblemRow>((row) => {
     const submissionState = submissionStateByProblemId.get(row.problemId);
     const submissionCount = submissionState?.submissionCount ?? 0;
-    const status: UpsolvingProblemStatus = reviewProblemIds.has(row.problemId)
-      ? UPSOLVING_PROBLEM_STATUSES.ReviewLater
-      : submissionState?.hasAccepted === true
+    const status: UpsolvingProblemStatus = submissionState?.hasAccepted === true
       ? UPSOLVING_PROBLEM_STATUSES.Solved
-      : submissionCount > 0
+      : manualStatusByProblemId.get(row.problemId) ?? (submissionCount > 0
         ? UPSOLVING_PROBLEM_STATUSES.Attempted
         : contestIdsWithSubmissions.has(row.contestId)
           ? UPSOLVING_PROBLEM_STATUSES.Upsolved
-          : UPSOLVING_PROBLEM_STATUSES.New;
+          : UPSOLVING_PROBLEM_STATUSES.New);
 
     return {
       contestName: row.contestName,

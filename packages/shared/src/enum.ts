@@ -39,9 +39,17 @@ export enum UPSOLVING_PROBLEM_STATUSES {
   Attempted = "attempted",
   Solved = "solved",
   ReviewLater = "review_later",
+  InProgress = "in_progress",
 }
 
 export type UpsolvingProblemStatus = `${UPSOLVING_PROBLEM_STATUSES}`;
+
+export const UPSOLVING_MANUAL_PROBLEM_STATUSES = [
+  "review_later",
+  "in_progress"
+] as const satisfies readonly UpsolvingProblemStatus[];
+
+export type UpsolvingManualProblemStatus = `${typeof UPSOLVING_MANUAL_PROBLEM_STATUSES[number]}`;
 
 export enum RUN_STATUSES {
   Idle = "idle",

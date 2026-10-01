@@ -26,9 +26,9 @@ export function UpsolvingPage({
   const { t } = useTranslation(["upsolving", "findProblems"]);
   const queryClient = useQueryClient();
   const toaster = useToaster();
-  const setReviewLater = useMutation({
-    mutationFn: (input: Parameters<typeof trpc.upsolving.setReviewLater.mutate>[0]) =>
-      trpc.upsolving.setReviewLater.mutate(input),
+  const setProblemStatus = useMutation({
+    mutationFn: (input: Parameters<typeof trpc.upsolving.setProblemStatus.mutate>[0]) =>
+      trpc.upsolving.setProblemStatus.mutate(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.upsolvingOverview }),
     onError: (error) => toaster.error({
       title: t("upsolving:saveStatusError"),
@@ -98,11 +98,11 @@ export function UpsolvingPage({
           rows={overview.rows}
           filters={filters}
           onFiltersChange={onFiltersChange}
-          saving={setReviewLater.isPending}
-          onReviewLaterChange={(row, reviewLater) => setReviewLater.mutate({
+          saving={setProblemStatus.isPending}
+          onStatusChange={(row, status) => setProblemStatus.mutate({
             judge: judgeFromProvider(row.judge),
             problemJudgeId: row.problemJudgeId,
-            reviewLater
+            status
           })}
         />
       ) : null}

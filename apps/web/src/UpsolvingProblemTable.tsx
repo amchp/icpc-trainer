@@ -1,5 +1,6 @@
 import { TableLoadState, type TableLoadingState } from "./TableLoadState.js";
 import type { UpsolvingProblemRow } from "@icpc-trainer/api";
+import type { UpsolvingManualProblemStatus } from "@icpc-trainer/shared";
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -30,14 +31,14 @@ export function UpsolvingProblemTable({
   loadingState,
   filters,
   onFiltersChange,
-  onReviewLaterChange,
+  onStatusChange,
   saving = false
 }: {
   readonly rows: readonly UpsolvingProblemRow[];
   readonly loadingState?: TableLoadingState;
   readonly filters?: UpsolvingFilterState;
   readonly onFiltersChange?: OnChangeFn<UpsolvingFilterState>;
-  readonly onReviewLaterChange?: (row: UpsolvingProblemRow, reviewLater: boolean) => void;
+  readonly onStatusChange?: (row: UpsolvingProblemRow, status: UpsolvingManualProblemStatus | null) => void;
   readonly saving?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("upsolving");
@@ -74,8 +75,8 @@ export function UpsolvingProblemTable({
     [normalizedSearchQuery, selectedJudgeSources, selectedStatuses, tableRows]
   );
   const columns = useMemo(
-    () => createUpsolvingProblemColumns(t, locale, onReviewLaterChange, saving),
-    [locale, t, onReviewLaterChange, saving]
+    () => createUpsolvingProblemColumns(t, locale, onStatusChange, saving),
+    [locale, t, onStatusChange, saving]
   );
 
   const table = useReactTable({

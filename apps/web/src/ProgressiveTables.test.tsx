@@ -9,9 +9,9 @@ import { ContestFinderPage } from "./ContestFinderPage.js";
 import { FriendsRoster } from "./FriendsRoster.js";
 import { TeamPage } from "./TeamPage.js";
 
-const api = vi.hoisted(() => ({ upsolving: vi.fn(), reviewLater: vi.fn(), error: vi.fn(), contests: vi.fn(), friends: vi.fn(), team: vi.fn(), replace: vi.fn() }));
+const api = vi.hoisted(() => ({ upsolving: vi.fn(), problemStatus: vi.fn(), error: vi.fn(), contests: vi.fn(), friends: vi.fn(), team: vi.fn(), replace: vi.fn() }));
 vi.mock("./trpc.js", () => ({ trpc: {
-  upsolving: { overview: { query: api.upsolving }, setReviewLater: { mutate: api.reviewLater } },
+  upsolving: { overview: { query: api.upsolving }, setProblemStatus: { mutate: api.problemStatus } },
   contestFinder: { overview: { query: api.contests } },
   account: { dataStatus: { query: async () => ({ hasSyncedContests: true }) } },
   friends: { roster: { query: api.friends }, add: { mutate: vi.fn() }, replace: { mutate: api.replace } },
@@ -83,31 +83,35 @@ it("waits for a full roster before allowing removal and preserves unseen friends
   }));
 });
 
-it("saves Review later and refreshes Upsolving from the server", async () => {
-  let saved = false;
+it("saves manual statuses, keeps the row visible, and explicitly reverts through the server", async () => {
+  let status = "attempted";
   api.upsolving.mockImplementation(async () => {
     const overview = result(["Practice"]);
-    return { ...overview, rows: overview.rows.map((row) => ({ ...row, status: saved ? "review_later" : "attempted" })) };
+    return { ...overview, rows: overview.rows.map((row) => ({ ...row, status })) };
   });
-  api.reviewLater.mockImplementation(async () => { saved = true; return { ok: true }; });
+  api.problemStatus.mockImplementation(async (input) => { status = input.status ?? "attempted"; return { ok: true }; });
   mount(<UpsolvingPage />);
-  const select = await screen.findByRole("combobox", { name: "Change status for Practice" });
-  fireEvent.change(select, { target: { value: "review_later" } });
-  await waitFor(() => expect(api.reviewLater).toHaveBeenCalledWith({ judge: "codeforces", problemJudgeId: "1", reviewLater: true }));
-  await waitFor(() => expect(screen.queryByRole("link", { name: "Practice" })).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Review later" }));
-  expect(screen.getByRole("combobox", { name: "Change status for Practice" })).toHaveValue("review_later");
+  fireEvent.click(await screen.findByRole("button", { name: "Review Practice later" }));
+  await waitFor(() => expect(api.problemStatus).toHaveBeenCalledWith({ judge: "codeforces", problemJudgeId: "1", status: "review_later" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Revert Practice to standard status" })).toBeInTheDocument());
+  expect(screen.getByRole("link", { name: "Practice" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Mark Practice as In Progress" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Mark Practice as In Progress" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Mark Practice as In Progress" })).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Revert Practice to standard status" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Revert Practice to standard status" }));
+  await waitFor(() => expect(api.problemStatus).toHaveBeenLastCalledWith({ judge: "codeforces", problemJudgeId: "1", status: null }));
+  await waitFor(() => expect(screen.getByText("Attempted")).toBeInTheDocument());
 });
 
-it("keeps the original status and reports a failed Review later save", async () => {
+it("keeps the standard status and reports a failed manual status save", async () => {
   api.upsolving.mockResolvedValue(result(["Practice"]));
-  api.reviewLater.mockRejectedValue(new Error("Save failed"));
+  api.problemStatus.mockRejectedValue(new Error("Save failed"));
   mount(<UpsolvingPage />);
-  const select = await screen.findByRole("combobox", { name: "Change status for Practice" });
-  fireEvent.change(select, { target: { value: "review_later" } });
+  fireEvent.click(await screen.findByRole("button", { name: "Review Practice later" }));
   await waitFor(() => expect(api.error).toHaveBeenCalledWith(expect.objectContaining({ title: "Unable to save problem status." })));
-  expect(screen.getByRole("combobox", { name: "Change status for Practice" })).toHaveValue("automatic");
+  expect(screen.getByRole("button", { name: "Review Practice later" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Revert Practice to standard status" })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Practice" })).toBeInTheDocument();
 });
 
