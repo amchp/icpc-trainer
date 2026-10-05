@@ -68,7 +68,7 @@ const sourceRows: UpsolvingProblemRow[] = [
 
 const selectAllStatuses = (): void => {
   fireEvent.click(screen.getByRole("button", { name: /filter by status/i }));
-  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Solved" }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Completed" }));
 };
 
 describe("UpsolvingProblemTable", () => {
@@ -119,12 +119,15 @@ describe("UpsolvingProblemTable", () => {
     const solved = screen.getByRole("group", { name: "Status actions for A. Warmup" });
     within(solved).getAllByRole("button").forEach((button) => expect(button).toBeDisabled());
     const menu = screen.getByRole("menu", { name: /status filter options/i });
-    for (const name of ["New", "Attempted", "Solved", "Review later"]) {
+    expect(within(menu).getAllByRole("menuitemcheckbox").map((option) => option.textContent)).toEqual([
+      "New", "In Progress", "Attempted", "In review", "Completed"
+    ]);
+    for (const name of ["New", "Attempted", "Completed", "In review"]) {
       fireEvent.click(within(menu).getByRole("menuitemcheckbox", { name }));
     }
     expect(screen.getByRole("link", { name: "C. Attempted" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "B. Binary Search" })).not.toBeInTheDocument();
-    expect(within(screen.getByRole("link", { name: "C. Attempted" }).closest('[role="row"]') as HTMLElement).getByText("In Progress")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: "C. Attempted" }).closest('[role="row"]') as HTMLElement).getByText("In Progress")).toHaveClass("text-blue-300");
   });
 
   it("renders rows through TanStack Table sorted by rating", () => {

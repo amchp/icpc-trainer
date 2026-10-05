@@ -102,7 +102,7 @@ describe("URL table filters", () => {
     expect(upsolvingFilterUrlConfig.toSearch({
       searchQuery: "",
       judgeSourceFilters: ["codeforces-contest", "codeforces-gym", "qoj"],
-      statusFilters: ["upsolved", "attempted", "review_later", "in_progress"]
+      statusFilters: ["upsolved", "in_progress", "attempted", "review_later"]
     })).toEqual({ q: undefined, judges: undefined, status: undefined });
 
     expect(findProblemsFilterUrlConfig.fromSearch({
@@ -140,7 +140,7 @@ describe("URL table filters", () => {
     expect(upsolvingFilterUrlConfig.fromSearch({ judges: "unknown", status: "new" })).toEqual({
       searchQuery: "",
       judgeSourceFilters: ["codeforces-contest", "codeforces-gym", "qoj"],
-      statusFilters: ["upsolved", "attempted", "review_later", "in_progress"]
+      statusFilters: ["upsolved", "in_progress", "attempted", "review_later"]
     });
     expect(findProblemsFilterUrlConfig.fromSearch({ minRating: "nope", maxRating: Infinity })).toMatchObject({
       minRating: 800,

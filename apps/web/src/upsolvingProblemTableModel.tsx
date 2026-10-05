@@ -10,9 +10,9 @@ import { cn } from "./lib.js";
 import { i18n } from "./i18n/i18n.js";
 import { UpsolvingProblemActions } from "./UpsolvingProblemActions.js";
 
-export const upsolvingStatusFilterOptions = ["upsolved", "attempted", "solved", "review_later", "in_progress"] as const satisfies readonly UpsolvingProblemStatus[];
+export const upsolvingStatusFilterOptions = ["upsolved", "in_progress", "attempted", "review_later", "solved"] as const satisfies readonly UpsolvingProblemStatus[];
 export type UpsolvingStatusFilter = typeof upsolvingStatusFilterOptions[number];
-export const defaultUpsolvingStatusFilters: readonly UpsolvingStatusFilter[] = ["upsolved", "attempted", "review_later", "in_progress"];
+export const defaultUpsolvingStatusFilters: readonly UpsolvingStatusFilter[] = ["upsolved", "in_progress", "attempted", "review_later"];
 
 export type SearchableUpsolvingProblemRow = UpsolvingProblemRow & {
   readonly displayProblemName: string;
@@ -27,7 +27,7 @@ const statusTextClassNames: Record<UpsolvingProblemStatus, string> = {
   upsolved: "text-violet-300",
   attempted: "text-amber-300",
   review_later: "text-sky-300",
-  in_progress: "text-amber-300",
+  in_progress: "text-blue-300",
   solved: "text-emerald-300"
 };
 

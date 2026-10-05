@@ -66,10 +66,10 @@ function StatusFilterDropdown({
   const { t } = useTranslation("upsolving");
   const statusFilterOptions: Array<{ readonly value: UpsolvingStatusFilter; readonly label: string }> = [
     { value: "upsolved", label: t("status.new") },
+    { value: "in_progress", label: t("status.inProgress") },
     { value: "attempted", label: t("status.attempted") },
-    { value: "solved", label: t("status.solved") },
     { value: "review_later", label: t("status.reviewLater") },
-    { value: "in_progress", label: t("status.inProgress") }
+    { value: "solved", label: t("status.solved") }
   ];
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);

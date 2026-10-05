@@ -7,7 +7,7 @@ export const upsolving = {
   allStatuses: "All statuses",
   unsolvedStatuses: "Unsolved",
   noStatuses: "No statuses",
-  status: { new: "New", attempted: "Attempted", solved: "Solved", reviewLater: "Review later", inProgress: "In Progress" },
+  status: { new: "New", attempted: "Attempted", solved: "Completed", reviewLater: "In review", inProgress: "In Progress" },
   actionsFor: "Status actions for {{problem}}",
   actions: {
     reviewLater: "Review {{problem}} later",

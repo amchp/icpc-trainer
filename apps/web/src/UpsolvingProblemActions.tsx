@@ -1,6 +1,6 @@
 import type { UpsolvingProblemRow } from "@icpc-trainer/api";
 import type { UpsolvingManualProblemStatus } from "@icpc-trainer/shared";
-import { Clock3, Pencil, RotateCcw } from "lucide-react";
+import { Clock3, Play, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "./components/ui.js";
@@ -17,7 +17,7 @@ export function UpsolvingProblemActions({ problem, saving, onChange }: {
   const params = { problem: problem.problemName };
   const buttonClassName = "size-8 shrink-0 rounded-md p-0 text-zinc-500 focus-visible:ring-zinc-400 disabled:opacity-30";
   const ReviewIcon = reviewLater ? RotateCcw : Clock3;
-  const ProgressIcon = inProgress ? RotateCcw : Pencil;
+  const ProgressIcon = inProgress ? RotateCcw : Play;
 
   return (
     <div role="group" aria-label={t("actionsFor", params)} className="flex items-center gap-0.5">

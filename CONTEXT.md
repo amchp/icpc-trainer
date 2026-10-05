@@ -90,6 +90,7 @@ _Avoid_: Gym finder
 
 **Review Later**:
 An **App User**'s private, manually selected **Upsolving Problem** status for reading its solution later, which can be cleared to restore submission-based status. Unsuccessful **Team User Submissions** preserve this status; an accepted **Team User Submission** makes the **Problem** **Solved**.
+Displayed as **In review** in the Upsolving interface; persisted as `review_later`.
 _Avoid_: Submission verdict, scheduled reminder
 
 **In Progress**:
@@ -98,7 +99,7 @@ _Avoid_: Attempted, Submission verdict
 
 **Solved**:
 An **Upsolving Problem** status supported by at least one accepted **Team User Submission**. Accepted **Submissions** take precedence over **Review Later** and **In Progress**.
-_Avoid_: Completed
+Displayed as **Completed** in the Upsolving interface; persisted as `solved`.
 
 **Standard Status**:
 An **Upsolving Problem**'s status determined by **Team User Submissions**, without a manually selected **Review Later** or **In Progress** status. Reverting to **Standard Status** restores the status supported by the current **Submissions**.

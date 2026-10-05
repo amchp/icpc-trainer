@@ -127,10 +127,52 @@ export function DropdownContent({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    const menu = menuRef.current;
+    const trigger = menu?.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
+    if (!menu || !trigger) {
+      return;
+    }
+
+    // The top layer escapes overflow clipping while preserving DOM containment
+    // for the dropdowns' existing outside-click handlers.
+    menu.showPopover?.();
+    const positionMenu = () => {
+      const anchor = trigger.getBoundingClientRect();
+      const gap = 8;
+      const margin = 8;
+      const below = Math.max(0, window.innerHeight - anchor.bottom - gap - margin);
+      const above = Math.max(0, anchor.top - gap - margin);
+      const desiredHeight = Math.min(menu.scrollHeight + 2, 320);
+      const opensAbove = desiredHeight > below && above > below;
+      menu.style.maxHeight = `${Math.min(320, opensAbove ? above : below)}px`;
+      const bounds = menu.getBoundingClientRect();
+      menu.style.left = `${Math.max(margin, Math.min(anchor.right - bounds.width, window.innerWidth - bounds.width - margin))}px`;
+      menu.style.top = `${opensAbove ? anchor.top - bounds.height - gap : anchor.bottom + gap}px`;
+    };
+
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(positionMenu);
+    observer?.observe(trigger);
+    observer?.observe(menu);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+      observer?.disconnect();
+      menu.hidePopover?.();
+    };
+  }, []);
+
   return (
     <div
+      ref={menuRef}
+      popover={typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.showPopover === "function" ? "manual" : undefined}
       className={cn(
-        "absolute right-0 top-11 z-20 min-w-56 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 p-1 shadow-[0_16px_48px_rgba(0,0,0,0.4)]",
+        "fixed inset-auto z-50 m-0 min-w-[min(14rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-1 shadow-[0_16px_48px_rgba(0,0,0,0.4)]",
         className,
       )}
       {...props}
