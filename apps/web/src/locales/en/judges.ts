@@ -25,6 +25,7 @@ export const judges = {
   clearError: "Could not clear {{judge}}",
   clearAllError: "Could not clear connected judges",
   handle: "Handle",
+  qojCookieHelp: "Paste the cookie values from QOJ. __Host-UOJREMEMBER works on its own; you can also provide __Host-UOJSESSID.",
   apiKey: "API key",
   apiSecret: "API secret",
   enter: "Enter",
@@ -44,7 +45,7 @@ export const judges = {
       inspect: { title: "Open QOJ and inspect the page", description: "Sign in to QOJ with the account you want to sync. Right-click the page and choose Inspect.", alt: "QOJ home page with the browser context menu open on Inspect" },
       application: { title: "Switch to Application", description: "In Chrome DevTools, select the Application tab from the top toolbar.", alt: "Chrome DevTools open with the Application tab available" },
       cookies: { title: "Open the QOJ cookies", description: "In Storage, expand Cookies and select https://qoj.ac.", alt: "Chrome DevTools Application panel with Cookies selected in the Storage sidebar" },
-      copy: { title: "Copy the cookie values", description: "Copy the Value column for the QOJ cookie rows into the matching fields in ICPC Trainer.", alt: "Chrome DevTools cookie table for QOJ with credential values redacted" }
+      copy: { title: "Copy the cookie values", description: "Copy the Value column for __Host-UOJREMEMBER or __Host-UOJSESSID into the matching fields in ICPC Trainer. The remember cookie works on its own. Enter your QOJ handle separately.", redactedValue: "Cookie value (hidden)" }
     }
   }
 } as const;

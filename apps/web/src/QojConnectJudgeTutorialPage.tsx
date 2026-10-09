@@ -10,7 +10,7 @@ export function QojConnectJudgeTutorialPage(): React.JSX.Element {
     { key: "inspect" as const, image: "/tutorials/qoj/open-inspect.png" },
     { key: "application" as const, image: "/tutorials/qoj/devtools-open.png" },
     { key: "cookies" as const, image: "/tutorials/qoj/application-storage.png" },
-    { key: "copy" as const, image: "/tutorials/qoj/cookie-values-redacted.png" }
+    { key: "copy" as const, image: null }
   ];
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-5 py-8 text-zinc-100 sm:px-8">
@@ -51,12 +51,23 @@ export function QojConnectJudgeTutorialPage(): React.JSX.Element {
                 <h2 className="text-base font-semibold tracking-normal text-zinc-100">{t(`tutorialPage.steps.${step.key}.title`)}</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">{t(`tutorialPage.steps.${step.key}.description`)}</p>
               </div>
-              <img
-                className="w-full rounded-md border border-zinc-800 bg-zinc-900 object-cover"
-                src={step.image}
-                alt={t(`tutorialPage.steps.${step.key}.alt`)}
-                loading={index === 0 ? "eager" : "lazy"}
-              />
+              {step.key === "copy" ? (
+                <dl className="space-y-4 rounded-md border border-zinc-800 bg-zinc-900 p-5">
+                  {["__Host-UOJREMEMBER", "__Host-UOJSESSID"].map((cookie) => (
+                    <div key={cookie}>
+                      <dt className="break-all font-mono text-sm text-zinc-100">{cookie}</dt>
+                      <dd className="mt-1 text-sm text-zinc-400">{t("tutorialPage.steps.copy.redactedValue")}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <img
+                  className="w-full rounded-md border border-zinc-800 bg-zinc-900 object-cover"
+                  src={step.image}
+                  alt={t(`tutorialPage.steps.${step.key}.alt`)}
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              )}
             </div>
           </Card>
         ))}

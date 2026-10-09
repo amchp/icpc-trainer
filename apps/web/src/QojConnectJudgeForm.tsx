@@ -11,38 +11,17 @@ import { submitFormOnTextareaEnter, type ProviderConnectJudgeFormProps } from ".
 import { useToaster } from "./Toaster.js";
 import { trpc } from "./trpc.js";
 
-type QojCookieKey =
-  | "uoj_remember_token"
-  | "uoj_remember_token_checksum"
-  | "uoj_username"
-  | "uoj_username_checksum"
-  | "uojsessid";
-
-const qojCookieKeys: Array<{ readonly key: QojCookieKey; readonly label: string }> = [
-  { key: "uoj_remember_token", label: "uoj_remember_token" },
-  { key: "uoj_remember_token_checksum", label: "uoj_remember_token_checksum" },
-  { key: "uoj_username_checksum", label: "uoj_username_checksum" },
-  { key: "uojsessid", label: "uojsessid" }
-];
+const qojCookieKeys = ["__Host-UOJREMEMBER", "__Host-UOJSESSID"] as const;
+type QojCookieKey = (typeof qojCookieKeys)[number];
 
 const emptyQojCookies = (): Record<QojCookieKey, string> => ({
-  uoj_remember_token: "",
-  uoj_remember_token_checksum: "",
-  uoj_username: "",
-  uoj_username_checksum: "",
-  uojsessid: ""
+  "__Host-UOJREMEMBER": "",
+  "__Host-UOJSESSID": ""
 });
 
-const buildQojCookieJar = (values: Record<QojCookieKey, string>, handle: string): string =>
-  [
-    { key: "uoj_remember_token" as const },
-    { key: "uoj_remember_token_checksum" as const },
-    { key: "uoj_username" as const },
-    { key: "uoj_username_checksum" as const },
-    { key: "uojsessid" as const }
-  ]
-    .map(({ key }) => [key, values[key].trim()] as const)
-    .map(([key, value]) => [key, key === "uoj_username" ? handle.trim() : value] as const)
+const buildQojCookieJar = (values: Record<QojCookieKey, string>): string =>
+  qojCookieKeys
+    .map((key) => [key, values[key].trim()] as const)
     .filter((entry) => entry[1] !== "")
     .map(([key, value]) => `${key}=${value}`)
     .join("; ");
@@ -67,7 +46,7 @@ export function QojConnectJudgeForm({
           provider: "qoj",
           providerUserKey: value.handle,
           qoj: {
-            cookieJar: buildQojCookieJar(value.qojCookies, value.handle)
+            cookieJar: buildQojCookieJar(value.qojCookies)
           }
         });
         setCredentialStatus(status);
@@ -121,17 +100,18 @@ export function QojConnectJudgeForm({
           </form.Field>
 
           <div className="space-y-3">
+            <p className="text-sm leading-6 text-zinc-400">{t("qojCookieHelp")}</p>
             {qojCookieKeys.map((cookie) => (
-              <form.Field key={cookie.key} name={`qojCookies.${cookie.key}` as const}>
+              <form.Field key={cookie} name={`qojCookies.${cookie}` as const}>
                 {(field) => (
                   <Label>
-                    <FieldLabel>{cookie.label}</FieldLabel>
+                    <FieldLabel>{cookie}</FieldLabel>
                     <Textarea
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                       onKeyDown={(event) => submitFormOnTextareaEnter(event, form.state.isSubmitting)}
-                      placeholder={cookie.label}
+                      placeholder={cookie}
                       autoComplete="off"
                       spellCheck={false}
                       className="min-h-20 font-mono text-xs leading-relaxed"

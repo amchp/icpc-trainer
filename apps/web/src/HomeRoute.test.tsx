@@ -724,10 +724,9 @@ describe("app shell", () => {
     renderWithQuery(<QojConnectJudgeTutorialPage />);
 
     expect(screen.getByRole("heading", { name: "Create a QOJ cookie credential" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /credential values redacted/i })).toHaveAttribute(
-      "src",
-      "/tutorials/qoj/cookie-values-redacted.png"
-    );
+    expect(screen.getByText("__Host-UOJREMEMBER")).toBeInTheDocument();
+    expect(screen.getByText("__Host-UOJSESSID")).toBeInTheDocument();
+    expect(screen.getByText(/The remember cookie works on its own/)).toBeInTheDocument();
   });
 
   it("submits Codeforces credentials when pressing Enter in a credential textarea", async () => {
@@ -753,12 +752,17 @@ describe("app shell", () => {
     expect(navigateMock).toHaveBeenCalledWith({ to: "/judges" });
   });
 
-  it("saves structured cookie fields from the QOJ connect judges page", async () => {
+  it.each([
+    { remember: " remember-token ", session: "", cookieJar: "__Host-UOJREMEMBER=remember-token", submitField: "__Host-UOJREMEMBER" },
+    { remember: "", session: " session ", cookieJar: "__Host-UOJSESSID=session", submitField: "__Host-UOJSESSID" },
+    { remember: " remember-token ", session: " session ", cookieJar: "__Host-UOJREMEMBER=remember-token; __Host-UOJSESSID=session", submitField: "__Host-UOJSESSID" }
+  ])("saves current QOJ cookies: $cookieJar", async ({ remember, session, cookieJar, submitField }) => {
     renderWithQuery(<QojConnectJudgePage />);
 
     fireEvent.change(screen.getByLabelText("Handle"), { target: { value: "qoj-user" } });
-    fireEvent.change(screen.getByLabelText("uojsessid"), { target: { value: "session" } });
-    fireEvent.keyDown(screen.getByLabelText("uojsessid"), { key: "Enter", code: "Enter" });
+    fireEvent.change(screen.getByLabelText("__Host-UOJREMEMBER"), { target: { value: remember } });
+    fireEvent.change(screen.getByLabelText("__Host-UOJSESSID"), { target: { value: session } });
+    fireEvent.keyDown(screen.getByLabelText(submitField), { key: "Enter", code: "Enter" });
 
     await waitFor(() =>
       expect(trpc.credentials.create.mutate).toHaveBeenCalledWith(
@@ -766,7 +770,7 @@ describe("app shell", () => {
           provider: "qoj",
           providerUserKey: "qoj-user",
           qoj: {
-            cookieJar: "uoj_username=qoj-user; uojsessid=session"
+            cookieJar
           }
         })
       )
@@ -819,7 +823,8 @@ describe("app shell", () => {
     expect(screen.getByLabelText("Provider")).toBeInTheDocument();
     expect(screen.queryByLabelText("apiKey")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("apiSecret")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("uojsessid")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("__Host-UOJREMEMBER")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("__Host-UOJSESSID")).not.toBeInTheDocument();
   });
 
   it("runs playground calls without sending credential fields", async () => {

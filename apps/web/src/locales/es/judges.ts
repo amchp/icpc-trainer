@@ -25,6 +25,7 @@ export const judges = {
   clearError: "No se pudo eliminar {{judge}}",
   clearAllError: "No se pudieron eliminar los jueces conectados",
   handle: "Handle",
+  qojCookieHelp: "Pega los valores de las cookies de QOJ. __Host-UOJREMEMBER funciona por sí sola; también puedes incluir __Host-UOJSESSID.",
   apiKey: "Clave de API",
   apiSecret: "Secreto de API",
   enter: "Entrar",
@@ -44,7 +45,7 @@ export const judges = {
       inspect: { title: "Abre QOJ e inspecciona la página", description: "Inicia sesión en QOJ con la cuenta que quieres sincronizar. Haz clic derecho en la página y selecciona Inspeccionar.", alt: "Página principal de QOJ con el menú contextual abierto sobre Inspeccionar" },
       application: { title: "Cambia a Application", description: "En Chrome DevTools, selecciona la pestaña Application en la barra superior.", alt: "Chrome DevTools abierto con la pestaña Application disponible" },
       cookies: { title: "Abre las cookies de QOJ", description: "En Storage, expande Cookies y selecciona https://qoj.ac.", alt: "Panel Application de Chrome DevTools con Cookies seleccionado en la barra lateral de Storage" },
-      copy: { title: "Copia los valores de las cookies", description: "Copia la columna Value de las cookies de QOJ en los campos correspondientes de ICPC Trainer.", alt: "Tabla de cookies de QOJ en Chrome DevTools con los valores confidenciales ocultos" }
+      copy: { title: "Copia los valores de las cookies", description: "Copia la columna Value de __Host-UOJREMEMBER o __Host-UOJSESSID en los campos correspondientes de ICPC Trainer. La cookie de recordar sesión funciona por sí sola. Ingresa tu handle de QOJ por separado.", redactedValue: "Valor de la cookie (oculto)" }
     }
   }
 } as const;
