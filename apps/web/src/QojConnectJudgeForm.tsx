@@ -100,7 +100,6 @@ export function QojConnectJudgeForm({
           </form.Field>
 
           <div className="space-y-3">
-            <p className="text-sm leading-6 text-zinc-400">{t("qojCookieHelp")}</p>
             {qojCookieKeys.map((cookie) => (
               <form.Field key={cookie} name={`qojCookies.${cookie}` as const}>
                 {(field) => (

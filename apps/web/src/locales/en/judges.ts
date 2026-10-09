@@ -25,7 +25,6 @@ export const judges = {
   clearError: "Could not clear {{judge}}",
   clearAllError: "Could not clear connected judges",
   handle: "Handle",
-  qojCookieHelp: "Paste the cookie values from QOJ. __Host-UOJREMEMBER works on its own; you can also provide __Host-UOJSESSID.",
   apiKey: "API key",
   apiSecret: "API secret",
   enter: "Enter",

@@ -25,7 +25,6 @@ export const judges = {
   clearError: "No se pudo eliminar {{judge}}",
   clearAllError: "No se pudieron eliminar los jueces conectados",
   handle: "Handle",
-  qojCookieHelp: "Pega los valores de las cookies de QOJ. __Host-UOJREMEMBER funciona por sí sola; también puedes incluir __Host-UOJSESSID.",
   apiKey: "Clave de API",
   apiSecret: "Secreto de API",
   enter: "Entrar",
